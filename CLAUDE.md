@@ -59,7 +59,7 @@ mas sempre mostra o texto antes e espera aprovação.
 
 - Linguagem e framework: backend em Python com Django REST Framework (testes com pytest + pytest-django); banco PostgreSQL rodando no Docker; app mobile em React Native com Expo e TypeScript (testes com Jest + React Native Testing Library); dados bancários via Meu Pluggy.
 - Para depois: Expo Router, Zod e outros detalhes, adicionados conforme a necessidade.
-- Rodar o projeto: (a definir)
+- Rodar o projeto: `docker compose up -d` sobe o PostgreSQL (`docker compose down` desliga e mantém os dados; `down -v` apaga os dados). Backend e app: (a definir)
 - Rodar os testes: (a definir)
 - Rodar o lint: (a definir)
 
@@ -77,6 +77,8 @@ mas sempre mostra o texto antes e espera aprovação.
 ## Obstáculos e aprendizados
 
 (formato: data, problema, como resolvemos, o que aprendi)
+
+- 2026-10-03, o banco não subiu porque o `.env` não existia e o Docker trocou as variáveis por texto vazio (só com um aviso); resolvemos usando `${VAR:?mensagem}` no docker-compose, que faz o Docker parar com erro claro quando falta uma variável. Aprendi: falhar cedo e com mensagem clara é melhor do que seguir com valor vazio.
 
 ## Ao fim de cada sessão
 
