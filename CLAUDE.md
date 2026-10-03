@@ -62,8 +62,8 @@ mas sempre mostra o texto antes e espera aprovação.
 - Rodar o projeto: `docker compose up -d` sobe o PostgreSQL (`docker compose down` desliga e mantém os dados; `down -v` apaga os dados). Backend e app: (a definir)
 - Preparar o backend: `cd backend && python -m venv .venv && source .venv/bin/activate.fish && pip install -r requirements-dev.txt` (no fish o arquivo é `activate.fish`; no bash é `activate`)
 - Rodar o backend: `python manage.py runserver` (com o banco do Docker no ar)
-- Rodar os testes: (a definir)
-- Rodar o lint: (a definir)
+- Rodar os testes (backend): `cd backend && pytest`
+- Rodar o lint (backend): `cd backend && ruff check . && ruff format --check .`
 
 ## Decisões
 
