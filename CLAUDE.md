@@ -1,5 +1,19 @@
 # CLAUDE.md
 
+<!--toc:start-->
+
+- [CLAUDE.md](#claudemd)
+  - [Sobre o projeto](#sobre-o-projeto)
+  - [Modo deste projeto](#modo-deste-projeto)
+  - [Sobre mim](#sobre-mim)
+  - [Como trabalhamos](#como-trabalhamos)
+  - [Stack e comandos](#stack-e-comandos)
+  - [Decisões](#decisões)
+  - [Obstáculos e aprendizados](#obstáculos-e-aprendizados)
+  - [Ao fim de cada sessão](#ao-fim-de-cada-sessão)
+
+<!--toc:end-->
+
 Documento vivo do projeto. Começa curto e cresce a cada sessão.
 Quem decide o que entra aqui é Vinicius. Claude pode propor mudanças,
 mas sempre mostra o texto antes e espera aprovação.
@@ -8,20 +22,22 @@ mas sempre mostra o texto antes e espera aprovação.
 
 (Vinicius: preencha com suas palavras, duas ou três frases em cada item)
 
-- O que é:
-- Por que estou fazendo:
-- Pronto quando (meta do fim de semana):
+- O que é: Um projeto pessoal para ter controle em tempo real de gastos nos apps de banco, como Pickpay, Inter, e Nubank, além do controle em tempo real das faturas.
+
+- Por que estou fazendo: Preciso aprender a me organizar financeiramente, uma planilha não basta para mim, querto ter uma visão em tempo real de como estou me saindo em ralação a entradas e saidas financieras.
+
+- Pronto quando (meta do fim de semana): Ter uma app rodando e com as principais funcionalidades implementadas.
 
 ## Modo deste projeto
 
-- **Par:** Claude escreve código, mas só depois do plano aprovado. Vinicius precisa entender cada linha antes do commit.
-- **Mentor:** Claude não escreve código de implementação. Faz perguntas, explica conceitos, aponta erros e revisa o que Vinicius escreveu. Só escreve testes se Vinicius pedir.
+- **Modo escolhido: Par.** Claude escreve código, mas só depois do plano aprovado. Vinicius precisa entender cada linha antes do commit.
 
 ## Sobre mim
 
 - Sou júnior (estudante de Engenharia de Software). Explique o porquê das decisões, sem jargão desnecessário.
 - Prefiro a solução simples à solução elegante.
 - Escreva em português do Brasil. Não use travessão; use vírgula, ponto e vírgula ou parênteses.
+- Já tive contato com Django REST Framework e com React Native + Expo + TypeScript, mas preciso relembrar: explique sempre o fluxo das coisas. Testes unitários são novidade total: explique cada teste com calma.
 
 ## Como trabalhamos
 
@@ -41,14 +57,22 @@ mas sempre mostra o texto antes e espera aprovação.
 
 (preencher conforme o projeto ganha forma)
 
-- Linguagem e framework:
-- Rodar o projeto:
-- Rodar os testes:
-- Rodar o lint:
+- Linguagem e framework: backend em Python com Django REST Framework (testes com pytest + pytest-django); banco PostgreSQL rodando no Docker; app mobile em React Native com Expo e TypeScript (testes com Jest + React Native Testing Library); dados bancários via Meu Pluggy.
+- Para depois: Expo Router, Zod e outros detalhes, adicionados conforme a necessidade.
+- Rodar o projeto: (a definir)
+- Rodar os testes: (a definir)
+- Rodar o lint: (a definir)
 
 ## Decisões
 
 (formato: data, decisão, por quê)
+
+- 2026-10-03, integração com bancos via Meu Pluggy (gratuito para uso pessoal), porque é o caminho oficial (Open Finance) sem pedir senha do banco no app.
+- 2026-10-03, chaves da Pluggy e senha do banco só no `.env` do backend, porque tudo que vai para o celular pode ser lido.
+- 2026-10-03, PostgreSQL no Docker, porque é o padrão com Django e fica isolado do sistema.
+- 2026-10-03, monorepo com `backend/` (Django) e `mobile/` (Expo) no mesmo repositório, porque é um projeto pessoal e fica mais simples versionar tudo junto.
+- 2026-10-03, um único `.env` na raiz, lido pelo docker-compose e pelo Django; o `.env.example` documenta as variáveis sem valores reais.
+- 2026-10-03, o Docker roda só o PostgreSQL; o Django roda local num ambiente virtual, porque é mais simples de depurar.
 
 ## Obstáculos e aprendizados
 
