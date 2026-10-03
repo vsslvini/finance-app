@@ -44,7 +44,7 @@ mas sempre mostra o texto antes e espera aprovação.
 1. **Nada entra em commit sem eu entender.** Antes de cada commit, resuma em linguagem simples o que mudou e por quê. Se eu perguntar sobre uma linha, explique antes de seguir.
 2. **Plano antes de código.** Para qualquer feature, primeiro um plano em passos curtos, sem código. Espere minha aprovação. Sempre diga se existe uma versão mais simples.
 3. **Testes primeiro.** Eu escrevo os casos em português; você transforma em teste, roda e me mostra falhando antes de implementar.
-4. **Um passo por vez.** Cada commit faz uma coisa só e passa nos testes e no lint. Mensagens de commit curtas, em português, dizendo o que mudou.
+4. **Um passo por vez.** Cada commit faz uma coisa só e passa nos testes e no lint. Mensagens de commit no padrão de commits semânticos (Conventional Commits), curtas e em português: `tipo(escopo): descrição`. Tipos: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`. Escopo opcional: `backend` ou `mobile`.
 5. **Seja o freio, sem eu pedir.** Avise quando:
    - algo tiver risco de segurança;
    - você quiser adicionar uma dependência (explique por que e espere aprovação);
