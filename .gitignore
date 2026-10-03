@@ -1,1 +1,25 @@
 estudos/
+
+# Segredos (nunca versionar)
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Editores e sistema
+.vscode/
+.idea/
+.DS_Store
