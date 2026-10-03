@@ -60,6 +60,8 @@ mas sempre mostra o texto antes e espera aprovação.
 - Linguagem e framework: backend em Python com Django REST Framework (testes com pytest + pytest-django); banco PostgreSQL rodando no Docker; app mobile em React Native com Expo e TypeScript (testes com Jest + React Native Testing Library); dados bancários via Meu Pluggy.
 - Para depois: Expo Router, Zod e outros detalhes, adicionados conforme a necessidade.
 - Rodar o projeto: `docker compose up -d` sobe o PostgreSQL (`docker compose down` desliga e mantém os dados; `down -v` apaga os dados). Backend e app: (a definir)
+- Preparar o backend: `cd backend && python -m venv .venv && source .venv/bin/activate.fish && pip install -r requirements-dev.txt` (no fish o arquivo é `activate.fish`; no bash é `activate`)
+- Rodar o backend: `python manage.py runserver` (com o banco do Docker no ar)
 - Rodar os testes: (a definir)
 - Rodar o lint: (a definir)
 
@@ -73,6 +75,8 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-03, monorepo com `backend/` (Django) e `mobile/` (Expo) no mesmo repositório, porque é um projeto pessoal e fica mais simples versionar tudo junto.
 - 2026-10-03, um único `.env` na raiz, lido pelo docker-compose e pelo Django; o `.env.example` documenta as variáveis sem valores reais.
 - 2026-10-03, o Docker roda só o PostgreSQL; o Django roda local num ambiente virtual, porque é mais simples de depurar.
+- 2026-10-03, Django 6.1.1 com DRF 3.18.1 e versões fixadas (`==`) nos requirements, para instalações sempre iguais; `requirements-dev.txt` separado com as ferramentas de teste e lint.
+- 2026-10-03, projeto Django chamado `config` (só configurações); funcionalidades ficam em apps separados.
 
 ## Obstáculos e aprendizados
 
