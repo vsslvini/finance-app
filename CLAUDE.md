@@ -10,6 +10,7 @@
   - [Stack e comandos](#stack-e-comandos)
   - [Decisões](#decisões)
   - [Obstáculos e aprendizados](#obstáculos-e-aprendizados)
+  - [Estado atual e próximos passos](#estado-atual-e-próximos-passos)
   - [Ao fim de cada sessão](#ao-fim-de-cada-sessão)
 
 <!--toc:end-->
@@ -52,6 +53,8 @@ mas sempre mostra o texto antes e espera aprovação.
    - eu estiver pedindo algo que não deveria ser prioridade agora.
 6. **Segredos fora do código.** Senhas, tokens e chaves vão em `.env`, e o `.env` fica no `.gitignore`. Confira isso antes de qualquer commit que envolva configuração.
 7. **Não invente.** Se não tiver certeza sobre uma biblioteca ou API, diga, e sugira onde conferir.
+8. **Eu rodo os comandos.** Testes, lint e servidor são rodados por mim; Claude explica antes o que cada comando faz e o que esperar. Claude pode deixar partes pequenas de código para eu escrever, com dicas.
+9. **Trabalho com agentes.** As tarefas são feitas pelos agentes do projeto (`.claude/agents/`): `python-backend-engineer` no backend; `react-native-expert` nas telas; `mobile-tester` nos testes do app; `mobile-ui-expert` no planejamento das telas (só propõe, não escreve código). Os agentes não rodam comandos nem fazem commit; Claude resume para mim o que cada um fez antes de qualquer commit.
 
 ## Stack e comandos
 
@@ -59,11 +62,12 @@ mas sempre mostra o texto antes e espera aprovação.
 
 - Linguagem e framework: backend em Python com Django REST Framework (testes com pytest + pytest-django); banco PostgreSQL rodando no Docker; app mobile em React Native com Expo e TypeScript (testes com Jest + React Native Testing Library); dados bancários via Meu Pluggy.
 - Para depois: Expo Router, Zod e outros detalhes, adicionados conforme a necessidade.
-- Rodar o projeto: `docker compose up -d` sobe o PostgreSQL (`docker compose down` desliga e mantém os dados; `down -v` apaga os dados). Backend e app: (a definir)
+- Rodar o projeto: `docker compose up -d` sobe o PostgreSQL (`docker compose down` desliga e mantém os dados; `down -v` apaga os dados). App mobile: (a definir)
 - Preparar o backend: `cd backend && python -m venv .venv && source .venv/bin/activate.fish && pip install -r requirements-dev.txt` (no fish o arquivo é `activate.fish`; no bash é `activate`)
 - Rodar o backend: `python manage.py runserver` (com o banco do Docker no ar)
-- Rodar os testes (backend): `cd backend && pytest`
-- Rodar o lint (backend): `cd backend && ruff check . && ruff format --check .`
+- Rodar os testes (backend): `cd backend && pytest` (`-v` mostra o nome de cada teste; `--co` só lista os testes encontrados; `pytest caminho/test_x.py::test_nome` roda um teste só)
+- Conferir se o backend está vivo: com o `runserver` no ar, abrir `http://127.0.0.1:8000/api/health/`
+- Rodar o lint (backend): `cd backend && ruff check . && ruff format --check .` (para corrigir: `ruff check . --fix` e depois `ruff format .`)
 
 ## Decisões
 
@@ -77,12 +81,38 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-03, o Docker roda só o PostgreSQL; o Django roda local num ambiente virtual, porque é mais simples de depurar.
 - 2026-10-03, Django 6.1.1 com DRF 3.18.1 e versões fixadas (`==`) nos requirements, para instalações sempre iguais; `requirements-dev.txt` separado com as ferramentas de teste e lint.
 - 2026-10-03, projeto Django chamado `config` (só configurações); funcionalidades ficam em apps separados.
+- 2026-10-03, todas as rotas da API ficam sob `/api/`; cada app tem seu próprio `urls.py`, ligado no `config/urls.py` com `include`.
+- 2026-10-03, testes ficam dentro de cada app, numa pasta `tests/` com arquivos `test_*.py` (ex.: `core/tests/test_health.py`); configuração do pytest e do ruff no `backend/pyproject.toml`.
+- 2026-10-04, Expo Router entra no projeto; o `AGENTS.md` gerado pelo Expo fica como está (rotas em `mobile/src/app/`).
+- 2026-10-04, ordem de trabalho: primeiro os requisitos funcionais (em `docs/requisitos.md`), depois a arquitetura, e só então telas e API, com os testes escritos junto.
+- 2026-10-04, o trabalho passa a ser feito com agentes do Claude Code, definidos em `.claude/agents/` e versionados no repositório.
 
 ## Obstáculos e aprendizados
 
 (formato: data, problema, como resolvemos, o que aprendi)
 
 - 2026-10-03, o banco não subiu porque o `.env` não existia e o Docker trocou as variáveis por texto vazio (só com um aviso); resolvemos usando `${VAR:?mensagem}` no docker-compose, que faz o Docker parar com erro claro quando falta uma variável. Aprendi: falhar cedo e com mensagem clara é melhor do que seguir com valor vazio.
+- 2026-10-03, `ruff check --fix` removeu imports não usados, mas deixou linhas em branco que o `ruff format --check` acusou; resolvemos rodando `ruff format`. Aprendi: `check` (regras) e `format` (formatação) são verificações diferentes, e as duas precisam passar.
+- 2026-10-03, `.env` e `.venv` não apareciam no explorador do LazyVim (snacks.nvim); `H` mostra só arquivos ocultos, e `I` mostra os ignorados pelo git. Aprendi: se some do explorador, pode ser o `.gitignore` funcionando.
+- 2026-10-03, primeiro teste com TDD (vermelho com 404, depois verde). Entendi o fluxo do código, mas ainda não o funcionamento interno do pytest (descoberta de testes, plugins, reescrita do `assert`); vou estudar por fora (docs.pytest.org, seção "Get Started"; livro "Python Testing with pytest", de Brian Okken).
+
+## Estado atual e próximos passos
+
+(atualizar ao fim de cada sessão; vale só o estado mais recente)
+
+**Onde paramos (2026-10-03):**
+
+- Feito: `.gitignore` e `.env.example`; PostgreSQL 17 no Docker; projeto Django ligado no banco; pytest e ruff configurados; rota `GET /api/health/` com teste passando.
+- Contas: Meu Pluggy criado, com Nubank, Inter e PicPay conectados. As credenciais da Pluggy ainda não estão no `.env`.
+- Para recomeçar: `docker compose up -d`, depois `cd backend && source .venv/bin/activate.fish && pytest`.
+
+**Próximos passos, em ordem:**
+
+1. Escrever os requisitos funcionais em `docs/requisitos.md`.
+2. Definir a arquitetura a partir dos requisitos.
+3. Configurar Jest e lint no mobile e começar as telas ou a API (o que fizer mais sentido), com testes junto.
+4. Ligar o app no backend (`/api/health/`, lembrar do `ALLOWED_HOSTS`).
+5. Integração com a Pluggy (credenciais no `.env`).
 
 ## Ao fim de cada sessão
 
