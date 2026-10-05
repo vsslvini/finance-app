@@ -86,6 +86,9 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-04, Expo Router entra no projeto; o `AGENTS.md` gerado pelo Expo fica como está (rotas em `mobile/src/app/`).
 - 2026-10-04, ordem de trabalho: primeiro os requisitos funcionais (em `docs/requisitos.md`), depois a arquitetura, e só então telas e API, com os testes escritos junto.
 - 2026-10-04, o trabalho passa a ser feito com agentes do Claude Code, definidos em `.claude/agents/` e versionados no repositório.
+- 2026-10-04, o backend guarda uma cópia dos dados da Pluggy no PostgreSQL e o app lê só do backend, porque a Pluggy limita atualizações e dados manuais (categoria, metas, dívidas) precisam morar junto.
+- 2026-10-04, chamadas à Pluggy com `requests` (em vez do SDK oficial), porque deixa o fluxo HTTP visível e é simples de testar.
+- 2026-10-04, API protegida com token do DRF; no mobile, o token fica por enquanto no `.env` do Expo (risco aceito para uso pessoal) e depois vai para o `expo-secure-store`.
 
 ## Obstáculos e aprendizados
 
@@ -100,19 +103,18 @@ mas sempre mostra o texto antes e espera aprovação.
 
 (atualizar ao fim de cada sessão; vale só o estado mais recente)
 
-**Onde paramos (2026-10-03):**
+**Onde paramos (2026-10-04):**
 
-- Feito: `.gitignore` e `.env.example`; PostgreSQL 17 no Docker; projeto Django ligado no banco; pytest e ruff configurados; rota `GET /api/health/` com teste passando.
-- Contas: Meu Pluggy criado, com Nubank, Inter e PicPay conectados. As credenciais da Pluggy ainda não estão no `.env`.
-- Para recomeçar: `docker compose up -d`, depois `cd backend && source .venv/bin/activate.fish && pytest`.
+- Feito: backend com `/api/health/`; projeto Expo com TypeScript e lint; agentes em `.claude/agents/`; requisitos em `docs/requisitos.md`; arquitetura em `docs/arquitetura.md`.
+- Pendências do mobile: Expo Router ainda não instalado (o projeto usa `App.tsx`); `@testing-library/react-native` e `@types/jest` estão em `dependencies` (deveriam estar em `devDependencies`); faltam `jest`, `jest-expo` e o script `"test"`.
+- Para recomeçar: ler `docs/inicio-de-sessao.md` (roteiro para o Claude); `docker compose up -d`, depois `cd backend && source .venv/bin/activate.fish && pytest`.
 
-**Próximos passos, em ordem:**
+**Próximos passos, em ordem (detalhes em `docs/arquitetura.md`, seção 5):**
 
-1. Escrever os requisitos funcionais em `docs/requisitos.md`.
-2. Definir a arquitetura a partir dos requisitos.
-3. Configurar Jest e lint no mobile e começar as telas ou a API (o que fizer mais sentido), com testes junto.
-4. Ligar o app no backend (`/api/health/`, lembrar do `ALLOWED_HOSTS`).
-5. Integração com a Pluggy (credenciais no `.env`).
+1. Passo 2 da arquitetura: models `Conexao`, `Conta` e `Transacao` no app `financas`, mais o admin. O plano já foi aprovado; falta o Vinicius escrever os casos de teste em português (categoria exibida, valor exato em centavos, transação manual sem id da Pluggy, id da Pluggy repetido).
+2. Passo 3: cliente da Pluggy (`requests`, já aprovada) e `sincronizar()`; credenciais da Pluggy no `.env`.
+3. Passo 4: token e rotas de contas e transações.
+4. Passo 1 (base do mobile) antes de começar as telas.
 
 ## Ao fim de cada sessão
 
