@@ -95,8 +95,8 @@ Conferido na documentação da Pluggy em 2026-10-04:
 Ainda em aberto:
 
 1. Qual a frequência de atualização do Meu Pluggy? (conferir no painel)
-2. As caixinhas do Nubank aparecem como investimento? (conferir com os dados reais) (RF04)
-3. As minhas transações vêm com categoria preenchida? (conferir com os dados reais) (RF07)
+2. As caixinhas do Nubank aparecem como investimento? Decidido: usar os valores que a Pluggy fornecer. (RF04)
+3. As minhas transações vêm com categoria preenchida? No painel do Meu Pluggy aparecem categorias (em "Despesas" e "Despesas Futuras"); falta confirmar pela API. O app aceita transação sem categoria ("Sem categoria"). (RF07)
 4. Quando termina o meu período de teste na pluggy.ai?
 5. Qual a fórmula do "posso gastar por dia"? Sugestão inicial: (saldo total menos fatura atual) dividido pelos dias que faltam no mês. (RF18)
 6. Gastos manuais (RF10) entram no saldo total ou ficam separados?
