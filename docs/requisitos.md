@@ -86,17 +86,17 @@ a plataforma de estudos para concurso).
 
 Conferido na documentação da Pluggy em 2026-10-04:
 
-- Atualização: a Pluggy atualiza sozinha a cada 24, 12 ou 8 horas, conforme o plano (falta confirmar qual vale para o Meu Pluggy). Atualização pedida pela API: no máximo uma vez por hora por conexão.
+- Atualização: no Meu Pluggy, a Pluggy atualiza sozinha a cada 24 horas, e os itens não podem ser atualizados manualmente pela API (conferido em 2026-10-06). O "atualizar agora" do app só relê o que a Pluggy já tem.
 - Cartão: o saldo da conta do cartão é a fatura aberta; limite total, limite disponível, fechamento e vencimento vêm prontos.
 - Faturas futuras não vêm prontas: precisam ser estimadas a partir das parcelas ("parcela X de Y"), e cada banco devolve as parcelas de um jeito.
 - Categorias: vêm automáticas e em português, mas depois do período de teste viram recurso pago; sem ele, a categoria vem vazia.
-- Conectar ou trocar bancos no Meu Pluggy só é possível durante o período de teste da conta pluggy.ai.
+- O Meu Pluggy é gratuito, não expira com o fim do teste e aceita até 5 conexões, só para uso pessoal (conferido em 2026-10-06; corrige a anotação anterior de que só daria para conectar bancos durante o teste).
 
 Ainda em aberto:
 
-1. Qual a frequência de atualização do Meu Pluggy? (conferir no painel)
+1. ~~Qual a frequência de atualização do Meu Pluggy?~~ Respondida: a cada 24 horas, sem atualização manual (ver acima).
 2. As caixinhas do Nubank aparecem como investimento? Decidido: usar os valores que a Pluggy fornecer. (RF04)
 3. As minhas transações vêm com categoria preenchida? No painel do Meu Pluggy aparecem categorias (em "Despesas" e "Despesas Futuras"); falta confirmar pela API. O app aceita transação sem categoria ("Sem categoria"). (RF07)
-4. Quando termina o meu período de teste na pluggy.ai?
+4. Quando termina o meu período de teste na pluggy.ai? O acesso ao Meu Pluggy continua depois do teste; falta saber só se as categorias automáticas param de vir (afeta RF07 e RF08).
 5. Qual a fórmula do "posso gastar por dia"? Sugestão inicial: (saldo total menos fatura atual) dividido pelos dias que faltam no mês. (RF18)
 6. Gastos manuais (RF10) entram no saldo total ou ficam separados?

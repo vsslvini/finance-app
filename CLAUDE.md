@@ -55,6 +55,7 @@ mas sempre mostra o texto antes e espera aprovação.
 7. **Não invente.** Se não tiver certeza sobre uma biblioteca ou API, diga, e sugira onde conferir.
 8. **Eu rodo os comandos.** Testes, lint e servidor são rodados por mim; Claude explica antes o que cada comando faz e o que esperar. Claude pode deixar partes pequenas de código para eu escrever, com dicas.
 9. **Trabalho com agentes.** As tarefas são feitas pelos agentes do projeto (`.claude/agents/`): `python-backend-engineer` no backend; `react-native-expert` nas telas; `mobile-tester` nos testes do app; `mobile-ui-expert` no planejamento das telas (só propõe, não escreve código). Os agentes não rodam comandos nem fazem commit; Claude resume para mim o que cada um fez antes de qualquer commit.
+10. **Pluggy documentada.** Tudo o que usarmos da Pluggy (rotas, autenticação, formatos, limites) fica registrado em `docs/pluggy.md`, com a fonte e a data, para estudo e para uma possível troca do serviço.
 
 ## Stack e comandos
 
