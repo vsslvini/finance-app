@@ -29,7 +29,7 @@ App Django `financas` para os dados dos bancos. Metas e dívidas entram depois, 
 | Model | Para que serve | Campos principais |
 |---|---|---|
 | `Conexao` | um banco conectado no Meu Pluggy | id da Pluggy, nome do banco, última atualização |
-| `Conta` | conta corrente ou cartão | conexão, tipo, nome, saldo; no cartão: limite total, limite disponível, fechamento, vencimento |
+| `Conta` | conta corrente ou cartão | conexão, id da Pluggy, tipo, nome, saldo; no cartão: limite total, limite disponível, fechamento, vencimento |
 | `Transacao` | cada entrada ou saída | conta, data, descrição, valor, categoria da Pluggy, categoria manual, parcela X de Y, id da Pluggy (vazio se manual) |
 
 - Os ids das conexões (copiados do painel da Pluggy) são cadastrados pelo admin do Django.

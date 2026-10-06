@@ -65,6 +65,8 @@ mas sempre mostra o texto antes e espera aprovação.
 - Rodar o projeto: `docker compose up -d` sobe o PostgreSQL (`docker compose down` desliga e mantém os dados; `down -v` apaga os dados). App mobile: (a definir)
 - Preparar o backend: `cd backend && python -m venv .venv && source .venv/bin/activate.fish && pip install -r requirements-dev.txt` (no fish o arquivo é `activate.fish`; no bash é `activate`)
 - Rodar o backend: `python manage.py runserver` (com o banco do Docker no ar)
+- Depois de mudar um model: `python manage.py makemigrations` (gera o arquivo da migration, que entra no commit) e `python manage.py migrate` (cria ou altera as tabelas no banco)
+- Admin do Django: `python manage.py createsuperuser` (uma vez) e, com o `runserver` no ar, abrir `http://127.0.0.1:8000/admin/`
 - Rodar os testes (backend): `cd backend && pytest` (`-v` mostra o nome de cada teste; `--co` só lista os testes encontrados; `pytest caminho/test_x.py::test_nome` roda um teste só)
 - Conferir se o backend está vivo: com o `runserver` no ar, abrir `http://127.0.0.1:8000/api/health/`
 - Rodar o lint (backend): `cd backend && ruff check . && ruff format --check .` (para corrigir: `ruff check . --fix` e depois `ruff format .`)
@@ -89,6 +91,8 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-04, o backend guarda uma cópia dos dados da Pluggy no PostgreSQL e o app lê só do backend, porque a Pluggy limita atualizações e dados manuais (categoria, metas, dívidas) precisam morar junto.
 - 2026-10-04, chamadas à Pluggy com `requests` (em vez do SDK oficial), porque deixa o fluxo HTTP visível e é simples de testar.
 - 2026-10-04, API protegida com token do DRF; no mobile, o token fica por enquanto no `.env` do Expo (risco aceito para uso pessoal) e depois vai para o `expo-secure-store`.
+- 2026-10-05, a `Conta` também guarda o id da Pluggy (único, vazio permitido), para o `sincronizar()` atualizar a conta existente em vez de duplicar.
+- 2026-10-05, as ligações entre `Conexao`, `Conta` e `Transacao` usam `on_delete=PROTECT`, para que apagar uma conexão por engano no admin não leve junto gastos e categorias manuais.
 
 ## Obstáculos e aprendizados
 
@@ -98,23 +102,24 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-03, `ruff check --fix` removeu imports não usados, mas deixou linhas em branco que o `ruff format --check` acusou; resolvemos rodando `ruff format`. Aprendi: `check` (regras) e `format` (formatação) são verificações diferentes, e as duas precisam passar.
 - 2026-10-03, `.env` e `.venv` não apareciam no explorador do LazyVim (snacks.nvim); `H` mostra só arquivos ocultos, e `I` mostra os ignorados pelo git. Aprendi: se some do explorador, pode ser o `.gitignore` funcionando.
 - 2026-10-03, primeiro teste com TDD (vermelho com 404, depois verde). Entendi o fluxo do código, mas ainda não o funcionamento interno do pytest (descoberta de testes, plugins, reescrita do `assert`); vou estudar por fora (docs.pytest.org, seção "Get Started"; livro "Python Testing with pytest", de Brian Okken).
+- 2026-10-05, os testes dos models passaram sem que a migration tivesse sido criada, porque o pytest-django cria as tabelas direto dos models quando o app não tem migrations; o banco de desenvolvimento ficaria sem as tabelas. Resolvemos rodando `makemigrations` antes do commit. Aprendi: teste verde não garante que a migration existe; conferir com `git status` se a pasta `migrations/` entrou.
 
 ## Estado atual e próximos passos
 
 (atualizar ao fim de cada sessão; vale só o estado mais recente)
 
-**Onde paramos (2026-10-04):**
+**Onde paramos (2026-10-05):**
 
-- Feito: backend com `/api/health/`; projeto Expo com TypeScript e lint; agentes em `.claude/agents/`; requisitos em `docs/requisitos.md`; arquitetura em `docs/arquitetura.md`.
+- Feito: backend com `/api/health/`; models `Conexao`, `Conta` e `Transacao` no app `financas`, com admin, migration e 7 testes (passo 2 da arquitetura); projeto Expo com TypeScript e lint; agentes em `.claude/agents/`; requisitos em `docs/requisitos.md`; arquitetura em `docs/arquitetura.md`.
+- Pendência do backend: criar o usuário do admin (`python manage.py createsuperuser`) e cadastrar as conexões com os ids copiados do painel da Pluggy.
 - Pendências do mobile: Expo Router ainda não instalado (o projeto usa `App.tsx`); `@testing-library/react-native` e `@types/jest` estão em `dependencies` (deveriam estar em `devDependencies`); faltam `jest`, `jest-expo` e o script `"test"`.
 - Para recomeçar: ler `docs/inicio-de-sessao.md` (roteiro para o Claude); `docker compose up -d`, depois `cd backend && source .venv/bin/activate.fish && pytest`.
 
 **Próximos passos, em ordem (detalhes em `docs/arquitetura.md`, seção 5):**
 
-1. Passo 2 da arquitetura: models `Conexao`, `Conta` e `Transacao` no app `financas`, mais o admin. O plano já foi aprovado; falta o Vinicius escrever os casos de teste em português (categoria exibida, valor exato em centavos, transação manual sem id da Pluggy, id da Pluggy repetido).
-2. Passo 3: cliente da Pluggy (`requests`, já aprovada) e `sincronizar()`; credenciais da Pluggy no `.env`.
-3. Passo 4: token e rotas de contas e transações.
-4. Passo 1 (base do mobile) antes de começar as telas.
+1. Passo 3 da arquitetura: cliente da Pluggy (`requests`, já aprovada) e `sincronizar()`, com testes usando respostas falsas da Pluggy (sem internet); credenciais da Pluggy no `.env`. Antes do plano, conferir na documentação da Pluggy as rotas de contas e transações e o formato das respostas.
+2. Passo 4: token e rotas de contas e transações.
+3. Passo 1 (base do mobile) antes de começar as telas.
 
 ## Ao fim de cada sessão
 
