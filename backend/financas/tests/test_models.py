@@ -21,13 +21,14 @@ def conta(db):
 
 def criar_transacao(conta, **campos):
     # Cria uma transação com valores padrão; cada teste troca só o que importa
-    return Transacao.objects.create(
-        conta=conta,
-        data=date(2026, 10, 1),
-        descricao="Padaria",
-        valor=Decimal("-10.00"),
-        **campos,
-    )
+    dados = {
+        "data": date(2026, 10, 1),
+        "descricao": "Padaria",
+        "valor": Decimal("-10.00"),
+    }
+    # update: o que o teste mandar em campos substitui o padrão de mesmo nome
+    dados.update(campos)
+    return Transacao.objects.create(conta=conta, **dados)
 
 
 def test_categoria_exibida_usa_a_da_pluggy():
@@ -85,8 +86,7 @@ def test_id_pluggy_repetido_da_erro(conta):
     criar_transacao(conta, id_pluggy="abc")
 
     # O atomic isola o erro num "savepoint", e o resto do teste segue válido
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            criar_transacao(conta, id_pluggy="abc")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        criar_transacao(conta, id_pluggy="abc")
 
     assert Transacao.objects.count() == 1
