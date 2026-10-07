@@ -31,6 +31,10 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 
+# Credenciais da Pluggy: só no .env, nunca no código nem no app mobile
+PLUGGY_CLIENT_ID = env("PLUGGY_CLIENT_ID")
+PLUGGY_CLIENT_SECRET = env("PLUGGY_CLIENT_SECRET")
+
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 
