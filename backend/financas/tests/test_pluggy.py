@@ -1,7 +1,7 @@
 import pytest
 import requests
 
-from financas import pluggy
+from financas.integracoes import pluggy
 
 URL = "https://api.pluggy.ai"
 
@@ -28,7 +28,7 @@ def trocar_post(monkeypatch, resposta):
         chamadas.append({"url": url, **argumentos})
         return resposta
 
-    monkeypatch.setattr("financas.pluggy.requests.post", post_falso)
+    monkeypatch.setattr("financas.integracoes.pluggy.requests.post", post_falso)
     return chamadas
 
 
@@ -41,7 +41,7 @@ def trocar_get(monkeypatch, *respostas):
         chamadas.append({"url": url, **argumentos})
         return fila.pop(0)
 
-    monkeypatch.setattr("financas.pluggy.requests.get", get_falso)
+    monkeypatch.setattr("financas.integracoes.pluggy.requests.get", get_falso)
     return chamadas
 
 

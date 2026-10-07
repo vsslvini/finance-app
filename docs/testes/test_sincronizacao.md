@@ -6,7 +6,7 @@ Explicação de `backend/financas/tests/test_sincronizacao.py` (16 testes), escr
 
 ## A ideia geral
 
-A função `sincronizar()` (em `financas/sincronizacao.py`) faz, para cada `Conexao`
+A função `sincronizar()` (em `financas/services/sincronizacao.py`) faz, para cada `Conexao`
 cadastrada no admin:
 
 1. pede uma chave à Pluggy (`pluggy.obter_api_key()`);
@@ -18,7 +18,7 @@ cadastrada no admin:
 O `test_pluggy.py` já testa **como** o cliente conversa com a Pluggy (URLs, cabeçalhos,
 páginas). Aqui a pergunta é outra: **dado o que a Pluggy devolveu, o nosso banco ficou
 certo?** Por isso estes testes não trocam o `requests`; trocam as 3 funções do
-`financas/pluggy.py` inteiras. É uma camada acima.
+`financas/integracoes/pluggy.py` inteiras. É uma camada acima.
 
 Diferença importante para o `test_pluggy.py`: aqui os testes **usam o banco de dados**
 (criam e leem `Conexao`, `Conta` e `Transacao`). Por isso cada teste tem
@@ -78,16 +78,16 @@ essa conexão pronta.
 - cria um dicionário `dados` com o que a Pluggy vai devolver: contas **por id do item**
   (`"item-nubank"`) e transações **por id da conta** (`"conta-corrente"`). O padrão é uma
   conta corrente com uma transação de padaria;
-- troca as 3 funções do `financas.pluggy` por versões falsas que só leem desse dicionário.
+- troca as 3 funções do `financas.integracoes.pluggy` por versões falsas que só leem desse dicionário.
   O `.get(item_id, [])` devolve lista vazia se o id não estiver lá;
 - devolve o dicionário. Como dicionários em Python são compartilhados (não copiados), se o
   teste mudar `dados_pluggy[...]`, a Pluggy falsa passa a devolver o dado novo. É assim que
   os testes simulam "a Pluggy mudou entre uma sincronização e outra".
 
-**Consequência para o código:** a troca é feita em `financas.pluggy.obter_api_key` (o nome
+**Consequência para o código:** a troca é feita em `financas.integracoes.pluggy.obter_api_key` (o nome
 dentro do módulo). Para ela valer, o `sincronizacao.py` precisa chamar
-`pluggy.obter_api_key()` (com `from financas import pluggy`). Se ele fizesse
-`from financas.pluggy import obter_api_key`, guardaria a função original no momento do
+`pluggy.obter_api_key()` (com `from financas.integracoes import pluggy`). Se ele fizesse
+`from financas.integracoes.pluggy import obter_api_key`, guardaria a função original no momento do
 import, e a troca não teria efeito: o teste tentaria ir à internet de verdade. É o mesmo
 motivo do "Por que esse caminho" em `docs/pytest.md`, seção 4.
 

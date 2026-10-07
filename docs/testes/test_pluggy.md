@@ -10,7 +10,7 @@ sem `import`): ver `docs/pytest.md`, seções 3 e 4, e o resumo no começo de
 
 ## A ideia geral
 
-O `financas/pluggy.py` faz chamadas HTTP de verdade à Pluggy com `requests`. Nos testes,
+O `financas/integracoes/pluggy.py` faz chamadas HTTP de verdade à Pluggy com `requests`. Nos testes,
 **não queremos internet**, por três motivos: o teste ficaria lento, dependeria da Pluggy
 estar no ar e gastaria nossas chamadas. Então, durante o teste, trocamos o `requests.post`
 e o `requests.get` por funções falsas que:
@@ -38,8 +38,8 @@ nosso código usa:
 - define `post_falso`, que guarda na lista um dicionário com a `url` e todos os argumentos
   nomeados (`**argumentos` junta coisas como `json=...` e `timeout=...` num dicionário) e
   devolve a resposta pronta;
-- `monkeypatch.setattr("financas.pluggy.requests.post", post_falso)` faz a troca. O caminho
-  começa em `financas.pluggy` porque trocamos o `requests` **que o nosso módulo usa** (ver
+- `monkeypatch.setattr("financas.integracoes.pluggy.requests.post", post_falso)` faz a troca. O caminho
+  começa em `financas.integracoes.pluggy` porque trocamos o `requests` **que o nosso módulo usa** (ver
   `docs/pytest.md`, seção 4, "Por que esse caminho"). Quando o teste termina, o
   `monkeypatch` desfaz a troca sozinho;
 - devolve a lista, para o teste olhar o que foi anotado.

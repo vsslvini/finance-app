@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 # Importa o módulo (e não as funções) para os testes conseguirem trocá-las
-from financas import pluggy
+from financas.integracoes import pluggy
 from financas.models import Conexao, Conta, Transacao
 
 TIPOS_DE_CONTA = {

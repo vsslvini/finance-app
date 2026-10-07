@@ -155,7 +155,7 @@ Fonte: https://docs.pytest.org/en/stable/how-to/monkeypatch.html (conferido em 2
 
 ### O que ele faz, numa imagem
 
-Pense no módulo `financas.pluggy` como uma gaveta com etiquetas: a etiqueta `obter_api_key` aponta para a função de verdade. O `monkeypatch.setattr(...)`:
+Pense no módulo `financas.integracoes.pluggy` como uma gaveta com etiquetas: a etiqueta `obter_api_key` aponta para a função de verdade. O `monkeypatch.setattr(...)`:
 
 1. anota para onde a etiqueta apontava;
 2. faz a etiqueta apontar para a nossa função falsa;
@@ -166,18 +166,18 @@ Durante o teste, qualquer código que procurar `pluggy.obter_api_key` encontra a
 Usamos para que nenhum teste acesse a internet:
 
 ```python
-monkeypatch.setattr("financas.pluggy.requests.get", get_falso)
+monkeypatch.setattr("financas.integracoes.pluggy.requests.get", get_falso)
 ```
 
-O texto é um caminho: o pytest importa `financas.pluggy`, pega o que esse módulo chama de `requests` (o módulo `requests` inteiro) e troca o `get` dele por `get_falso`.
+O texto é um caminho: o pytest importa `financas.integracoes.pluggy`, pega o que esse módulo chama de `requests` (o módulo `requests` inteiro) e troca o `get` dele por `get_falso`.
 
 ### Por que esse caminho
 
 A regra da documentação é: troque o nome **no lugar onde o código procura por ele**.
 
-- O `financas/pluggy.py` vai fazer `import requests` e chamar `requests.get(...)`. A busca por `get` acontece dentro do módulo `requests` na hora da chamada, então trocar `financas.pluggy.requests.get` funciona. Escrever o caminho a partir de `financas.pluggy` deixa claro qual código estamos isolando.
-- Se o `pluggy.py` fizesse `from requests import get`, ele guardaria uma cópia do nome `get` dentro dele, e teríamos que trocar `financas.pluggy.get`.
-- No `test_sincronizacao.py` trocamos `financas.pluggy.obter_api_key` (e as outras duas). Isso só funciona porque o `sincronizacao.py` faz `from financas import pluggy` e chama `pluggy.obter_api_key()`: a busca acontece no módulo `pluggy`, que é exatamente o que trocamos. Com `from financas.pluggy import obter_api_key`, a troca não teria efeito e o teste chamaria a Pluggy de verdade.
+- O `financas/integracoes/pluggy.py` vai fazer `import requests` e chamar `requests.get(...)`. A busca por `get` acontece dentro do módulo `requests` na hora da chamada, então trocar `financas.integracoes.pluggy.requests.get` funciona. Escrever o caminho a partir de `financas.integracoes.pluggy` deixa claro qual código estamos isolando.
+- Se o `pluggy.py` fizesse `from requests import get`, ele guardaria uma cópia do nome `get` dentro dele, e teríamos que trocar `financas.integracoes.pluggy.get`.
+- No `test_sincronizacao.py` trocamos `financas.integracoes.pluggy.obter_api_key` (e as outras duas). Isso só funciona porque o `sincronizacao.py` faz `from financas.integracoes import pluggy` e chama `pluggy.obter_api_key()`: a busca acontece no módulo `pluggy`, que é exatamente o que trocamos. Com `from financas.integracoes.pluggy import obter_api_key`, a troca não teria efeito e o teste chamaria a Pluggy de verdade.
 
 As funções falsas guardam os argumentos recebidos numa lista (`chamadas`), e o teste confere essa lista depois:
 

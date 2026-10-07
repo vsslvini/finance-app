@@ -98,6 +98,7 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-05, as ligações entre `Conexao`, `Conta` e `Transacao` usam `on_delete=PROTECT`, para que apagar uma conexão por engano no admin não leve junto gastos e categorias manuais.
 - 2026-10-06, o `valor` da `Transacao` usa um sinal só: saída negativa e entrada positiva, decidido pelo `type` da Pluggy (`DEBIT` ou `CREDIT`), porque no cartão a Pluggy usa o sinal do `amount` ao contrário.
 - 2026-10-06, a sincronização apaga as transações da Pluggy que sumirem, mas só dentro do período que a Pluggy devolveu, porque a Pluggy pode recriar uma transação com id novo; transações manuais nunca são apagadas.
+- 2026-10-07, dentro de cada app Django, clientes de serviços externos ficam em `integracoes/` e regras de negócio em `services/` (nada solto na raiz do app), para não espalhar arquivos quando surgirem mais services e para trocar a Pluggy mexendo só em `integracoes/`; descartamos repositórios e arquitetura hexagonal por serem complexos demais para o projeto.
 
 ## Obstáculos e aprendizados
 
@@ -127,7 +128,7 @@ mas sempre mostra o texto antes e espera aprovação.
 1. Fase vermelha: Vinicius roda `pytest -v` e vê `Interrupted: 2 errors during collection` (faltam `financas.pluggy` e `financas.sincronizacao`).
 2. Claude explica os testes com calma, começando pelos 5 do `test_pluggy.py` (apoio: `docs/pytest.md`); commit `test(backend): adiciona testes do cliente da Pluggy e da sincronização` (com os docs e as regras 3 e 11).
 3. `python-backend-engineer` implementa `financas/pluggy.py` e `financas/sincronizacao.py` (contrato no relatório e nos testes); Vinicius vê ficar verde, com lint passando; commit `feat(backend)`.
-4. Teste real: no `python manage.py shell`, `from financas.sincronizacao import sincronizar; sincronizar()`; conferir no admin e anotar em `docs/pluggy.md` se a `/v2/transactions` funciona no Meu Pluggy e se as datas batem.
+4. Teste real: no `python manage.py shell`, `from financas.services.sincronizacao import sincronizar; sincronizar()`; conferir no admin e anotar em `docs/pluggy.md` se a `/v2/transactions` funciona no Meu Pluggy e se as datas batem.
 5. Passo 4: token e rotas (incluindo `POST /api/sincronizar/`). Depois, passo 1 (base do mobile).
 
 ## Ao fim de cada sessão

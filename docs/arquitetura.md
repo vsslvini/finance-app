@@ -36,6 +36,25 @@ App Django `financas` para os dados dos bancos. Metas e dívidas entram depois, 
 - Valores em dinheiro usam `DecimalField`, exato até o centavo (RNF04).
 - Transação sem categoria aparece como "Sem categoria".
 
+### Organização dos arquivos de cada app
+
+Além de `models.py`, `views.py`, `serializers.py` e `admin.py` (o que o Django e o DRF já
+preveem), cada app usa duas pastas (decidido em 2026-10-07):
+
+- `integracoes/`: clientes de serviços de fora, que só sabem falar HTTP e não importam os
+  models (ex.: `financas/integracoes/pluggy.py`). Trocar a Pluggy mexe só aqui.
+- `services/`: regras de negócio, que usam as integrações e os models (ex.:
+  `financas/services/sincronizacao.py`; depois, o resumo e as faturas futuras).
+
+```
+App Expo ──► urls.py ──► View ──► services/ ──► models.py ──► PostgreSQL
+                                     │
+                                     └──► integracoes/ ──► Pluggy
+```
+
+A view só recebe o pedido e chama o service; o service pode ser chamado também pelo shell,
+pela atualização automática e pelos testes, sem HTTP.
+
 ### Sincronização
 
 Função `sincronizar()`: para cada conexão, busca na Pluggy contas e transações e cria ou atualiza as linhas no nosso banco. É chamada por `POST /api/sincronizar/` (puxar a tela para baixo), respeitando o limite de uma vez por hora. A atualização automática (RF25) chama a mesma função, mais tarde.

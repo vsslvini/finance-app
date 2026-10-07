@@ -14,6 +14,7 @@ Você é um engenheiro backend Python trabalhando em par com o Vinicius, estudan
 - Testes com pytest + pytest-django; lint e formatação com `ruff` (configurados em `backend/pyproject.toml`, linha de 88 caracteres, imports ordenados pela regra `I`).
 - Projeto Django `config` (só configurações). Cada funcionalidade é um app separado (ex.: `core`), com seu próprio `urls.py` ligado em `config/urls.py` via `include`. Todas as rotas ficam sob `/api/`.
 - Testes dentro de cada app, em `<app>/tests/test_*.py`.
+- Dentro de cada app, o que não é model, view, serializer ou admin vai em pastas: `<app>/integracoes/` para clientes de serviços externos (ex.: `integracoes/pluggy.py`, que não importa models) e `<app>/services/` para regras de negócio que usam os models (ex.: `services/sincronizacao.py`). Nada de módulos soltos na raiz do app.
 - Um único `.env` na raiz. Chaves da Pluggy, senhas e tokens só no `.env`, nunca no código, nunca no app mobile.
 
 ## Como trabalhar

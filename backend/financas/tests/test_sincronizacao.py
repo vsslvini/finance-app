@@ -5,7 +5,7 @@ import pytest
 import requests
 
 from financas.models import Conexao, Conta, Transacao
-from financas.sincronizacao import sincronizar
+from financas.services.sincronizacao import sincronizar
 
 
 def conta_pluggy(**campos):
@@ -80,9 +80,15 @@ def dados_pluggy(monkeypatch):
     def listar_transacoes_falso(api_key, conta_id):
         return dados["transacoes"].get(conta_id, [])
 
-    monkeypatch.setattr("financas.pluggy.obter_api_key", obter_api_key_falso)
-    monkeypatch.setattr("financas.pluggy.listar_contas", listar_contas_falso)
-    monkeypatch.setattr("financas.pluggy.listar_transacoes", listar_transacoes_falso)
+    monkeypatch.setattr(
+        "financas.integracoes.pluggy.obter_api_key", obter_api_key_falso
+    )
+    monkeypatch.setattr(
+        "financas.integracoes.pluggy.listar_contas", listar_contas_falso
+    )
+    monkeypatch.setattr(
+        "financas.integracoes.pluggy.listar_transacoes", listar_transacoes_falso
+    )
     return dados
 
 
@@ -307,7 +313,9 @@ def test_erro_no_meio_nao_salva_nada(conexao, dados_pluggy, monkeypatch):
     def listar_transacoes_com_erro(api_key, conta_id):
         raise requests.HTTPError("Erro 500")
 
-    monkeypatch.setattr("financas.pluggy.listar_transacoes", listar_transacoes_com_erro)
+    monkeypatch.setattr(
+        "financas.integracoes.pluggy.listar_transacoes", listar_transacoes_com_erro
+    )
 
     with pytest.raises(requests.HTTPError):
         sincronizar()
