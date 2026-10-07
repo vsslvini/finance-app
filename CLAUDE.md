@@ -44,7 +44,7 @@ mas sempre mostra o texto antes e espera aprovação.
 
 1. **Nada entra em commit sem eu entender.** Antes de cada commit, resuma em linguagem simples o que mudou e por quê. Se eu perguntar sobre uma linha, explique antes de seguir.
 2. **Plano antes de código.** Para qualquer feature, primeiro um plano em passos curtos, sem código. Espere minha aprovação. Sempre diga se existe uma versão mais simples.
-3. **Testes primeiro.** Eu escrevo os casos em português; você transforma em teste, roda e me mostra falhando antes de implementar.
+3. **Testes primeiro.** Claude propõe os casos de teste em português e diz qual agente vai transformá-los em teste; eu reviso, corto ou mudo antes de virarem teste. Depois o agente escreve os testes, e eu rodo e vejo falhar antes da implementação.
 4. **Um passo por vez.** Cada commit faz uma coisa só e passa nos testes e no lint. Mensagens de commit no padrão de commits semânticos (Conventional Commits), curtas e em português: `tipo(escopo): descrição`. Tipos: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`. Escopo opcional: `backend` ou `mobile`.
 5. **Seja o freio, sem eu pedir.** Avise quando:
    - algo tiver risco de segurança;
@@ -56,6 +56,8 @@ mas sempre mostra o texto antes e espera aprovação.
 8. **Eu rodo os comandos.** Testes, lint e servidor são rodados por mim; Claude explica antes o que cada comando faz e o que esperar. Claude pode deixar partes pequenas de código para eu escrever, com dicas.
 9. **Trabalho com agentes.** As tarefas são feitas pelos agentes do projeto (`.claude/agents/`): `python-backend-engineer` no backend; `react-native-expert` nas telas; `mobile-tester` nos testes do app; `mobile-ui-expert` no planejamento das telas (só propõe, não escreve código). Os agentes não rodam comandos nem fazem commit; Claude resume para mim o que cada um fez antes de qualquer commit.
 10. **Pluggy documentada.** Tudo o que usarmos da Pluggy (rotas, autenticação, formatos, limites) fica registrado em `docs/pluggy.md`, com a fonte e a data, para estudo e para uma possível troca do serviço.
+11. **pytest documentado.** Tudo o que usarmos do pytest e do pytest-django (fixtures, `monkeypatch`, marcadores, opções de comando) fica explicado em `docs/pytest.md`, com link para a documentação oficial, para estudo.
+12. **Testes explicados.** A explicação de cada arquivo de teste fica em `docs/testes/`, num `.md` com o mesmo nome (ex.: `docs/testes/test_pluggy.md`), para estudo.
 
 ## Stack e comandos
 
@@ -94,6 +96,8 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-04, API protegida com token do DRF; no mobile, o token fica por enquanto no `.env` do Expo (risco aceito para uso pessoal) e depois vai para o `expo-secure-store`.
 - 2026-10-05, a `Conta` também guarda o id da Pluggy (único, vazio permitido), para o `sincronizar()` atualizar a conta existente em vez de duplicar.
 - 2026-10-05, as ligações entre `Conexao`, `Conta` e `Transacao` usam `on_delete=PROTECT`, para que apagar uma conexão por engano no admin não leve junto gastos e categorias manuais.
+- 2026-10-06, o `valor` da `Transacao` usa um sinal só: saída negativa e entrada positiva, decidido pelo `type` da Pluggy (`DEBIT` ou `CREDIT`), porque no cartão a Pluggy usa o sinal do `amount` ao contrário.
+- 2026-10-06, a sincronização apaga as transações da Pluggy que sumirem, mas só dentro do período que a Pluggy devolveu, porque a Pluggy pode recriar uma transação com id novo; transações manuais nunca são apagadas.
 
 ## Obstáculos e aprendizados
 
@@ -104,23 +108,27 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-03, `.env` e `.venv` não apareciam no explorador do LazyVim (snacks.nvim); `H` mostra só arquivos ocultos, e `I` mostra os ignorados pelo git. Aprendi: se some do explorador, pode ser o `.gitignore` funcionando.
 - 2026-10-03, primeiro teste com TDD (vermelho com 404, depois verde). Entendi o fluxo do código, mas ainda não o funcionamento interno do pytest (descoberta de testes, plugins, reescrita do `assert`); vou estudar por fora (docs.pytest.org, seção "Get Started"; livro "Python Testing with pytest", de Brian Okken).
 - 2026-10-05, os testes dos models passaram sem que a migration tivesse sido criada, porque o pytest-django cria as tabelas direto dos models quando o app não tem migrations; o banco de desenvolvimento ficaria sem as tabelas. Resolvemos rodando `makemigrations` antes do commit. Aprendi: teste verde não garante que a migration existe; conferir com `git status` se a pasta `migrations/` entrou.
+- 2026-10-06, o commit dos models entrou com um teste quebrado (o `valor` era passado duas vezes ao `create()`) e com 4 erros de lint; corrigimos no `c6c503d`. Aprendi: rodar testes **e** lint de verdade antes de todo commit, e não confiar num "passou" de memória.
 
 ## Estado atual e próximos passos
 
 (atualizar ao fim de cada sessão; vale só o estado mais recente)
 
-**Onde paramos (2026-10-05):**
+**Onde paramos (2026-10-06):**
 
-- Feito: backend com `/api/health/`; models `Conexao`, `Conta` e `Transacao` no app `financas`, com admin, migration e 7 testes (passo 2 da arquitetura); projeto Expo com TypeScript e lint; agentes em `.claude/agents/`; requisitos em `docs/requisitos.md`; arquitetura em `docs/arquitetura.md`.
-- Pendência do backend: criar o usuário do admin (`python manage.py createsuperuser`) e cadastrar as conexões com os ids copiados do painel da Pluggy.
+- Feito: backend com `/api/health/`; models `Conexao`, `Conta` e `Transacao` com admin, migration e 7 testes passando; `requests` instalado e credenciais da Pluggy lidas do `.env` no `settings.py`; 3 conexões (Nubank, Inter, PicPay) cadastradas no admin com os ids do painel da Pluggy; superusuário criado; MCP `pluggy-docs` instalado (só usar as ferramentas de leitura da documentação); `docs/pluggy.md` com autenticação, contas, transações e limites.
+- Em andamento (passo 3 da arquitetura, plano aprovado): os 20 testes já foram escritos pelo `python-backend-engineer` em `backend/financas/tests/test_pluggy.py` (5, cliente) e `test_sincronizacao.py` (15), mais o guia `docs/pytest.md`. **Ainda sem commit**, junto com `docs/pluggy.md` e as regras 3 e 11 deste arquivo.
+- Decisões do passo 3 já aprovadas: rota `/v2/transactions` (a `/transactions` é obsoleta); valor com sinal pelo `type` (DEBIT negativo, CREDIT positivo); data da transação usada como vem (só `aaaa-mm-dd`); apagar transações da Pluggy que sumirem, só dentro do período devolvido; tudo em `transaction.atomic()`; testes com `monkeypatch` do pytest, sem dependência nova.
 - Pendências do mobile: Expo Router ainda não instalado (o projeto usa `App.tsx`); `@testing-library/react-native` e `@types/jest` estão em `dependencies` (deveriam estar em `devDependencies`); faltam `jest`, `jest-expo` e o script `"test"`.
-- Para recomeçar: ler `docs/inicio-de-sessao.md` (roteiro para o Claude); `docker compose up -d`, depois `cd backend && source .venv/bin/activate.fish && pytest`.
+- Para recomeçar: ler `docs/inicio-de-sessao.md`; `docker compose up -d`, depois `cd backend && source .venv/bin/activate.fish`.
 
 **Próximos passos, em ordem (detalhes em `docs/arquitetura.md`, seção 5):**
 
-1. Passo 3 da arquitetura: cliente da Pluggy (`requests`, já aprovada) e `sincronizar()`, com testes usando respostas falsas da Pluggy (sem internet); credenciais da Pluggy no `.env`. Antes do plano, conferir na documentação da Pluggy as rotas de contas e transações e o formato das respostas.
-2. Passo 4: token e rotas de contas e transações.
-3. Passo 1 (base do mobile) antes de começar as telas.
+1. Fase vermelha: Vinicius roda `pytest -v` e vê `Interrupted: 2 errors during collection` (faltam `financas.pluggy` e `financas.sincronizacao`).
+2. Claude explica os testes com calma, começando pelos 5 do `test_pluggy.py` (apoio: `docs/pytest.md`); commit `test(backend): adiciona testes do cliente da Pluggy e da sincronização` (com os docs e as regras 3 e 11).
+3. `python-backend-engineer` implementa `financas/pluggy.py` e `financas/sincronizacao.py` (contrato no relatório e nos testes); Vinicius vê ficar verde, com lint passando; commit `feat(backend)`.
+4. Teste real: no `python manage.py shell`, `from financas.sincronizacao import sincronizar; sincronizar()`; conferir no admin e anotar em `docs/pluggy.md` se a `/v2/transactions` funciona no Meu Pluggy e se as datas batem.
+5. Passo 4: token e rotas (incluindo `POST /api/sincronizar/`). Depois, passo 1 (base do mobile).
 
 ## Ao fim de cada sessão
 

@@ -49,9 +49,59 @@ Fonte: https://docs.pluggy.ai/en/docs/reference/authentication.md (conferido em 
 - Erros: `CLIENT_KEYS_UNAUTHORIZED` (credenciais erradas) e `CLIENT_DISABLED` (aplicação desativada).
 - Existe também o **Connect Token** (`POST /connect_token`), usado para conectar bancos pelo widget da Pluggy. Não usamos: os bancos são conectados pelo Meu Pluggy.
 
-## 4. Rotas que vamos usar
+## 4. Contas: `GET /accounts?itemId=<id do item>`
 
-(a detalhar no passo 3 da arquitetura, conferindo o formato das respostas)
+Fonte: referência `accounts-list` (MCP `pluggy-docs`, conferido em 2026-10-06).
 
-- `GET /accounts?itemId=<id do item>`: contas de um item.
-- `GET /transactions?accountId=<id da conta>`: transações de uma conta.
+Resposta: `{"page", "total", "totalPages", "results": [...]}`. Campos de cada conta que nos interessam:
+
+| Campo da Pluggy | Significado | No nosso model |
+|---|---|---|
+| `id` | id da conta | `Conta.id_pluggy` |
+| `type` | `BANK` (corrente ou poupança) ou `CREDIT` (cartão) | `Conta.tipo` |
+| `subtype` | `CHECKING_ACCOUNT`, `SAVINGS_ACCOUNT` ou `CREDIT_CARD` | |
+| `name` | nome da conta (ex.: "Conta Corrente", "Mastercard Black") | `Conta.nome` |
+| `balance` | saldo; no cartão, é a fatura aberta | `Conta.saldo` |
+| `creditData.creditLimit` | limite total do cartão | `Conta.limite_total` |
+| `creditData.availableCreditLimit` | limite disponível | `Conta.limite_disponivel` |
+| `creditData.balanceCloseDate` | data de fechamento (data e hora) | `Conta.data_fechamento` |
+| `creditData.balanceDueDate` | data de vencimento (data e hora) | `Conta.data_vencimento` |
+| `bankData.reservedBalances` | caixinhas, quando o banco informa (RF04, para depois) | |
+
+## 5. Transações: `GET /v2/transactions?accountId=<id da conta>`
+
+Fontes: referência `transactions-list-by-cursor` e guia `products/transactions` (MCP `pluggy-docs`, conferido em 2026-10-06).
+
+- A rota antiga `GET /transactions` (paginada por número de página) está marcada como **obsoleta**. A nova é `/v2/transactions`.
+- Paginação por cursor: a resposta é `{"results": [...], "next": "?accountId=...&after=..."}`. Se `next` vier preenchido, chamar de novo `GET /v2/transactions` + `next`; se vier `null`, acabou. No máximo 500 por página.
+- Filtros opcionais: `dateFrom` e `dateTo` (formato `aaaa-mm-dd`).
+
+Campos que nos interessam:
+
+| Campo da Pluggy | Significado | No nosso model |
+|---|---|---|
+| `id` | id da transação | `Transacao.id_pluggy` |
+| `date` | data em UTC (ex.: `2020-10-14T00:00:00.000Z`) | `Transacao.data` |
+| `description` | descrição já limpa | `Transacao.descricao` |
+| `amount` | valor (ver sinais abaixo) | `Transacao.valor` |
+| `type` | `DEBIT` (saiu dinheiro) ou `CREDIT` (entrou) | sinal de `Transacao.valor` |
+| `status` | `POSTED` (confirmada) ou `PENDING` (ainda não fechou, ex.: fatura aberta e parcelas futuras) | |
+| `category` | categoria; **exige assinatura Pro**, pode vir vazia | `Transacao.categoria_pluggy` |
+| `creditCardMetadata.installmentNumber` | número da parcela | `Transacao.parcela_atual` |
+| `creditCardMetadata.totalInstallments` | total de parcelas | `Transacao.total_parcelas` |
+
+Sinais do `amount`:
+
+- Conta bancária: negativo é saída, positivo é entrada.
+- Cartão de crédito: **ao contrário**. Positivo é compra (você deve mais); negativo é pagamento da fatura.
+- O campo `type` já vem normalizado: compra no cartão é sempre `DEBIT`, pagamento da fatura é sempre `CREDIT`.
+
+### O id da transação pode mudar
+
+Na maioria das mudanças (inclusive `PENDING` para `POSTED`), a Pluggy mantém o mesmo `id`. Mas, se data, descrição ou valor mudarem muito, ela **apaga a transação e cria outra com id novo**, sem ligar uma à outra. Quem usa webhooks recebe o aviso `transactions/deleted`; quem só lê a lista precisa perceber sozinho que um id sumiu. Uma transação apagada também pode reaparecer depois.
+
+## 6. Limites
+
+Fonte: guia `developer-tools/rate-limits` (conferido em 2026-10-06).
+
+- `POST /auth`, `GET /accounts` e `GET /transactions`: até 360 chamadas por minuto, por IP.
