@@ -73,6 +73,7 @@ mas sempre mostra o texto antes e espera aprovação.
 - Rodar os testes (backend): `cd backend && pytest` (`-v` mostra o nome de cada teste; `--co` só lista os testes encontrados; `pytest caminho/test_x.py::test_nome` roda um teste só)
 - Conferir se o backend está vivo: com o `runserver` no ar, abrir `http://127.0.0.1:8000/api/health/`
 - Rodar o lint (backend): `cd backend && ruff check . && ruff format --check .` (para corrigir: `ruff check . --fix` e depois `ruff format .`)
+- Sincronizar com a Pluggy de verdade (banco do Docker no ar): `python manage.py shell` e, dentro dele, `from financas.services.sincronizacao import sincronizar; sincronizar()` (sem saída quando dá certo; conferir no admin)
 
 ## Decisões
 
@@ -115,21 +116,24 @@ mas sempre mostra o texto antes e espera aprovação.
 
 (atualizar ao fim de cada sessão; vale só o estado mais recente)
 
-**Onde paramos (2026-10-06):**
+**Onde paramos (2026-10-07):**
 
-- Feito: backend com `/api/health/`; models `Conexao`, `Conta` e `Transacao` com admin, migration e 7 testes passando; `requests` instalado e credenciais da Pluggy lidas do `.env` no `settings.py`; 3 conexões (Nubank, Inter, PicPay) cadastradas no admin com os ids do painel da Pluggy; superusuário criado; MCP `pluggy-docs` instalado (só usar as ferramentas de leitura da documentação); `docs/pluggy.md` com autenticação, contas, transações e limites.
-- Em andamento (passo 3 da arquitetura, plano aprovado): os 20 testes já foram escritos pelo `python-backend-engineer` em `backend/financas/tests/test_pluggy.py` (5, cliente) e `test_sincronizacao.py` (15), mais o guia `docs/pytest.md`. **Ainda sem commit**, junto com `docs/pluggy.md` e as regras 3 e 11 deste arquivo.
-- Decisões do passo 3 já aprovadas: rota `/v2/transactions` (a `/transactions` é obsoleta); valor com sinal pelo `type` (DEBIT negativo, CREDIT positivo); data da transação usada como vem (só `aaaa-mm-dd`); apagar transações da Pluggy que sumirem, só dentro do período devolvido; tudo em `transaction.atomic()`; testes com `monkeypatch` do pytest, sem dependência nova.
-- Pendências do mobile: Expo Router ainda não instalado (o projeto usa `App.tsx`); `@testing-library/react-native` e `@types/jest` estão em `dependencies` (deveriam estar em `devDependencies`); faltam `jest`, `jest-expo` e o script `"test"`.
+- Feito: passo 3 da arquitetura concluído. Cliente da Pluggy em `backend/financas/integracoes/pluggy.py` e `sincronizar()` em `backend/financas/services/sincronizacao.py`; 28 testes passando (7 dos models, 5 do cliente, 16 da sincronização) e lint ok. Teste real funcionou: 3 conexões, 7 contas e 1187 transações no banco de desenvolvimento; achados em `docs/pluggy.md`, seção 7.
+- Feito também: regra 12 (explicação dos testes em `docs/testes/`); `docs/pytest.md` explica decorador, `@pytest.fixture`, `yield` e onde está o `monkeypatch`; organização dos apps em `integracoes/` e `services/` (em `docs/arquitetura.md` e no agente `python-backend-engineer`); RF27 (relatório do mês) e iFood fora do escopo em `docs/requisitos.md`.
+- Último commit: `392abb3`; working tree limpo depois do commit desta atualização.
+- Dúvidas novas para decidir mais tarde (em `docs/requisitos.md`): categorias vêm em inglês (traduzir com `GET /categories`?, passo 6); data de fechamento não vem (RF14); parcelas futuras vêm só em parte (RF13); como somar faturas no mês sem contar duas vezes o pagamento da fatura (dúvida 7, passo 5).
+- Pendente de aprovação do Vinicius (propostas do Claude, ainda não gravadas em "Obstáculos e aprendizados"):
+  - "2026-10-07, os testes passaram com a Pluggy falsa, mas só o teste real mostrou que as categorias vêm em inglês e que a data de fechamento da fatura não vem; resolvemos anotando em `docs/pluggy.md` e nas dúvidas dos requisitos. Aprendi: testes garantem o que o código faz com os dados que imaginamos; o teste real mostra como os dados são de verdade."
+  - "2026-10-07, entendi que `@` é um decorador do Python (uma etiqueta na função) e que o pytest entrega fixtures pelo nome do parâmetro, sem chamá-las com parênteses; o `monkeypatch` vem com o próprio pytest e desfaz as trocas com `yield`. Aprendi: nem tudo no Django é model, template ou view; regras de negócio podem morar em módulos Python comuns (`services/`)."
+- Pendências do mobile (sem mudança): Expo Router ainda não instalado (o projeto usa `App.tsx`); `@testing-library/react-native` e `@types/jest` estão em `dependencies` (deveriam estar em `devDependencies`); faltam `jest`, `jest-expo` e o script `"test"`.
 - Para recomeçar: ler `docs/inicio-de-sessao.md`; `docker compose up -d`, depois `cd backend && source .venv/bin/activate.fish`.
 
 **Próximos passos, em ordem (detalhes em `docs/arquitetura.md`, seção 5):**
 
-1. Fase vermelha: Vinicius roda `pytest -v` e vê `Interrupted: 2 errors during collection` (faltam `financas.pluggy` e `financas.sincronizacao`).
-2. Claude explica os testes com calma, começando pelos 5 do `test_pluggy.py` (apoio: `docs/pytest.md`); commit `test(backend): adiciona testes do cliente da Pluggy e da sincronização` (com os docs e as regras 3 e 11).
-3. `python-backend-engineer` implementa `financas/pluggy.py` e `financas/sincronizacao.py` (contrato no relatório e nos testes); Vinicius vê ficar verde, com lint passando; commit `feat(backend)`.
-4. Teste real: no `python manage.py shell`, `from financas.services.sincronizacao import sincronizar; sincronizar()`; conferir no admin e anotar em `docs/pluggy.md` se a `/v2/transactions` funciona no Meu Pluggy e se as datas batem.
-5. Passo 4: token e rotas (incluindo `POST /api/sincronizar/`). Depois, passo 1 (base do mobile).
+1. Vinicius aprova (ou muda) as duas linhas de aprendizado acima; Claude grava em "Obstáculos e aprendizados".
+2. Passo 4 da arquitetura: token do DRF e rotas de contas e transações, incluindo `POST /api/sincronizar/` (com o limite de uma vez por hora). Começa com um plano curto, sem código, dizendo se há versão mais simples; depois casos de teste em português e testes pelo `python-backend-engineer`. As views só chamam os services (padrão `services/`).
+3. Passo 5: resumo do mês e "posso gastar por dia" (decidir antes a dúvida 7, sobre faturas).
+4. Depois, passo 1 (base do mobile).
 
 ## Ao fim de cada sessão
 
