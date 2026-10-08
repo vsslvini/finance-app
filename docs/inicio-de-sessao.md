@@ -14,7 +14,7 @@ Roteiro para o Claude no começo de cada sessão. Para usar, o Vinicius escreve:
 ## 2. Confira o repositório
 
 - `git log --oneline -10` e `git status`: veja o último commit e se ficou algo sem commit. Se o estado do git não bater com o "Estado atual" do `CLAUDE.md`, avise o Vinicius antes de seguir.
-- Não rode testes, lint nem servidor: quem roda é o Vinicius (regra 8 do `CLAUDE.md`). Se precisar deles, diga o comando e o que esperar.
+- Testes e lint o Claude pode rodar; servidor e comandos que mexem no banco ficam com o Vinicius (regra 8 do `CLAUDE.md`).
 
 ## 3. Diga ao Vinicius, em poucas linhas
 
@@ -24,14 +24,14 @@ Roteiro para o Claude no começo de cada sessão. Para usar, o Vinicius escreve:
 
 Depois, espere a resposta. Não comece código sem plano aprovado.
 
-## 4. Como cada passo anda
+## 4. Como cada módulo anda
 
-1. **Plano** em passos curtos, sem código, dizendo se existe uma versão mais simples. Espere a aprovação.
-2. **Casos de teste** escritos pelo Vinicius em português.
-3. **Testes**: o agente certo transforma os casos em testes; o Vinicius roda e vê falhar.
-4. **Implementação** pelo agente; o Vinicius roda testes e lint e vê passar.
-5. **Resumo** em linguagem simples do que o agente fez e por quê, antes do commit.
-6. **Commit** pequeno, no padrão `tipo(escopo): descrição`, só com a aprovação do Vinicius.
+1. **Plano do módulo** em passos curtos, sem código, com os casos de teste em português, dizendo se existe uma versão mais simples. Espere a aprovação.
+2. **Testes e implementação** pelo agente certo, no mesmo módulo; todo caso aprovado vira teste.
+3. **Verificação**: Claude roda testes e lint e mostra o resultado. Comandos que mexem no banco de desenvolvimento (`migrate`, token, usuário) ficam com o Vinicius.
+4. **Documento do módulo** em `docs/modulos/<nome>.md`: fluxo de uma requisição, cada arquivo e o porquê, cada teste explicado, comandos para testar à mão.
+5. **Resumo** em linguagem simples do que foi feito e por quê, antes do commit.
+6. **Commits** (um a três por módulo), no padrão `tipo(escopo): descrição`, só com a aprovação do Vinicius.
 
 Qual agente usar:
 
@@ -42,7 +42,7 @@ Qual agente usar:
 | Testes do app (Jest + React Native Testing Library) | `mobile-tester` |
 | Código das telas e chamadas à API | `react-native-expert` |
 
-Os agentes não rodam comandos nem fazem commit. Ao chamar um agente, passe o plano aprovado e os casos de teste do Vinicius; ao receber o relatório, resuma para ele antes de qualquer commit.
+Os agentes não rodam comandos nem fazem commit. Ao chamar um agente, passe o plano aprovado e os casos de teste; ao receber o relatório, resuma para ele antes de qualquer commit.
 
 ## 5. Lembretes
 
