@@ -57,7 +57,7 @@ pela atualização automática e pelos testes, sem HTTP.
 
 ### Sincronização
 
-Função `sincronizar()`: para cada conexão, busca na Pluggy contas e transações e cria ou atualiza as linhas no nosso banco. É chamada por `POST /api/sincronizar/` (puxar a tela para baixo), respeitando o limite de uma vez por hora. A atualização automática (RF25) chama a mesma função, mais tarde.
+Função `sincronizar()`: para cada conexão, busca na Pluggy contas e transações e cria ou atualiza as linhas no nosso banco. É chamada por `POST /api/sincronizar/` (puxar a tela para baixo), sem limite por hora: o nosso `sincronizar()` só lê o que a Pluggy já tem, e as leituras aceitam 360 pedidos por minuto (decidido em 2026-10-08). A atualização automática (RF25) chama a mesma função, mais tarde.
 
 Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pluggy são conferidos na documentação durante a implementação.
 
@@ -66,7 +66,7 @@ Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pl
 | Rota | Requisitos |
 |---|---|
 | `GET /api/resumo/?mes=2026-10` | saldo total, entradas, saídas, posso gastar por dia, últimos gastos (RF15 a RF18) |
-| `GET /api/contas/` | contas agrupadas por banco, com dados do cartão (RF01 a RF03, RF11, RF12, RF14) |
+| `GET /api/contas/` | lista de contas com o nome do banco (o app agrupa), com dados do cartão (RF01 a RF03, RF11, RF12, RF14) |
 | `GET /api/transacoes/?mes=...` | transações do mês, com filtros opcionais (RF05 a RF07, RF09) |
 | `PATCH /api/transacoes/<id>/` | trocar a categoria (RF08) |
 | `POST /api/transacoes/` | gasto manual (RF10) |

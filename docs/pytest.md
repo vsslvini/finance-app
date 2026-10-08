@@ -126,10 +126,21 @@ Fonte do `yield`: https://docs.pytest.org/en/stable/how-to/fixtures.html#yield-f
 | Fixture | Quem fornece | Onde está |
 |---|---|---|
 | `conexao`, `dados_pluggy` | nós | `backend/financas/tests/test_sincronizacao.py` |
+| `cliente_com_token` | nós | `backend/financas/tests/conftest.py` (vale para a pasta inteira) |
 | `monkeypatch` | o próprio pytest | `backend/.venv/lib/python3.14/site-packages/_pytest/monkeypatch.py` |
 | `db`, `settings` | o pytest-django | `backend/.venv/lib/python3.14/site-packages/pytest_django/fixtures.py` |
 
 O pytest já conhece as fixtures dele e as dos plugins instalados (o pytest-django é um plugin). Para ver todas as fixtures disponíveis, rode `pytest --fixtures` dentro de `backend/`.
+
+### `conftest.py`: fixtures para a pasta inteira
+
+Fonte: https://docs.pytest.org/en/stable/reference/fixtures.html, seção "`conftest.py`: sharing fixtures across multiple files" (conferido em 2026-10-08).
+
+Uma fixture escrita dentro de `test_contas.py` só existe nesse arquivo. Quando várias pastas de teste precisam da mesma fixture, ela vai num arquivo com o nome especial `conftest.py`. O pytest procura esse arquivo sozinho e entrega as fixtures dele a **todos os testes da mesma pasta e das subpastas**, sem `import`.
+
+No projeto: `backend/financas/tests/conftest.py` tem a `cliente_com_token`, usada pelos três arquivos `test_api_*.py`. Sem o `conftest.py`, teríamos a mesma fixture copiada três vezes.
+
+Cuidado: como não há `import`, quem lê o teste não vê de onde a fixture veio. Se um teste pede um parâmetro que não está no arquivo, procure no `conftest.py` da pasta (ou rode `pytest --fixtures`, que mostra o arquivo de cada uma).
 
 ### Fixture usando outra fixture
 

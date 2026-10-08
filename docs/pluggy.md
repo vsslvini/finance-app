@@ -105,6 +105,7 @@ Na maioria das mudanças (inclusive `PENDING` para `POSTED`), a Pluggy mantém o
 Fonte: guia `developer-tools/rate-limits` (conferido em 2026-10-06).
 
 - `POST /auth`, `GET /accounts` e `GET /transactions`: até 360 chamadas por minuto, por IP.
+- Uso no projeto (decidido em 2026-10-08, limite conferido de novo no mesmo dia): uma sincronização faz por volta de 15 chamadas (1 `POST /auth`, 1 `GET /accounts` por conexão e as páginas de `GET /transactions` de cada conta), bem abaixo do limite. Por isso o `POST /api/sincronizar/` do nosso backend não tem limite de uma vez por hora. Se passar do limite, a Pluggy responde `429 Too Many Requests`, com o cabeçalho `Retry-After` dizendo quantos segundos esperar.
 
 ## 7. O que vimos no teste real (2026-10-07)
 
