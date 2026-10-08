@@ -47,6 +47,7 @@ a plataforma de estudos para concurso).
 - **RF17** (Essencial): O app deve mostrar o total de entradas e o total de saídas do mês.
 - **RF18** (Essencial): O app deve mostrar quanto eu posso gastar por dia até o fim do mês.
 - **RF19** (Depois): O app deve permitir comparar o mês atual com meses anteriores, sem destaque na tela inicial.
+- **RF27** (Desejável): O app deve mostrar um relatório do mês com o total de entradas, o total de saídas, o saldo do mês (entradas menos saídas), os gastos somados por categoria (do maior para o menor) e os maiores gastos do mês. Os gastos do mês incluem as faturas do mês (compras no cartão), e não só as saídas das contas correntes. *(pedido em 2026-10-07)*
 
 ## 6. Metas e dívidas
 
@@ -81,6 +82,7 @@ a plataforma de estudos para concurso).
 - Notificações push (o alerta do RF22 aparece só dentro do app).
 - Detalhes de investimentos (rentabilidade, histórico); por enquanto, só o valor guardado.
 - Fazer qualquer operação nos bancos (pagar, transferir): o app só lê os dados.
+- iFood Benefícios (e outros cartões de benefício): sem API oficial; o saldo livre costuma ser transferido para as contas já conectadas, então não muda os cálculos do mês. *(decidido em 2026-10-07)*
 
 ## 11. Dúvidas em aberto
 
@@ -89,14 +91,21 @@ Conferido na documentação da Pluggy em 2026-10-04:
 - Atualização: no Meu Pluggy, a Pluggy atualiza sozinha a cada 24 horas, e os itens não podem ser atualizados manualmente pela API (conferido em 2026-10-06). O "atualizar agora" do app só relê o que a Pluggy já tem.
 - Cartão: o saldo da conta do cartão é a fatura aberta; limite total, limite disponível, fechamento e vencimento vêm prontos.
 - Faturas futuras não vêm prontas: precisam ser estimadas a partir das parcelas ("parcela X de Y"), e cada banco devolve as parcelas de um jeito.
-- Categorias: vêm automáticas e em português, mas depois do período de teste viram recurso pago; sem ele, a categoria vem vazia.
+- Categorias: vêm automáticas (em inglês, ver abaixo), mas depois do período de teste viram recurso pago; sem ele, a categoria vem vazia.
 - O Meu Pluggy é gratuito, não expira com o fim do teste e aceita até 5 conexões, só para uso pessoal (conferido em 2026-10-06; corrige a anotação anterior de que só daria para conectar bancos durante o teste).
+
+Conferido no teste real em 2026-10-07 (detalhes em `docs/pluggy.md`, seção 7):
+
+- Categorias: vêm preenchidas em quase todas as transações, mas **em inglês**; a tradução existe na rota `GET /categories` da Pluggy. Falta decidir como mostrar em português (afeta RF07). Corrige a anotação de que viriam em português.
+- A data de fechamento da fatura não vem na fatura aberta (só o vencimento); afeta RF14.
+- Parcelas futuras vêm só em parte (algumas só aparecem depois que a fatura fecha); afeta RF13.
 
 Ainda em aberto:
 
 1. ~~Qual a frequência de atualização do Meu Pluggy?~~ Respondida: a cada 24 horas, sem atualização manual (ver acima).
 2. As caixinhas do Nubank aparecem como investimento? Decidido: usar os valores que a Pluggy fornecer. (RF04)
-3. As minhas transações vêm com categoria preenchida? No painel do Meu Pluggy aparecem categorias (em "Despesas" e "Despesas Futuras"); falta confirmar pela API. O app aceita transação sem categoria ("Sem categoria"). (RF07)
+3. ~~As minhas transações vêm com categoria preenchida?~~ Respondida em 2026-10-07: sim, em inglês (ver acima). O app aceita transação sem categoria ("Sem categoria"). (RF07)
 4. Quando termina o meu período de teste na pluggy.ai? O acesso ao Meu Pluggy continua depois do teste; falta saber só se as categorias automáticas param de vir (afeta RF07 e RF08).
 5. Qual a fórmula do "posso gastar por dia"? Sugestão inicial: (saldo total menos fatura atual) dividido pelos dias que faltam no mês. (RF18)
 6. Gastos manuais (RF10) entram no saldo total ou ficam separados?
+7. Como somar as faturas nos gastos do mês (RF27, RF17) sem contar duas vezes? Uma compra no cartão é um gasto, e o pagamento da fatura na conta corrente (categoria `Credit card payment`) é outra saída com o mesmo dinheiro. Sugestão do Claude: contar as compras do cartão e não contar o pagamento da fatura como gasto.

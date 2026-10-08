@@ -105,3 +105,34 @@ Na maioria das mudanças (inclusive `PENDING` para `POSTED`), a Pluggy mantém o
 Fonte: guia `developer-tools/rate-limits` (conferido em 2026-10-06).
 
 - `POST /auth`, `GET /accounts` e `GET /transactions`: até 360 chamadas por minuto, por IP.
+
+## 7. O que vimos no teste real (2026-10-07)
+
+Primeira execução de `sincronizar()` com os dados reais do Meu Pluggy (Nubank, Inter e
+PicPay). Funcionou sem erro: 3 conexões, 7 contas e 1187 transações.
+
+- **`/v2/transactions` funciona no Meu Pluggy**, com paginação pelo `next`.
+- **Histórico:** cerca de 12 meses no Nubank e no Inter (desde 2025-10); no PicPay, só
+  desde 2026-07.
+- **Sinal pelo `type` confirmado:** pagamento de fatura vem positivo no cartão e negativo
+  na conta corrente; salário e cashback vêm positivos; delivery vem negativo. Nenhuma
+  transação com valor zero.
+- **Categorias vêm em inglês** no campo `category` (ex.: `"Food delivery"`, `"Salary"`),
+  em quase todas as transações (só 5 de 1187 sem categoria). A tradução não vem na
+  transação: a documentação diz que cada transação traz um `categoryId`, e o
+  `GET /categories` devolve a lista com `description` (inglês) e `descriptionTranslated`
+  (português). Fonte: guia `products/transaction-categorization` (conferido em
+  2026-10-07). Isso corrige a anotação antiga de que as categorias viriam em português.
+- **`balanceCloseDate` (data de fechamento) veio vazio nos 3 cartões**; o
+  `balanceDueDate` (vencimento) veio. O Q&A da Pluggy ("Dados Fatura Atual Cartão de
+  Crédito - Nubank", conferido em 2026-10-07) diz que, no Open Finance, a fatura aberta não
+  traz esses dados até fechar, e indica a rota `/bills` para os detalhes de cada fatura.
+- **Parcelas futuras aparecem como transações com data futura** (ex.: parcela 4 de 4 em
+  2027-01-05 no cartão do Nubank). O Q&A ("Dados de transações faltantes/divergentes", mesma
+  data) também diz que, no cartão, compras novas aparecem primeiro como pendentes, e que
+  parcelas de compras antigas só aparecem depois do fechamento ou vencimento da fatura. Ou
+  seja: o que vem não é a lista completa de parcelas futuras.
+- **O Inter devolveu duas contas `BANK`**: uma com transações e outra com saldo e nenhuma
+  transação. Não guardamos o `subtype`, então ainda não sabemos o que é a segunda (pode ser
+  poupança ou outra conta do mesmo banco).
+- **Nenhuma conta foi pulada** por tipo desconhecido: todas vieram como `BANK` ou `CREDIT`.
