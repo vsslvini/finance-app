@@ -9,10 +9,11 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from financas.models import Conexao, Conta, Transacao
-from financas.serializers import ContaSerializer, TransacaoSerializer
+from financas.serializers import ContaSerializer, ResumoSerializer, TransacaoSerializer
 
 # Importa o módulo (e não a função) para os testes conseguirem trocá-la
 from financas.services import sincronizacao
+from financas.services.resumo import resumo_do_mes
 
 MES_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-10."
 PLUGGY_FORA = "Não foi possível falar com a Pluggy. Tente de novo mais tarde."
@@ -53,6 +54,13 @@ class TransacoesView(generics.ListAPIView):
             .filter(data__year=mes.year, data__month=mes.month)
             .order_by("-data", "-id")
         )
+
+
+@api_view(["GET"])
+def resumo(request):
+    mes = ler_mes(request.query_params.get("mes"))
+    dados = resumo_do_mes(mes, timezone.localdate())
+    return Response(ResumoSerializer(dados).data)
 
 
 @api_view(["POST"])
