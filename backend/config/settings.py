@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    # Tabela de tokens do DRF (vem com migration própria: rodar migrate)
+    "rest_framework.authtoken",
     "core",
     "financas",
 ]
@@ -132,6 +134,22 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = "static/"
+
+
+# Django REST Framework
+# https://www.django-rest-framework.org/api-guide/settings/
+
+REST_FRAMEWORK = {
+    # Toda rota exige "Authorization: Token <chave>"; sem token válido, 401
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+    ],
+    # Fechado por padrão: rota nova já nasce protegida; quem for pública
+    # (como o health) libera com AllowAny
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
 
 
 # Email
