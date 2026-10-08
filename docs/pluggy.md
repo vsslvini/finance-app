@@ -137,3 +137,19 @@ PicPay). Funcionou sem erro: 3 conexões, 7 contas e 1187 transações.
   transação. Não guardamos o `subtype`, então ainda não sabemos o que é a segunda (pode ser
   poupança ou outra conta do mesmo banco).
 - **Nenhuma conta foi pulada** por tipo desconhecido: todas vieram como `BANK` ou `CREDIT`.
+
+## 8. Categorias usadas nos cálculos (2026-10-08)
+
+Fonte: guia `products/transaction-categorization`, seção "Category Tree" (conferido em
+2026-10-08). O resumo do mês (`backend/financas/services/resumo.py`) compara a
+`categoria_pluggy` com dois nomes da árvore de categorias da Pluggy:
+
+- `Credit card payment` (dentro de "Transfers"): pagamento da fatura do cartão. Não conta
+  como saída, porque as compras do cartão já contaram.
+- `Same person transfer - Cash`, `- PIX` e `- TED`: transferência entre contas da mesma
+  pessoa. Não contam como entrada nem como saída. A comparação usa "começa com
+  `Same person transfer`", para pegar todas as variações.
+
+Se a Pluggy mudar esses nomes, ou se passarmos a usar a tradução do `GET /categories`, as
+constantes do `resumo.py` precisam mudar junto.
+

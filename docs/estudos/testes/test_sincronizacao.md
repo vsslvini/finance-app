@@ -2,7 +2,7 @@
 
 Explicação de `backend/financas/tests/test_sincronizacao.py` (16 testes), escrita em
 2026-10-07. Os conceitos do pytest usados aqui (fixtures, `monkeypatch`, `pytest.raises`,
-`db` e `@pytest.mark.django_db`) estão explicados em `docs/pytest.md`.
+`db` e `@pytest.mark.django_db`) estão explicados em `docs/estudos/pytest.md`.
 
 ## A ideia geral
 
@@ -27,7 +27,7 @@ fim de cada teste, então um teste nunca enxerga o que outro criou.
 
 ## Antes de tudo: `@pytest.fixture` e `monkeypatch` em 30 segundos
 
-O guia completo está em `docs/pytest.md` (seções 3 e 4). O resumo:
+O guia completo está em `docs/estudos/pytest.md` (seções 3 e 4). O resumo:
 
 - **`@pytest.fixture`** é uma etiqueta que o Python cola numa função (o `@` é um
   "decorador", recurso do Python). Ela avisa o pytest: "esta função prepara algo para os
@@ -68,7 +68,7 @@ só o que é diferente, e fica fácil ver o que ele está testando.
 
 Cria no banco uma `Conexao` do Nubank com `id_pluggy="item-nubank"`, como se você tivesse
 cadastrado no admin. Ela pede a fixture `db` do pytest-django, que libera o acesso ao banco
-(ver `docs/pytest.md`, seção 6). Qualquer teste que tenha `conexao` nos parâmetros recebe
+(ver `docs/estudos/pytest.md`, seção 6). Qualquer teste que tenha `conexao` nos parâmetros recebe
 essa conexão pronta.
 
 ### Fixture `dados_pluggy` (linha 65)
@@ -89,7 +89,7 @@ dentro do módulo). Para ela valer, o `sincronizacao.py` precisa chamar
 `pluggy.obter_api_key()` (com `from financas.integracoes import pluggy`). Se ele fizesse
 `from financas.integracoes.pluggy import obter_api_key`, guardaria a função original no momento do
 import, e a troca não teria efeito: o teste tentaria ir à internet de verdade. É o mesmo
-motivo do "Por que esse caminho" em `docs/pytest.md`, seção 4.
+motivo do "Por que esse caminho" em `docs/estudos/pytest.md`, seção 4.
 
 ## Grupo 1: contas
 

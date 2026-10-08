@@ -106,6 +106,6 @@ Ainda em aberto:
 2. As caixinhas do Nubank aparecem como investimento? Decidido: usar os valores que a Pluggy fornecer. (RF04)
 3. ~~As minhas transações vêm com categoria preenchida?~~ Respondida em 2026-10-07: sim, em inglês (ver acima). O app aceita transação sem categoria ("Sem categoria"). (RF07)
 4. Quando termina o meu período de teste na pluggy.ai? O acesso ao Meu Pluggy continua depois do teste; falta saber só se as categorias automáticas param de vir (afeta RF07 e RF08).
-5. Qual a fórmula do "posso gastar por dia"? Sugestão inicial: (saldo total menos fatura atual) dividido pelos dias que faltam no mês. (RF18)
+5. ~~Qual a fórmula do "posso gastar por dia"?~~ Decidido em 2026-10-08: (saldo das contas correntes menos a fatura aberta dos cartões) dividido pelos dias que faltam no mês, contando hoje. (RF18)
 6. Gastos manuais (RF10) entram no saldo total ou ficam separados?
-7. Como somar as faturas nos gastos do mês (RF27, RF17) sem contar duas vezes? Uma compra no cartão é um gasto, e o pagamento da fatura na conta corrente (categoria `Credit card payment`) é outra saída com o mesmo dinheiro. Sugestão do Claude: contar as compras do cartão e não contar o pagamento da fatura como gasto.
+7. ~~Como somar as faturas nos gastos do mês (RF27, RF17) sem contar duas vezes?~~ Uma compra no cartão é um gasto, e o pagamento da fatura na conta corrente (categoria `Credit card payment`) é outra saída com o mesmo dinheiro. Decidido em 2026-10-08: contar as compras do cartão como gasto e não contar o pagamento da fatura.

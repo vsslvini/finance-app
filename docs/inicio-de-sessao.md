@@ -29,7 +29,7 @@ Depois, espere a resposta. Não comece código sem plano aprovado.
 1. **Plano do módulo** em passos curtos, sem código, com os casos de teste em português, dizendo se existe uma versão mais simples. Espere a aprovação.
 2. **Testes e implementação** pelo agente certo, no mesmo módulo; todo caso aprovado vira teste.
 3. **Verificação**: Claude roda testes e lint e mostra o resultado. Comandos que mexem no banco de desenvolvimento (`migrate`, token, usuário) ficam com o Vinicius.
-4. **Documento do módulo** em `docs/modulos/<nome>.md`: fluxo de uma requisição, cada arquivo e o porquê, cada teste explicado, comandos para testar à mão.
+4. **Documento do módulo** em `docs/estudos/modulos/<nome>.md`: fluxo de uma requisição, cada arquivo e o porquê, cada teste explicado, comandos para testar à mão.
 5. **Resumo** em linguagem simples do que foi feito e por quê, antes do commit.
 6. **Commits** (um a três por módulo), no padrão `tipo(escopo): descrição`, só com a aprovação do Vinicius.
 

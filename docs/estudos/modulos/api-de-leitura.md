@@ -252,7 +252,7 @@ Guarda a fixture `cliente_com_token`, usada pelos três arquivos de teste. Ela c
 usuário, cria um token para ele e devolve um `APIClient` que já manda o cabeçalho
 `Authorization` em todo pedido. O `conftest.py` é um arquivo especial do pytest: as
 fixtures dele valem para a pasta inteira, sem `import`. Explicação completa em
-`docs/pytest.md`, seção 3, "`conftest.py`: fixtures para a pasta inteira".
+`docs/estudos/pytest.md`, seção 3, "`conftest.py`: fixtures para a pasta inteira".
 
 A fixture pede `db` (do pytest-django) porque cria linhas no banco. Por isso os testes
 que usam `cliente_com_token` não precisam de `@pytest.mark.django_db`; só os testes sem
@@ -323,7 +323,7 @@ Por que trocar em `financas.services.sincronizacao` e não em `financas.views`: 
 chama `sincronizacao.sincronizar()`, ou seja, ela procura a função **dentro do módulo
 `sincronizacao` na hora da chamada**. Trocando lá, a view encontra a falsa. Se a view
 tivesse feito `from financas.services.sincronizacao import sincronizar`, ela teria uma
-cópia do nome, e a troca no módulo não chegaria até ela (`docs/pytest.md`, seção 4,
+cópia do nome, e a troca no módulo não chegaria até ela (`docs/estudos/pytest.md`, seção 4,
 "Por que esse caminho").
 
 | Teste | Prepara | Confere | Por que existe |
@@ -437,4 +437,4 @@ Limites conhecidos (aceitos por enquanto):
 - Django, `select_related`: https://docs.djangoproject.com/en/6.1/ref/models/querysets/#select-related
 - Django, `aggregate` e `Max`: https://docs.djangoproject.com/en/6.1/topics/db/aggregation/
 - Códigos HTTP explicados (MDN, em português): https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status
-- pytest, `conftest.py`: `docs/pytest.md`, seção 3.
+- pytest, `conftest.py`: `docs/estudos/pytest.md`, seção 3.

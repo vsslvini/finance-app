@@ -2,11 +2,11 @@
 
 Explicação de `backend/financas/tests/test_pluggy.py` (5 testes), escrita em 2026-10-07.
 Os conceitos do pytest usados aqui (fixtures, `monkeypatch`, `pytest.raises`, `settings`)
-estão explicados em `docs/pytest.md`.
+estão explicados em `docs/estudos/pytest.md`.
 
 O que é `@pytest.fixture` e onde está o `monkeypatch` (que vem com o próprio pytest,
-sem `import`): ver `docs/pytest.md`, seções 3 e 4, e o resumo no começo de
-`docs/testes/test_sincronizacao.md`.
+sem `import`): ver `docs/estudos/pytest.md`, seções 3 e 4, e o resumo no começo de
+`docs/estudos/testes/test_sincronizacao.md`.
 
 ## A ideia geral
 
@@ -40,7 +40,7 @@ nosso código usa:
   devolve a resposta pronta;
 - `monkeypatch.setattr("financas.integracoes.pluggy.requests.post", post_falso)` faz a troca. O caminho
   começa em `financas.integracoes.pluggy` porque trocamos o `requests` **que o nosso módulo usa** (ver
-  `docs/pytest.md`, seção 4, "Por que esse caminho"). Quando o teste termina, o
+  `docs/estudos/pytest.md`, seção 4, "Por que esse caminho"). Quando o teste termina, o
   `monkeypatch` desfaz a troca sozinho;
 - devolve a lista, para o teste olhar o que foi anotado.
 
@@ -49,7 +49,7 @@ junta todas numa tupla). Cada chamada tira a primeira da fila (`fila.pop(0)`). S
 simular a paginação.
 
 Essas duas são **funções ajudantes comuns**, não fixtures: recebem o `monkeypatch` do teste
-como argumento (ver `docs/pytest.md`, seção 3, "Fixture x função ajudante").
+como argumento (ver `docs/estudos/pytest.md`, seção 3, "Fixture x função ajudante").
 
 ## Teste 1: `test_obter_api_key_manda_credenciais_e_devolve_a_chave`
 
@@ -81,7 +81,7 @@ pode ser engolido em silêncio.
 - **Prepara:** a resposta falsa vem com `status=401`.
 - **Executa e confere juntos:** `with pytest.raises(requests.HTTPError):` quer dizer "o
   código aqui dentro **precisa** lançar `HTTPError`". Se lançar, o teste passa; se não
-  lançar nada, o teste falha (ver `docs/pytest.md`, seção 5).
+  lançar nada, o teste falha (ver `docs/estudos/pytest.md`, seção 5).
 
 **O que isso obriga o código a fazer:** chamar `resposta.raise_for_status()` antes de ler o
 JSON. Sem isso, a função tentaria pegar `"apiKey"` de `{"code": 401, ...}` e daria um

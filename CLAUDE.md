@@ -31,7 +31,7 @@ mas sempre mostra o texto antes e espera aprovação.
 
 ## Modo deste projeto
 
-- **Modo escolhido: Módulos.** O trabalho é dividido em módulos (ex.: API de leitura, resumo do mês, app mobile). Claude escreve o módulo inteiro depois do plano aprovado; Vinicius estuda pelo documento do módulo em `docs/modulos/`.
+- **Modo escolhido: Módulos.** O trabalho é dividido em módulos (ex.: API de leitura, resumo do mês, app mobile). Claude escreve o módulo inteiro depois do plano aprovado; Vinicius estuda pelo documento do módulo em `docs/estudos/modulos/`.
 
 ## Sobre mim
 
@@ -42,7 +42,7 @@ mas sempre mostra o texto antes e espera aprovação.
 
 ## Como trabalhamos
 
-1. **Nada entra em commit sem documento.** Antes do commit de um módulo, o documento dele em `docs/modulos/` fica pronto, e Claude resume em linguagem simples o que mudou e por quê. Se eu perguntar sobre uma linha, explique antes de seguir.
+1. **Nada entra em commit sem documento.** Antes do commit de um módulo, o documento dele em `docs/estudos/modulos/` fica pronto, e Claude resume em linguagem simples o que mudou e por quê. Se eu perguntar sobre uma linha, explique antes de seguir.
 2. **Plano antes de código.** Para cada módulo, primeiro um plano em passos curtos, sem código, com os casos de teste em português. Espere minha aprovação. Sempre diga se existe uma versão mais simples.
 3. **Testes junto com o código.** O agente escreve os testes dos casos aprovados e a implementação no mesmo módulo. Todo caso aprovado vira teste.
 4. **Commits por módulo.** Cada módulo entra em um a três commits, e cada commit passa nos testes e no lint. Mensagens de commit no padrão de commits semânticos (Conventional Commits), curtas e em português: `tipo(escopo): descrição`. Tipos: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`. Escopo opcional: `backend` ou `mobile`.
@@ -56,8 +56,9 @@ mas sempre mostra o texto antes e espera aprovação.
 8. **Quem roda o quê.** Claude roda testes e lint e mostra o resultado. Servidor, `migrate`, criação de usuário ou token e comandos que mexem no banco de desenvolvimento ficam comigo; Claude explica antes o que cada um faz e o que esperar.
 9. **Trabalho com agentes.** As tarefas são feitas pelos agentes do projeto (`.claude/agents/`): `python-backend-engineer` no backend; `react-native-expert` nas telas; `mobile-tester` nos testes do app; `mobile-ui-expert` no planejamento das telas (só propõe, não escreve código). Os agentes não rodam comandos nem fazem commit; Claude resume para mim o que cada um fez antes de qualquer commit.
 10. **Pluggy documentada.** Tudo o que usarmos da Pluggy (rotas, autenticação, formatos, limites) fica registrado em `docs/pluggy.md`, com a fonte e a data, para estudo e para uma possível troca do serviço.
-11. **pytest documentado.** Tudo o que usarmos do pytest e do pytest-django (fixtures, `monkeypatch`, marcadores, opções de comando) fica explicado em `docs/pytest.md`, com link para a documentação oficial, para estudo.
-12. **Módulos documentados.** Cada módulo tem um `docs/modulos/<nome>.md` detalhado: o fluxo de uma requisição do começo ao fim, cada arquivo e o porquê dele, cada teste explicado e os comandos para testar à mão. As explicações antigas em `docs/testes/` continuam onde estão.
+11. **pytest documentado.** Tudo o que usarmos do pytest e do pytest-django (fixtures, `monkeypatch`, marcadores, opções de comando) fica explicado em `docs/estudos/pytest.md`, com link para a documentação oficial, para estudo.
+12. **Módulos documentados.** Cada módulo tem um `docs/estudos/modulos/<nome>.md` detalhado: o fluxo de uma requisição do começo ao fim, cada arquivo e o porquê dele, cada teste explicado e os comandos para testar à mão. As explicações antigas em `docs/estudos/testes/` continuam onde estão.
+13. **Pasta de estudos.** Todo material de estudo fica em `docs/estudos/`. O `docs/estudos/guia.md` é o ponto de entrada: contexto do projeto sempre em poucas linhas, ordem de estudo com pré-requisitos ("para entender X, estude Y antes") e roteiro da próxima sessão de estudos. Ele é atualizado a cada sessão e a cada documento de estudo novo.
 
 ## Stack e comandos
 
@@ -74,6 +75,8 @@ mas sempre mostra o texto antes e espera aprovação.
 - Conferir se o backend está vivo: com o `runserver` no ar, abrir `http://127.0.0.1:8000/api/health/`
 - Rodar o lint (backend): `cd backend && ruff check . && ruff format --check .` (para corrigir: `ruff check . --fix` e depois `ruff format .`)
 - Sincronizar com a Pluggy de verdade (banco do Docker no ar): `python manage.py shell` e, dentro dele, `from financas.services.sincronizacao import sincronizar; sincronizar()` (sem saída quando dá certo; conferir no admin)
+- Criar o token da API (uma vez, depois do `migrate`): `python manage.py drf_create_token <usuário>` (`-r` gera um novo)
+- Testar a API à mão (com o `runserver` no ar): `curl -H "Authorization: Token $TOKEN" http://127.0.0.1:8000/api/resumo/`
 
 ## Decisões
 
@@ -100,8 +103,9 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-06, o `valor` da `Transacao` usa um sinal só: saída negativa e entrada positiva, decidido pelo `type` da Pluggy (`DEBIT` ou `CREDIT`), porque no cartão a Pluggy usa o sinal do `amount` ao contrário.
 - 2026-10-06, a sincronização apaga as transações da Pluggy que sumirem, mas só dentro do período que a Pluggy devolveu, porque a Pluggy pode recriar uma transação com id novo; transações manuais nunca são apagadas.
 - 2026-10-07, dentro de cada app Django, clientes de serviços externos ficam em `integracoes/` e regras de negócio em `services/` (nada solto na raiz do app), para não espalhar arquivos quando surgirem mais services e para trocar a Pluggy mexendo só em `integracoes/`; descartamos repositórios e arquitetura hexagonal por serem complexos demais para o projeto.
-- 2026-10-08, trabalho por módulos (plano com casos de teste, implementação e documento detalhado em `docs/modulos/`), porque o fluxo passo a passo estava lento; Claude roda testes e lint.
+- 2026-10-08, trabalho por módulos (plano com casos de teste, implementação e documento detalhado em `docs/estudos/modulos/`), porque o fluxo passo a passo estava lento; Claude roda testes e lint.
 - 2026-10-08, a API exige token em toda rota por padrão (`IsAuthenticated`), e só a `health/` é pública; rotas só de leitura usam `ListAPIView` direto nos models, e só ações com regra de negócio chamam services.
+- 2026-10-08, o resumo do mês não conta `Credit card payment` como saída nem `Same person transfer` como entrada ou saída, para não contar o mesmo dinheiro duas vezes; o "posso gastar por dia" arredonda para baixo (`ROUND_FLOOR`), para nunca sugerir mais do que se tem.
 
 ## Obstáculos e aprendizados
 
@@ -114,27 +118,29 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-05, os testes dos models passaram sem que a migration tivesse sido criada, porque o pytest-django cria as tabelas direto dos models quando o app não tem migrations; o banco de desenvolvimento ficaria sem as tabelas. Resolvemos rodando `makemigrations` antes do commit. Aprendi: teste verde não garante que a migration existe; conferir com `git status` se a pasta `migrations/` entrou.
 - 2026-10-06, o commit dos models entrou com um teste quebrado (o `valor` era passado duas vezes ao `create()`) e com 4 erros de lint; corrigimos no `c6c503d`. Aprendi: rodar testes **e** lint de verdade antes de todo commit, e não confiar num "passou" de memória.
 - 2026-10-07, os testes passaram com a Pluggy falsa, mas só o teste real mostrou que as categorias vêm em inglês e que a data de fechamento da fatura não vem; resolvemos anotando em `docs/pluggy.md` e nas dúvidas dos requisitos. Aprendi: testes garantem o que o código faz com os dados que imaginamos; o teste real mostra como os dados são de verdade.
-- 2026-10-07, eu não entendia o `@` nem de onde vinham as fixtures nos testes; estudamos juntos e registramos em `docs/pytest.md`. Aprendi: `@` é um decorador do Python (uma etiqueta na função); o pytest entrega fixtures pelo nome do parâmetro, sem chamá-las com parênteses; e o `monkeypatch` vem com o próprio pytest e desfaz as trocas com `yield`.
+- 2026-10-07, eu não entendia o `@` nem de onde vinham as fixtures nos testes; estudamos juntos e registramos em `docs/estudos/pytest.md`. Aprendi: `@` é um decorador do Python (uma etiqueta na função); o pytest entrega fixtures pelo nome do parâmetro, sem chamá-las com parênteses; e o `monkeypatch` vem com o próprio pytest e desfaz as trocas com `yield`.
 - 2026-10-07, eu não sabia onde colocar a sincronização, porque ela não é model, template nem view; resolvemos com as pastas `services/` e `integracoes/`. Aprendi: nem tudo no Django é model, template ou view; regras de negócio podem morar em módulos Python comuns (`services/`).
+- 2026-10-08, o `Response` do DRF transforma `Decimal` solto em `float`, e só o `DecimalField` de um serializer devolve texto; resolvemos com um `ResumoSerializer`. Aprendi: conferir como a biblioteca trata dinheiro, em vez de supor.
+- 2026-10-08, os agentes entregaram os dois módulos com erros de lint, que só apareceram porque o lint rodou antes do commit. Aprendi: código que parece certo pode não passar no lint; rodar testes e lint sempre, mesmo com o fluxo mais rápido.
 
 ## Estado atual e próximos passos
 
 (atualizar ao fim de cada sessão; vale só o estado mais recente)
 
-**Onde paramos (2026-10-07):**
+**Onde paramos (2026-10-08):**
 
-- Feito: passo 3 da arquitetura concluído. Cliente da Pluggy em `backend/financas/integracoes/pluggy.py` e `sincronizar()` em `backend/financas/services/sincronizacao.py`; 28 testes passando (7 dos models, 5 do cliente, 16 da sincronização) e lint ok. Teste real funcionou: 3 conexões, 7 contas e 1187 transações no banco de desenvolvimento; achados em `docs/pluggy.md`, seção 7.
-- Feito também: regra 12 (explicação dos testes em `docs/testes/`); `docs/pytest.md` explica decorador, `@pytest.fixture`, `yield` e onde está o `monkeypatch`; organização dos apps em `integracoes/` e `services/` (em `docs/arquitetura.md` e no agente `python-backend-engineer`); RF27 (relatório do mês) e iFood fora do escopo em `docs/requisitos.md`.
-- Último commit: `392abb3`; working tree limpo depois do commit desta atualização.
-- Dúvidas novas para decidir mais tarde (em `docs/requisitos.md`): categorias vêm em inglês (traduzir com `GET /categories`?, passo 6); data de fechamento não vem (RF14); parcelas futuras vêm só em parte (RF13); como somar faturas no mês sem contar duas vezes o pagamento da fatura (dúvida 7, passo 5).
+- Feito: Módulo 1, API de leitura (passo 4): token do DRF, `GET /api/contas/`, `GET /api/transacoes/?mes=` e `POST /api/sincronizar/`. Módulo 2, resumo do mês (passo 5): `GET /api/resumo/?mes=` com saldo, fatura, entradas, saídas, "posso gastar por dia" e últimos gastos. 68 testes passando e lint ok.
+- Feito também: o fluxo mudou para módulos (regras 1 a 4, 8, 12 e 13); material de estudo em `docs/estudos/`, com o `guia.md` como ponto de entrada; `docs/estudos/drf.md` explica o DRF; dúvidas 5 e 7 decididas em `docs/requisitos.md`.
+- Pendente do Vinicius: rodar `python manage.py migrate` (tabela de tokens) e `python manage.py drf_create_token <usuário>`, e conferir o `/api/resumo/` com os dados reais (`docs/estudos/modulos/resumo-do-mes.md`, seção 7).
+- Limites conhecidos do resumo (seção 8 do doc do módulo): parcelas futuras do mês contam em `saidas`; compras do cartão contam no dia da compra, não no mês da fatura.
+- Dúvidas ainda abertas (em `docs/requisitos.md`): categorias em inglês (traduzir com `GET /categories`?); data de fechamento não vem (RF14); parcelas futuras vêm só em parte (RF13); dúvidas 4 e 6.
 - Pendências do mobile (sem mudança): Expo Router ainda não instalado (o projeto usa `App.tsx`); `@testing-library/react-native` e `@types/jest` estão em `dependencies` (deveriam estar em `devDependencies`); faltam `jest`, `jest-expo` e o script `"test"`.
-- Para recomeçar: ler `docs/inicio-de-sessao.md`; `docker compose up -d`, depois `cd backend && source .venv/bin/activate.fish`.
+- Para recomeçar: ler `docs/inicio-de-sessao.md`; `docker compose up -d`, depois `cd backend && source .venv/bin/activate.fish`. Para estudar: `docs/estudos/guia.md`.
 
 **Próximos passos, em ordem (detalhes em `docs/arquitetura.md`, seção 5):**
 
-1. Passo 4 da arquitetura: token do DRF e rotas de contas e transações, incluindo `POST /api/sincronizar/` (com o limite de uma vez por hora). Começa com um plano curto, sem código, dizendo se há versão mais simples; depois casos de teste em português e testes pelo `python-backend-engineer`. As views só chamam os services (padrão `services/`).
-2. Passo 5: resumo do mês e "posso gastar por dia" (decidir antes a dúvida 7, sobre faturas).
-3. Depois, passo 1 (base do mobile).
+1. Módulo 3, app mobile: base (Expo Router e Jest, corrigindo as pendências acima), depois as telas Início, Transações, Cartões e Contas (`mobile-ui-expert` propõe antes). Começa com o plano do módulo, com os casos de teste.
+2. Depois: faturas futuras (RF13) e os desejáveis (RF08 trocar categoria, RF10 gasto manual, RF09 filtros).
 
 ## Ao fim de cada sessão
 
