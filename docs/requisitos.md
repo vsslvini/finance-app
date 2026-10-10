@@ -22,7 +22,7 @@ a plataforma de estudos para concurso).
 - **RF01** (Essencial): O app deve mostrar as contas do Nubank, Inter e PicPay, incluindo conta corrente e cartão de crédito de cada banco.
 - **RF02** (Essencial): O app deve mostrar o saldo atual de cada conta corrente.
 - **RF03** (Essencial): O app deve ter uma visão separada para cada banco e uma visão geral com todos somados.
-- **RF04** (Desejável): O app deve mostrar o valor guardado em investimentos (ex.: caixinhas do Nubank).
+- **RF04** (Desejável): O app deve mostrar o valor guardado em investimentos (ex.: caixinhas do Nubank). O valor dos investimentos entra como o "já guardado" do plano de guardar (RF28); a Pluggy separa os investimentos por tipo e por instituição. *(complemento de 2026-10-10)*
 
 ## 3. Transações (entradas e saídas)
 
@@ -48,6 +48,7 @@ a plataforma de estudos para concurso).
 - **RF18** (Essencial): O app deve mostrar quanto eu posso gastar por dia até o fim do mês.
 - **RF19** (Depois): O app deve permitir comparar o mês atual com meses anteriores, sem destaque na tela inicial.
 - **RF27** (Desejável): O app deve mostrar um relatório do mês com o total de entradas, o total de saídas, o saldo do mês (entradas menos saídas), os gastos somados por categoria (do maior para o menor) e os maiores gastos do mês. Os gastos do mês incluem as faturas do mês (compras no cartão), e não só as saídas das contas correntes. *(pedido em 2026-10-07)*
+- **RF30** (Essencial): O mês do app pode começar N dias antes do dia 1 (padrão 0), para o salário recebido no fim do mês contar no mês seguinte. Editável no app, tocando no saldo. *(pedido em 2026-10-10)*
 
 ## 6. Metas e dívidas
 
@@ -55,6 +56,9 @@ a plataforma de estudos para concurso).
 - **RF21** (Desejável): O app deve permitir cadastrar dívidas (descrição, valor total, número de parcelas, quanto já foi pago).
 - **RF22** (Desejável): O app deve permitir definir um limite de gasto mensal e mostrar um alerta no app quando eu chegar perto dele (ex.: 80%).
 - **RF23** (Depois): O "quanto posso gastar por dia" deve descontar o que preciso guardar para as metas e pagar das dívidas.
+- **RF28** (Desejável): O app deve permitir definir um plano de guardar dinheiro: um valor por mês e um mês alvo. O app mostra quanto terá guardado até o mês alvo, somando o valor de cada mês, do mês atual até o mês alvo, contando os dois, sem juros (ex.: R$ 500 por mês, de outubro de 2026 a julho de 2027, dá R$ 5.000), mais o que já está guardado em investimentos (RF04). Por enquanto existe um plano só. *(pedido em 2026-10-10)*
+- **RF29** (Desejável): O valor do mês do plano de guardar deve ser descontado do "quanto posso gastar por dia" até eu marcar "já guardei este mês", para não descontar duas vezes quando o dinheiro já tiver saído da conta corrente. *(pedido em 2026-10-10; adianta parte do RF23)*
+- **RF31** (Desejável): O app deve permitir definir um limite para a fatura do cartão e avisar na tela Início quando a fatura aberta passar dele. Editável no app, tocando na fatura. *(pedido em 2026-10-10; parte do RF22)*
 
 ## 7. Atualização dos dados
 
@@ -106,6 +110,7 @@ Ainda em aberto:
 2. As caixinhas do Nubank aparecem como investimento? Decidido: usar os valores que a Pluggy fornecer. (RF04)
 3. ~~As minhas transações vêm com categoria preenchida?~~ Respondida em 2026-10-07: sim, em inglês (ver acima). O app aceita transação sem categoria ("Sem categoria"). (RF07)
 4. Quando termina o meu período de teste na pluggy.ai? O acesso ao Meu Pluggy continua depois do teste; falta saber só se as categorias automáticas param de vir (afeta RF07 e RF08).
-5. ~~Qual a fórmula do "posso gastar por dia"?~~ Decidido em 2026-10-08: (saldo das contas correntes menos a fatura aberta dos cartões) dividido pelos dias que faltam no mês, contando hoje. (RF18)
+5. ~~Qual a fórmula do "posso gastar por dia"?~~ Decidido em 2026-10-08: (saldo das contas correntes menos a fatura aberta dos cartões) dividido pelos dias que faltam no mês, contando hoje. (RF18) Mudou em 2026-10-10: saldo das contas correntes dividido pelos dias que faltam no mês do app (RF30), contando hoje, sem descontar a fatura aberta, porque ela é paga com o salário do mês seguinte. A fatura ganha um limite com aviso (RF31).
 6. Gastos manuais (RF10) entram no saldo total ou ficam separados?
 7. ~~Como somar as faturas nos gastos do mês (RF27, RF17) sem contar duas vezes?~~ Uma compra no cartão é um gasto, e o pagamento da fatura na conta corrente (categoria `Credit card payment`) é outra saída com o mesmo dinheiro. Decidido em 2026-10-08: contar as compras do cartão como gasto e não contar o pagamento da fatura.
+8. ~~Como descontar o plano de guardar sem contar duas vezes?~~ Decidido em 2026-10-10: descontar só o que falta guardar no mês, até eu marcar "já guardei este mês". (RF29)
