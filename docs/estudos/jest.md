@@ -18,6 +18,11 @@ Versões (ver `mobile/package.json`): jest 29.7, jest-expo 57.0.5, @testing-libr
   - [7. TypeScript nos testes](#7-typescript-nos-testes)
   - [8. Comandos que usamos](#8-comandos-que-usamos)
   - [9. Comparando com o pytest](#9-comparando-com-o-pytest)
+  - [10. Mocks: trocar o `fetch` por um dublê](#10-mocks-trocar-o-fetch-por-um-dublê)
+  - [11. `beforeEach` e `afterEach`](#11-beforeeach-e-aftereach)
+  - [12. Esperar e procurar: `findBy`, `getBy` e `queryBy`](#12-esperar-e-procurar-findby-getby-e-queryby)
+  - [13. Tocar num botão: `fireEvent.press`](#13-tocar-num-botão-fireeventpress)
+  - [14. Relógio falso (fake timers)](#14-relógio-falso-fake-timers)
 
 ## 1. Quem é quem
 
@@ -199,5 +204,131 @@ resultado, como fazemos com o `pytest`.
 | arquivo `test_*.py` | arquivo dentro de `__tests__/` |
 | `pytest -k nome` | `npx jest -t nome` |
 | `pytest -v` | `npx jest --verbose` |
-| `monkeypatch` | `jest.fn()` e `jest.mock()` (ainda não usamos; vão aparecer quando as telas chamarem a API) |
-| fixture | `beforeEach` ou funções ajudantes (ainda não usamos) |
+| `monkeypatch` | trocar uma função por um `jest.fn()` (seção 10) |
+| fixture com `yield` | `beforeEach` (antes) e `afterEach` (depois), seção 11 |
+| `pytest.raises` | `await expect(promessa).rejects...` (seção 14) |
+
+## 10. Mocks: trocar o `fetch` por um dublê
+
+Fonte: https://jestjs.io/docs/mock-functions (conferido em 2026-10-10).
+
+A tela Início chama o `fetch`, a função do JavaScript que faz pedidos pela rede. Nos testes
+não queremos rede de verdade: o backend pode estar desligado e os dados mudam. Então
+trocamos o `fetch` por um **mock** (dublê): uma função falsa que devolve o que nós
+escolhemos e **anota cada chamada**. É a mesma ideia do `monkeypatch` com a Pluggy falsa
+no backend.
+
+```tsx
+fetchFalso = jest.fn<Promise<Response>, ParametrosDoFetch>();
+globalThis.fetch = fetchFalso;          // a tela agora usa o dublê
+
+fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));  // "dá certo"
+fetchFalso.mockRejectedValueOnce(new Error('sem rede'));          // "dá erro", uma vez
+```
+
+- **`jest.fn()`**: cria a função falsa. Os tipos entre `< >` dizem que ela tem a "cara" do
+  `fetch`.
+- **`globalThis.fetch = ...`**: `globalThis` é o lugar onde ficam as coisas globais do
+  JavaScript; trocando ali, todo código que chamar `fetch` recebe o dublê.
+- **`mockResolvedValue(x)`**: toda chamada devolve uma Promise que dá certo com `x`.
+- **`mockRejectedValueOnce(erro)`**: só a **próxima** chamada falha (o `Once` é "uma vez");
+  as seguintes voltam ao comportamento normal. Assim o teste "sem conexão, tentar de novo"
+  faz a 1ª chamada falhar e a 2ª dar certo.
+- **`mockImplementation(função)`**: quando precisamos de um comportamento mais esperto (no
+  teste dos 15 segundos, um `fetch` que só falha quando é cancelado).
+- **`fetchFalso.mock.calls`**: a lista de chamadas anotadas. `mock.calls[0]` são os
+  argumentos da primeira chamada: `[endereço, opções]`. É assim que o teste confere o
+  endereço e o cabeçalho com o token.
+- **`toHaveBeenCalledTimes(2)`**: confere quantas vezes o dublê foi chamado.
+
+**Resposta falsa.** Uma `Response` de verdade tem dezenas de campos; a tela só usa `ok`,
+`status` e `json()`. A função `respostaFalsa` monta só esses três e diz ao TypeScript "trate
+como `Response`" (`as Response`), sem precisar de `any`.
+
+## 11. `beforeEach` e `afterEach`
+
+Fonte: https://jestjs.io/docs/setup-teardown (conferido em 2026-10-10).
+
+```tsx
+beforeEach(() => {   // antes de CADA teste: prepara
+  globalThis.fetch = fetchFalso;
+  process.env.EXPO_PUBLIC_API_URL = 'http://servidor-falso:8000';
+});
+
+afterEach(() => {    // depois de CADA teste: limpa
+  globalThis.fetch = fetchOriginal;
+  jest.useRealTimers();
+});
+```
+
+É a fixture com `yield` do pytest dividida em duas: o `beforeEach` é a parte antes do
+`yield`, e o `afterEach` a parte depois. Limpar importa: sem o `afterEach`, o `fetch` falso
+de um teste vazaria para o próximo.
+
+As variáveis do `.env` (`process.env.EXPO_PUBLIC_...`) também são trocadas no teste. Isso
+funciona porque o código lê `process.env` **dentro** da função `buscarResumo()`, a cada
+chamada, e não uma vez só quando o arquivo carrega.
+
+## 12. Esperar e procurar: `findBy`, `getBy` e `queryBy`
+
+Fonte: https://oss.callstack.com/react-native-testing-library/docs/api/queries (conferido em
+2026-10-10).
+
+A tela mostra "Carregando..." e só depois os dados (a resposta "chega" um pouco depois, mesmo
+sendo falsa). Por isso existem três famílias de busca:
+
+| Busca | Se não achar | Quando usar |
+|---|---|---|
+| `getByText('x')` | falha na hora | o elemento já tem que estar na tela |
+| `await findByText('x')` | tenta de novo por até 1 segundo, depois falha | o elemento vai aparecer daqui a pouco (depois da resposta) |
+| `queryByText('x')` | devolve `null`, sem falhar | conferir que algo **não** está na tela: `expect(screen.queryByText('Tentar de novo')).toBeNull()` |
+
+Variações usadas: `getByLabelText` (procura pelo `accessibilityLabel`, o texto que o leitor de
+tela fala), `getByRole('button', { name: 'Tentar de novo' })` (procura um botão pelo nome) e
+`getAllByText(/ · /)` (todos os elementos cujo texto contém " · ", na ordem da tela; o
+`/ · /` é uma expressão regular, um padrão de busca).
+
+## 13. Tocar num botão: `fireEvent.press`
+
+Fonte: https://oss.callstack.com/react-native-testing-library/docs/api/events/fire-event
+(conferido em 2026-10-10).
+
+```tsx
+await fireEvent.press(screen.getByRole('button', { name: 'Tentar de novo' }));
+```
+
+Simula um toque. Na versão 14 ele é assíncrono, por isso o `await`. Existe também o
+`userEvent.press`, que imita o toque com mais realismo (aperta, espera, solta), mas leva pelo
+menos 130 ms; para o nosso caso o `fireEvent` basta.
+
+## 14. Relógio falso (fake timers)
+
+Fonte: https://jestjs.io/docs/timer-mocks (conferido em 2026-10-10).
+
+O `buscarResumo()` desiste depois de 15 segundos (`setTimeout`). Esperar 15 segundos de
+verdade num teste seria lento. O Jest troca o relógio por um falso, que só anda quando nós
+mandamos:
+
+```tsx
+jest.useFakeTimers();                       // liga o relógio falso
+const promessa = buscarResumo();            // começa, sem await
+const verificacao = expect(promessa).rejects.toMatchObject({ tipo: 'conexao' });
+
+await jest.advanceTimersByTimeAsync(14999); // "passaram" 14,999 s
+expect(sinal?.aborted).toBe(false);         // ainda não desistiu
+await jest.advanceTimersByTimeAsync(1);     // completou 15 s
+await verificacao;                          // agora falhou com "conexao"
+```
+
+- **`jest.useFakeTimers()`** liga o relógio falso; **`jest.useRealTimers()`** (no
+  `afterEach`) volta ao de verdade.
+- **`advanceTimersByTimeAsync(ms)`** adianta o relógio e deixa as Promises andarem. A versão
+  sem `Async` não deixa, e o teste poderia conferir antes da hora.
+- **`expect(promessa).rejects`** confere que a Promise **falha**; é o `pytest.raises` do Jest.
+  Ele é combinado **antes** de adiantar o relógio, para a falha não acontecer "sem ninguém
+  olhando" (o Jest acusaria uma Promise rejeitada sem tratamento).
+- Conferir 14999 ms e depois 15000 ms prova que o limite é exatamente 15 segundos, e não "em
+  algum momento".
+
+O `renderRouter` liga o relógio falso sozinho; por isso o `rotas-test.tsx` também chama
+`jest.useRealTimers()` no `afterEach`.

@@ -11,8 +11,8 @@ App pessoal de finanças: mostra em tempo real entradas, saídas, saldos e fatur
 contas Nubank, Inter e PicPay. Os dados vêm da Pluggy (Open Finance) para um backend
 Django + DRF, que guarda tudo no PostgreSQL (no Docker) e entrega JSON a um app React
 Native com Expo. Hoje o backend já sincroniza com a Pluggy e tem API de contas,
-transações, sincronização e resumo do mês. O app mobile tem a base pronta (Expo Router e
-Jest), com uma tela provisória; as telas de verdade são o próximo passo.
+transações, sincronização e resumo do mês. O app mobile já mostra a tela Início com o
+resumo do mês, lido do backend; as outras telas são os próximos passos.
 
 ## Ordem de estudo
 
@@ -31,6 +31,8 @@ aos pré-requisitos dele.
 | 8 | [`jest.md`](jest.md), seções 1 a 5 | Jest e Testing Library: `describe`, `it`, `expect`, `render`, `screen`, `async`/`await` | item 1 (pytest), para comparar |
 | 9 | [`modulos/base-mobile.md`](modulos/base-mobile.md) | Módulo 3a: Expo Router (rotas por arquivo), dependências e o primeiro teste do app | item 8 |
 | 10 | [`jest.md`](jest.md), seções 6 a 9 | testar rotas com `renderRouter`, TypeScript nos testes, comandos | item 9 |
+| 11 | [`jest.md`](jest.md), seções 10 a 14 | mocks (`jest.fn`), `beforeEach`/`afterEach`, `findBy`/`queryBy`, `fireEvent`, relógio falso | item 10 e o `monkeypatch` (item 2) |
+| 12 | [`modulos/tela-inicio.md`](modulos/tela-inicio.md) | Módulo 3b-1: `useState`, `useEffect`, `fetch` com token, limite de tempo, rede local | itens 7 e 11 |
 
 ## Documentos de consulta (fora desta pasta)
 
