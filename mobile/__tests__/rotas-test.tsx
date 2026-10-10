@@ -8,6 +8,22 @@ import { renderRouter, screen } from 'expo-router/testing-library';
 import RootLayout from '@/app/_layout';
 import InicioScreen from '@/app/index';
 
+// A tela inicial busca o resumo no backend assim que aparece. Este teste só
+// quer saber se o Router achou a tela, então trocamos o fetch por um dublê
+// (mock) que nunca responde: a tela fica parada em "carregando", sem rede.
+// Os detalhes de mock estão em tela-inicio-test.tsx.
+const fetchOriginal = globalThis.fetch;
+
+beforeEach(() => {
+  globalThis.fetch = jest.fn(() => new Promise<Response>(() => {}));
+});
+
+afterEach(() => {
+  globalThis.fetch = fetchOriginal;
+  // O renderRouter liga o relógio falso do Jest; aqui voltamos ao de verdade.
+  jest.useRealTimers();
+});
+
 describe('Rotas do app', () => {
   it('o Router encontra a tela inicial pelo arquivo', async () => {
     // Prepara: monta o Router com um "mapa de arquivos" em memória. Cada
@@ -33,8 +49,8 @@ describe('Rotas do app', () => {
     // não publica o tipo dele para o TypeScript; o Jest roda normalmente.
     expect(app).toHavePathname('/');
 
-    // Verifica: o arquivo index foi o escolhido para "/", porque o texto da
-    // tela inicial aparece.
-    expect(screen.getByText('Início')).toBeOnTheScreen();
+    // Verifica: o arquivo index foi o escolhido para "/", porque aparece o
+    // primeiro estado da tela inicial.
+    expect(screen.getByText('Carregando o resumo...')).toBeOnTheScreen();
   });
 });
