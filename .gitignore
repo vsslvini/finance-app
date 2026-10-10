@@ -1,5 +1,8 @@
 /estudos/
 
+# Prints de referência de design (podem ter dados pessoais)
+docs/imagens/
+
 # Segredos (nunca versionar)
 .env
 .env.*
