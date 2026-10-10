@@ -3,7 +3,7 @@
 Mapa de tudo o que existe para estudar no projeto, na ordem certa. Atualizado a cada
 sessão e sempre que um documento de estudo novo entra nesta pasta.
 
-Última atualização: 2026-10-08.
+Última atualização: 2026-10-10.
 
 ## O projeto em poucas linhas
 
@@ -11,7 +11,8 @@ App pessoal de finanças: mostra em tempo real entradas, saídas, saldos e fatur
 contas Nubank, Inter e PicPay. Os dados vêm da Pluggy (Open Finance) para um backend
 Django + DRF, que guarda tudo no PostgreSQL (no Docker) e entrega JSON a um app React
 Native com Expo. Hoje o backend já sincroniza com a Pluggy e tem API de contas,
-transações, sincronização e resumo do mês; o app mobile ainda não começou.
+transações, sincronização e resumo do mês. O app mobile tem a base pronta (Expo Router e
+Jest), com uma tela provisória; as telas de verdade são o próximo passo.
 
 ## Ordem de estudo
 
@@ -27,6 +28,9 @@ aos pré-requisitos dele.
 | 5 | [`drf.md`](drf.md) | o que é o DRF e cada peça usada: views, serializers, token, permissões, erros | Django básico (models e `urls.py`) |
 | 6 | [`modulos/api-de-leitura.md`](modulos/api-de-leitura.md) | Módulo 1: o caminho de um pedido do app até o banco e de volta | itens 4 e 5 |
 | 7 | [`modulos/resumo-do-mes.md`](modulos/resumo-do-mes.md) | Módulo 2: cálculos de dinheiro (somas, exclusões, "posso gastar por dia") | item 6 |
+| 8 | [`jest.md`](jest.md), seções 1 a 5 | Jest e Testing Library: `describe`, `it`, `expect`, `render`, `screen`, `async`/`await` | item 1 (pytest), para comparar |
+| 9 | [`modulos/base-mobile.md`](modulos/base-mobile.md) | Módulo 3a: Expo Router (rotas por arquivo), dependências e o primeiro teste do app | item 8 |
+| 10 | [`jest.md`](jest.md), seções 6 a 9 | testar rotas com `renderRouter`, TypeScript nos testes, comandos | item 9 |
 
 ## Documentos de consulta (fora desta pasta)
 
@@ -44,6 +48,7 @@ Sugestão de roteiro, de 1 a 2 horas:
 2. Item 5 (o DRF), só as seções 1 a 3.
 3. Item 6 (Módulo 1), seção 3, seguindo o caminho de um pedido no código.
 4. Na prática: a seção 6 do item 6 (testar a API com `curl`).
+5. Se sobrar tempo: item 8 (o Jest), comparando com o pytest (seção 9 do `jest.md`).
 
 Pendência antiga: entender o funcionamento interno do pytest (descoberta de testes,
 plugins, reescrita do `assert`). Fontes: docs.pytest.org, seção "Get Started"; livro
