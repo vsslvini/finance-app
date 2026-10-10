@@ -23,6 +23,9 @@ Versões (ver `mobile/package.json`): jest 29.7, jest-expo 57.0.5, @testing-libr
   - [12. Esperar e procurar: `findBy`, `getBy` e `queryBy`](#12-esperar-e-procurar-findby-getby-e-queryby)
   - [13. Tocar num botão: `fireEvent.press`](#13-tocar-num-botão-fireeventpress)
   - [14. Relógio falso (fake timers)](#14-relógio-falso-fake-timers)
+  - [15. Um dublê que responde por endereço](#15-um-dublê-que-responde-por-endereço)
+  - [16. Trocar um pacote inteiro: `jest.mock`](#16-trocar-um-pacote-inteiro-jestmock)
+  - [17. Digitar, elementos escondidos e propriedades](#17-digitar-elementos-escondidos-e-propriedades)
 
 ## 1. Quem é quem
 
@@ -332,3 +335,71 @@ await verificacao;                          // agora falhou com "conexao"
 
 O `renderRouter` liga o relógio falso sozinho; por isso o `rotas-test.tsx` também chama
 `jest.useRealTimers()` no `afterEach`.
+
+## 15. Um dublê que responde por endereço
+
+Fonte: https://jestjs.io/docs/mock-function-api#mockfnmockimplementationfn (conferido em
+2026-10-10).
+
+Na tela Início com a folha de edição, o `fetch` é chamado para três coisas diferentes: o
+resumo, a leitura das configurações e o `PATCH` que salva. Um `mockResolvedValue` devolveria
+a mesma resposta para todas. O `mockImplementation` recebe uma função que **olha o pedido** e
+escolhe a resposta, como um backend de mentira:
+
+```tsx
+fetchFalso.mockImplementation(async (endereco, opcoes) => {
+  const url = String(endereco);
+  if (url.includes('/api/resumo/')) return respostaFalsa(200, criarResumo());
+  if (url.includes('/api/configuracoes/') && opcoes?.method === 'PATCH') return patch;
+  if (url.includes('/api/configuracoes/')) return respostaFalsa(200, CONFIGURACOES_DE_EXEMPLO);
+  throw new Error(`Endereço inesperado no teste: ${url}`);
+});
+```
+
+- A última linha falha "alto" se a tela pedir algo que o teste não esperava: o erro aparece
+  na hora, em vez de um teste que passa por acaso.
+- Para conferir o que foi enviado, o teste filtra `fetchFalso.mock.calls` (só os `PATCH`) e
+  lê o corpo com `JSON.parse(opcoes.body)`, comparando objetos com `toEqual`.
+
+## 16. Trocar um pacote inteiro: `jest.mock`
+
+Fonte: https://jestjs.io/docs/jest-object#jestmockmodulename-factory-options (conferido em
+2026-10-10).
+
+O `_layout.tsx` espera a fonte Manrope carregar antes de desenhar. No Jest não existe celular
+para carregar fonte, então o `rotas-test.tsx` troca o pacote da fonte por um dublê:
+
+```tsx
+jest.mock('@expo-google-fonts/manrope', () => ({
+  useFonts: () => [true, null],   // "já carregou, sem erro"
+  Manrope_400Regular: 'Manrope_400Regular',
+  // ...os outros pesos
+}));
+```
+
+- `jest.mock('pacote', fábrica)` faz todo `import` desse pacote, no arquivo de teste, receber
+  o que a fábrica devolve.
+- O Jest move o `jest.mock` para o topo do arquivo, antes dos `import`, então o layout já
+  nasce com o dublê.
+- É o "monkeypatch de um pacote inteiro"; o `globalThis.fetch = ...` da seção 10 troca uma
+  função só.
+
+## 17. Digitar, elementos escondidos e propriedades
+
+Fontes: https://oss.callstack.com/react-native-testing-library/docs/api/events/fire-event e
+https://oss.callstack.com/react-native-testing-library/docs/api/queries (conferidos em
+2026-10-10).
+
+- **Digitar num campo:** `await fireEvent.changeText(campo, '2')` imita a pessoa digitando
+  "2". O campo é achado pelo rótulo: `screen.getByLabelText('Dias antes do dia 1')`.
+- **Conferir o valor de um campo:** `expect(campo).toHaveDisplayValue('3')`.
+- **Elementos escondidos do leitor de tela:** a Testing Library ignora, por padrão, o que está
+  escondido (como a sigla "ME" do ícone, escondida porque o rótulo do gasto já fala a
+  categoria). Para procurar mesmo assim:
+  `screen.getByText('ME', { includeHiddenElements: true })`.
+- **Conferir uma propriedade:** não existe comparador próprio para a dica do leitor de tela
+  (`accessibilityHint`). A documentação indica o `toHaveProp` como último recurso:
+  `expect(botao).toHaveProp('accessibilityHint', 'Toque para mudar o início do mês')`.
+- **Botões pelo nome:** `screen.findByRole('button', { name: 'Saldo: 1.250,50 reais' })` acha
+  o cartão tocável pelo papel ("button") e pelo rótulo; se ele não tivesse
+  `accessibilityRole="button"`, o teste falharia, e é isso que prova a acessibilidade.

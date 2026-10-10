@@ -72,6 +72,7 @@ Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pl
 | `POST /api/transacoes/` | gasto manual (RF10) |
 | `GET /api/faturas-futuras/` | estimativa por mês (RF13) |
 | `POST /api/sincronizar/` | atualizar agora (RF24) |
+| `GET` e `PATCH /api/configuracoes/` | dias antes do mês e limite da fatura, do app `planejamento` (RF30, RF31) |
 
 Os cálculos ficam no backend, não no app: uma fonte só da verdade, testada com pytest.
 

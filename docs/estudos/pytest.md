@@ -198,6 +198,27 @@ def get_falso(url, **argumentos):
     return fila.pop(0)
 ```
 
+### A outra forma: `setattr(objeto, "nome", valor)`
+
+Fonte: https://docs.pytest.org/en/stable/reference/reference.html#pytest.MonkeyPatch.setattr
+(conferido em 2026-10-10).
+
+Além do caminho em texto, o `setattr` aceita o próprio objeto e o nome do atributo. Usamos
+no Módulo 4b para fixar o "hoje" dos testes da API:
+
+```python
+from django.utils import timezone
+
+def fixar_hoje(monkeypatch, dia):
+    monkeypatch.setattr(timezone, "localdate", lambda: dia)
+```
+
+- `timezone` é o módulo já importado; `"localdate"` é o nome que trocamos; `lambda: dia` é
+  uma função sem nome que devolve sempre o mesmo dia.
+- Funciona porque a view chama `timezone.localdate()`: a busca pelo nome acontece dentro do
+  módulo `timezone` na hora da chamada (a mesma regra de "trocar onde o código procura").
+- As duas formas fazem a mesma coisa; a de objeto evita errar o caminho em texto.
+
 ## 5. `pytest.raises`
 
 Fonte: https://docs.pytest.org/en/stable/how-to/assert.html#assertions-about-expected-exceptions (conferido em 2026-10-06).
