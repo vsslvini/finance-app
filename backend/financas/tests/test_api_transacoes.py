@@ -6,6 +6,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from financas.models import Conexao, Conta, Transacao
+from planejamento.models import Configuracao
 
 MES_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-10."
 
@@ -54,6 +55,23 @@ def test_filtra_so_o_mes_pedido(cliente_com_token, conta):
     assert resposta.status_code == 200
     descricoes = {transacao["descricao"] for transacao in resposta.json()}
     assert descricoes == {"Começo de outubro", "Fim de outubro"}
+
+
+def test_mes_com_dias_antes_usa_o_periodo_do_app(cliente_com_token, conta):
+    # Caso: com 2 dias antes, ?mes=2026-10 vai de 29/09 a 29/10: entram 29/09
+    # e 29/10; ficam de fora 28/09 (ainda setembro) e 30/10 (já novembro)
+    configuracao = Configuracao.atual()
+    configuracao.dias_antes_do_mes = 2
+    configuracao.save()
+    criar_transacao(conta, data=date(2026, 9, 28), descricao="Ainda setembro")
+    criar_transacao(conta, data=date(2026, 9, 29), descricao="Começo do período")
+    criar_transacao(conta, data=date(2026, 10, 29), descricao="Fim do período")
+    criar_transacao(conta, data=date(2026, 10, 30), descricao="Já novembro")
+
+    resposta = cliente_com_token.get("/api/transacoes/?mes=2026-10")
+
+    descricoes = {transacao["descricao"] for transacao in resposta.json()}
+    assert descricoes == {"Começo do período", "Fim do período"}
 
 
 def test_sem_mes_usa_o_mes_atual(cliente_com_token, conta):

@@ -134,14 +134,14 @@ def test_positivo_no_cartao_nao_conta_como_entrada(cartao):
 
 
 def test_posso_gastar_por_dia_divide_pelos_dias_restantes(conexao):
-    # Caso: saldo 1000, fatura 400, hoje 08/10: de 08 a 31 são 24 dias,
-    # (1000 - 400) / 24 = 25.00
-    criar_conta(conexao, saldo=Decimal("1000.00"))
+    # Caso: saldo 1200, hoje 08/10: de 08 a 31 são 24 dias, 1200 / 24 = 50.00.
+    # A fatura de 400 não é descontada (é paga com o salário do mês seguinte)
+    criar_conta(conexao, saldo=Decimal("1200.00"))
     criar_conta(conexao, tipo="cartao", nome="Black", saldo=Decimal("400.00"))
 
     resumo = resumo_do_mes(OUTUBRO, HOJE)
 
-    assert resumo["posso_gastar_por_dia"] == Decimal("25.00")
+    assert resumo["posso_gastar_por_dia"] == Decimal("50.00")
 
 
 def test_ultimo_dia_do_mes_conta_um_dia(conexao):
@@ -151,7 +151,7 @@ def test_ultimo_dia_do_mes_conta_um_dia(conexao):
 
     resumo = resumo_do_mes(OUTUBRO, date(2026, 10, 31))
 
-    assert resumo["posso_gastar_por_dia"] == Decimal("600.00")
+    assert resumo["posso_gastar_por_dia"] == Decimal("1000.00")
 
 
 def test_posso_gastar_arredonda_para_baixo(conexao):
@@ -164,14 +164,91 @@ def test_posso_gastar_arredonda_para_baixo(conexao):
     assert resumo["posso_gastar_por_dia"] == Decimal("33.33")
 
 
-def test_fatura_maior_que_saldo_da_valor_negativo(conexao):
-    # Caso: saldo 100, fatura 400, 24 dias: (100 - 400) / 24 = -12.50
-    criar_conta(conexao, saldo=Decimal("100.00"))
-    criar_conta(conexao, tipo="cartao", nome="Black", saldo=Decimal("400.00"))
+def test_saldo_negativo_da_posso_gastar_negativo(conexao):
+    # Caso: saldo -240 (cheque especial), 24 dias: -240 / 24 = -10.00
+    criar_conta(conexao, saldo=Decimal("-240.00"))
 
     resumo = resumo_do_mes(OUTUBRO, HOJE)
 
-    assert resumo["posso_gastar_por_dia"] == Decimal("-12.50")
+    assert resumo["posso_gastar_por_dia"] == Decimal("-10.00")
+
+
+def test_salario_no_fim_de_setembro_conta_em_outubro_com_dias_antes(corrente):
+    # Caso: salário em 30/09 conta nas entradas de outubro com 2 dias antes
+    # (outubro começa em 29/09), e não conta com 0 dias antes
+    criar_transacao(
+        corrente, data=date(2026, 9, 30), descricao="Salário", valor=Decimal(3000)
+    )
+
+    com_dois_dias = resumo_do_mes(OUTUBRO, HOJE, dias_antes=2)
+    sem_dias = resumo_do_mes(OUTUBRO, HOJE, dias_antes=0)
+
+    assert com_dois_dias["entradas"] == Decimal("3000.00")
+    assert sem_dias["entradas"] == Decimal("0.00")
+
+
+def test_posso_gastar_vai_ate_o_fim_do_periodo_sem_descontar_fatura(conexao):
+    # Caso: hoje 10/10, 2 dias antes: outubro vai até 29/10, então de 10 a 29
+    # são 20 dias. Saldo 2000 / 20 = 100.00; a fatura de 1240 não entra
+    criar_conta(conexao, saldo=Decimal("2000.00"))
+    criar_conta(conexao, tipo="cartao", nome="Black", saldo=Decimal("1240.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, date(2026, 10, 10), dias_antes=2)
+
+    assert resumo["posso_gastar_por_dia"] == Decimal("100.00")
+
+
+def test_posso_gastar_com_dias_antes_arredonda_para_baixo(conexao):
+    # Caso: hoje 27/10, 2 dias antes: faltam 27, 28 e 29/10 (3 dias);
+    # 100 / 3 = 33.333..., vira 33.33
+    criar_conta(conexao, saldo=Decimal("100.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, date(2026, 10, 27), dias_antes=2)
+
+    assert resumo["posso_gastar_por_dia"] == Decimal("33.33")
+
+
+def test_com_dias_antes_dia_30_outubro_ja_acabou(conexao):
+    # Caso: com 2 dias antes, no dia 30/10 o mês atual já é novembro; olhando
+    # outubro, não há mais "por dia"
+    criar_conta(conexao, saldo=Decimal("1000.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, date(2026, 10, 30), dias_antes=2)
+
+    assert resumo["posso_gastar_por_dia"] is None
+
+
+def test_fatura_acima_do_limite_avisa(cartao):
+    # Caso: fatura de 1500.01 com limite de 1500.00 passa do limite
+    cartao.saldo = Decimal("1500.01")
+    cartao.save()
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE, limite=Decimal("1500.00"))
+
+    assert resumo["limite_fatura"] == Decimal("1500.00")
+    assert resumo["fatura_acima_do_limite"] is True
+
+
+def test_fatura_igual_ou_abaixo_do_limite_nao_avisa(cartao):
+    # Caso: fatura igual ao limite ou abaixo dele não passa do limite
+    cartao.saldo = Decimal("1500.00")
+    cartao.save()
+
+    for limite in [Decimal("1500.00"), Decimal("2000.00")]:
+        resumo = resumo_do_mes(OUTUBRO, HOJE, limite=limite)
+
+        assert resumo["fatura_acima_do_limite"] is False
+
+
+def test_sem_limite_nao_avisa(cartao):
+    # Caso: sem limite definido (None), nunca avisa, por maior que seja a fatura
+    cartao.saldo = Decimal("99999.00")
+    cartao.save()
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE, limite=None)
+
+    assert resumo["limite_fatura"] is None
+    assert resumo["fatura_acima_do_limite"] is False
 
 
 def test_outro_mes_nao_tem_posso_gastar(conexao):
@@ -181,6 +258,26 @@ def test_outro_mes_nao_tem_posso_gastar(conexao):
     resumo = resumo_do_mes(date(2026, 9, 1), HOJE)
 
     assert resumo["posso_gastar_por_dia"] is None
+
+
+def test_mes_atual_traz_o_mes_o_dia_e_o_total_de_dias(db):
+    # Caso: 2 dias antes, hoje 10/10: outubro vai de 29/09 a 29/10 (31 dias),
+    # e 10/10 é o dia 12 desse período
+    resumo = resumo_do_mes(OUTUBRO, date(2026, 10, 10), dias_antes=2)
+
+    assert resumo["mes"] == "2026-10"
+    assert resumo["dia_do_mes"] == 12
+    assert resumo["dias_no_mes"] == 31
+
+
+def test_outro_mes_tem_o_mes_mas_nao_o_dia(db):
+    # Caso: olhando setembro com hoje em outubro, o mês vem preenchido, mas o
+    # dia e o total de dias vêm None (só fazem sentido no mês de hoje)
+    resumo = resumo_do_mes(date(2026, 9, 1), HOJE)
+
+    assert resumo["mes"] == "2026-09"
+    assert resumo["dia_do_mes"] is None
+    assert resumo["dias_no_mes"] is None
 
 
 def test_ultimos_gastos(corrente, cartao):

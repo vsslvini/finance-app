@@ -52,6 +52,10 @@ class ResumoSerializer(serializers.Serializer):
     # Serializer comum (não ModelSerializer): o resumo é um dict, não um model.
     # Sem ele, o Response transformaria Decimal em float (ex.: 1000.0); o
     # DecimalField devolve texto ("1000.00"), igual às outras rotas
+    mes = serializers.CharField()
+    # None quando o mês pedido não é o mês de hoje
+    dia_do_mes = serializers.IntegerField(allow_null=True)
+    dias_no_mes = serializers.IntegerField(allow_null=True)
     saldo_total = serializers.DecimalField(max_digits=12, decimal_places=2)
     fatura_aberta = serializers.DecimalField(max_digits=12, decimal_places=2)
     entradas = serializers.DecimalField(max_digits=12, decimal_places=2)
@@ -61,3 +65,8 @@ class ResumoSerializer(serializers.Serializer):
         max_digits=12, decimal_places=2, allow_null=True
     )
     ultimos_gastos = TransacaoSerializer(many=True)
+    # None quando não há limite definido na configuração
+    limite_fatura = serializers.DecimalField(
+        max_digits=12, decimal_places=2, allow_null=True
+    )
+    fatura_acima_do_limite = serializers.BooleanField()
