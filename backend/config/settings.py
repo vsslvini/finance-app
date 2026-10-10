@@ -35,7 +35,9 @@ DEBUG = env.bool("DJANGO_DEBUG", default=False)
 PLUGGY_CLIENT_ID = env("PLUGGY_CLIENT_ID")
 PLUGGY_CLIENT_SECRET = env("PLUGGY_CLIENT_SECRET")
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+# Endereços que o Django aceita, separados por vírgula e sem espaços; para o
+# celular acessar pela rede local, incluir o IP do computador no .env
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
 
 # Application definition
