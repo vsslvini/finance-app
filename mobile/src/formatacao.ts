@@ -56,3 +56,29 @@ export function formatarData(iso: string): string {
 export function nomeDoMes(ano: number, mes: number): string {
   return `${NOMES_DOS_MESES[mes - 1]} de ${ano}`;
 }
+
+// Formato aceito: dígitos (com pontos de milhar opcionais, de 3 em 3) e,
+// se houver, vírgula com 1 ou 2 casas. Ex.: "1000", "1.000", "1.000,50", "0,5"
+const FORMATO_DE_REAIS = /^(\d{1,3}(\.\d{3})+|\d+)(,(\d{1,2}))?$/;
+
+// Texto digitado em pt-BR -> texto que a API entende.
+// "1.000,50" -> "1000.50"; "R$ 1000" -> "1000.00"; "" -> null (sem limite).
+// Lança Error('Valor inválido') para qualquer outra coisa ("abc", "10,505").
+// Assim como formatarNumero, trabalha só com o texto, sem converter para Number.
+export function lerReais(texto: string): string | null {
+  // Tira todos os espaços e um "R$" opcional no começo
+  const limpo = texto.replace(/\s/g, '').replace(/^R\$/, '');
+  if (limpo === '') {
+    return null;
+  }
+
+  const partes = FORMATO_DE_REAIS.exec(limpo);
+  if (partes === null) {
+    throw new Error('Valor inválido');
+  }
+
+  // partes[1] é a parte inteira ("1.000"); partes[4] são os centavos ("5")
+  const inteiro = partes[1].replace(/\./g, '');
+  const centavos = (partes[4] ?? '').padEnd(2, '0');
+  return `${inteiro}.${centavos}`;
+}

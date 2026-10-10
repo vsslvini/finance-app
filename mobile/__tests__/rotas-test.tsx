@@ -8,6 +8,27 @@ import { renderRouter, screen } from 'expo-router/testing-library';
 import RootLayout from '@/app/_layout';
 import InicioScreen from '@/app/index';
 
+// O layout raiz espera a fonte Manrope carregar (useFonts) e, enquanto isso,
+// não desenha nada. No Jest não existe celular para carregar a fonte: o
+// jest-expo só simula o módulo nativo de fontes, e o useFonts começa como
+// "não carregado" e só muda depois de uma busca assíncrona. Para o teste não
+// depender desse tempo, trocamos o pacote de fontes inteiro por um dublê em
+// que a fonte já está carregada: useFonts devolve [true, null] (carregou,
+// sem erro). As constantes (Manrope_400Regular etc.) viram só textos, porque
+// o dublê de useFonts nem olha para elas.
+//
+// jest.mock('pacote', fábrica) troca o pacote para TODO o arquivo de teste.
+// O Jest move essa chamada para o topo, antes dos imports, então o layout já
+// recebe o dublê quando é importado.
+jest.mock('@expo-google-fonts/manrope', () => ({
+  useFonts: () => [true, null],
+  Manrope_400Regular: 'Manrope_400Regular',
+  Manrope_500Medium: 'Manrope_500Medium',
+  Manrope_600SemiBold: 'Manrope_600SemiBold',
+  Manrope_700Bold: 'Manrope_700Bold',
+  Manrope_800ExtraBold: 'Manrope_800ExtraBold',
+}));
+
 // A tela inicial busca o resumo no backend assim que aparece. Este teste só
 // quer saber se o Router achou a tela, então trocamos o fetch por um dublê
 // (mock) que nunca responde: a tela fica parada em "carregando", sem rede.
