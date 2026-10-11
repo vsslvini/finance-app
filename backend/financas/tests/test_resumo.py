@@ -80,33 +80,98 @@ def test_entradas_somam_positivos_da_corrente_no_mes(corrente):
     assert resumo["entradas"] == Decimal("3050.25")
 
 
-def test_saidas_somam_cartao_e_corrente(corrente, cartao):
-    # Caso: saidas soma as compras do cartão e as saídas da corrente, como
-    # valor positivo
+def test_saidas_somam_so_a_corrente_e_cartao_fica_na_fatura(corrente, cartao):
+    # Caso: saidas soma só as saídas da corrente do mês, como valor positivo.
+    # A compra no cartão não entra em saidas, mas continua na fatura_aberta
+    # (que vem do saldo da conta cartão)
+    cartao.saldo = Decimal("200.00")
+    cartao.save()
     criar_transacao(cartao, descricao="Mercado", valor=Decimal("-200.00"))
     criar_transacao(corrente, descricao="Aluguel", valor=Decimal("-1000.00"))
     criar_transacao(corrente, descricao="Salário", valor=Decimal("3000.00"))
-    criar_transacao(cartao, data=date(2026, 9, 30), valor=Decimal("-500.00"))
+    criar_transacao(corrente, data=date(2026, 9, 30), valor=Decimal("-500.00"))
 
     resumo = resumo_do_mes(OUTUBRO, HOJE)
 
-    assert resumo["saidas"] == Decimal("1200.00")
+    assert resumo["saidas"] == Decimal("1000.00")
+    assert resumo["fatura_aberta"] == Decimal("200.00")
 
 
-def test_pagamento_de_fatura_nao_conta_em_saidas(corrente, cartao):
-    # Caso: "Credit card payment" na corrente não conta em saidas (as compras já
-    # contaram no cartão; contar o pagamento seria contar duas vezes)
-    criar_transacao(cartao, descricao="Mercado", valor=Decimal("-200.00"))
+def test_pagamento_de_fatura_conta_em_saidas(corrente):
+    # Caso: o pagamento da fatura sai da corrente e conta em saidas, venha ele
+    # como "Credit card payment" ou como "Transfers" (os dois aparecem na Pluggy)
+    for categoria in ["Credit card payment", "Transfers"]:
+        criar_transacao(
+            corrente,
+            descricao="Pagamento fatura",
+            valor=Decimal("-200.00"),
+            categoria_pluggy=categoria,
+        )
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE)
+
+    assert resumo["saidas"] == Decimal("400.00")
+
+
+def test_investimento_nao_conta_em_entradas_nem_saidas(corrente):
+    # Caso: aplicação ("Investments" e "Fixed income") não conta em saidas, e
+    # resgate (positivo com categoria de investimento) não conta em entradas:
+    # o dinheiro só mudou de lugar
+    for categoria in ["Investments", "Fixed income"]:
+        criar_transacao(
+            corrente,
+            descricao="Aplicação",
+            valor=Decimal("-300.00"),
+            categoria_pluggy=categoria,
+        )
+        criar_transacao(
+            corrente,
+            descricao="Resgate",
+            valor=Decimal("100.00"),
+            categoria_pluggy=categoria,
+        )
+    criar_transacao(corrente, descricao="Salário", valor=Decimal("3000.00"))
+    criar_transacao(corrente, descricao="Padaria", valor=Decimal("-10.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE)
+
+    assert resumo["entradas"] == Decimal("3000.00")
+    assert resumo["saidas"] == Decimal("10.00")
+
+
+def test_exemplo_completo_do_mes(corrente, cartao):
+    # Caso: um mês com tudo misturado. Entradas: salário + Pix recebido
+    # (2000.00 + 423.00). Saidas: débito + pagamento da fatura (150.00 + 510.29).
+    # Ficam fora: a aplicação, a compra no cartão e a transferência entre
+    # contas próprias (nos dois sentidos)
+    criar_transacao(corrente, descricao="Salário", valor=Decimal("2000.00"))
+    criar_transacao(corrente, descricao="Pix recebido", valor=Decimal("423.00"))
+    criar_transacao(corrente, descricao="Débito", valor=Decimal("-150.00"))
     criar_transacao(
         corrente,
         descricao="Pagamento fatura",
-        valor=Decimal("-200.00"),
-        categoria_pluggy="Credit card payment",
+        valor=Decimal("-510.29"),
+        categoria_pluggy="Transfers",
     )
+    criar_transacao(
+        corrente,
+        descricao="Aplicação",
+        valor=Decimal("-300.00"),
+        categoria_pluggy="Investments",
+    )
+    criar_transacao(cartao, descricao="Compra", valor=Decimal("-486.42"))
+    for valor in [Decimal("-100.00"), Decimal("100.00")]:
+        criar_transacao(
+            corrente,
+            descricao="Entre minhas contas",
+            valor=valor,
+            categoria_pluggy="Same person transfer",
+        )
 
     resumo = resumo_do_mes(OUTUBRO, HOJE)
 
-    assert resumo["saidas"] == Decimal("200.00")
+    assert resumo["entradas"] == Decimal("2423.00")
+    assert resumo["saidas"] == Decimal("660.29")
 
 
 def test_transferencia_entre_contas_proprias_nao_conta(corrente):
@@ -282,7 +347,7 @@ def test_outro_mes_tem_o_mes_mas_nao_o_dia(db):
 
 def test_ultimos_gastos(corrente, cartao):
     # Caso: no máximo 5, só saídas, mais nova primeiro, sem data futura e sem
-    # pagamento de fatura nem transferência entre contas próprias
+    # pagamento de fatura, transferência entre contas próprias nem investimento
     gastos = [
         criar_transacao(cartao, data=date(2026, 10, dia), descricao=f"Dia {dia}")
         for dia in range(1, 8)
@@ -299,6 +364,12 @@ def test_ultimos_gastos(corrente, cartao):
         data=HOJE,
         descricao="Pix para mim",
         categoria_pluggy="Same person transfer - PIX",
+    )
+    criar_transacao(
+        corrente,
+        data=HOJE,
+        descricao="Aplicação",
+        categoria_pluggy="Investments",
     )
     criar_transacao(corrente, data=HOJE, descricao="Salário", valor=Decimal(3000))
 
