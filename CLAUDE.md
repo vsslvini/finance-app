@@ -105,7 +105,10 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-07, dentro de cada app Django, clientes de serviços externos ficam em `integracoes/` e regras de negócio em `services/` (nada solto na raiz do app), para não espalhar arquivos quando surgirem mais services e para trocar a Pluggy mexendo só em `integracoes/`; descartamos repositórios e arquitetura hexagonal por serem complexos demais para o projeto.
 - 2026-10-08, trabalho por módulos (plano com casos de teste, implementação e documento detalhado em `docs/estudos/modulos/`), porque o fluxo passo a passo estava lento; Claude roda testes e lint.
 - 2026-10-08, a API exige token em toda rota por padrão (`IsAuthenticated`), e só a `health/` é pública; rotas só de leitura usam `ListAPIView` direto nos models, e só ações com regra de negócio chamam services.
-- 2026-10-08, o resumo do mês não conta `Credit card payment` como saída nem `Same person transfer` como entrada ou saída, para não contar o mesmo dinheiro duas vezes; o "posso gastar por dia" arredonda para baixo (`ROUND_FLOOR`), para nunca sugerir mais do que se tem.
+- 2026-10-08, o "posso gastar por dia" arredonda para baixo (`ROUND_FLOOR`), para nunca sugerir mais do que se tem.
+- 2026-10-10, o mês do app pode começar N dias antes do dia 1 (configurável pelo app, padrão 0), porque o salário cai no fim do mês anterior; o "posso gastar por dia" divide o saldo pelos dias até o fim desse mês, sem descontar a fatura, que é paga com o salário seguinte.
+- 2026-10-10, entradas e saídas do resumo são contadas só pela conta corrente (o pagamento da fatura conta, as compras do cartão ficam na fatura e os investimentos não contam), porque a Pluggy mandou pagamentos de fatura com a categoria errada e a regra antiga contava o mesmo dinheiro duas vezes.
+- 2026-10-10, o visual segue `docs/design.md` (tema escuro, acento roxo, fonte Manrope, ícones Lucide), e as configurações do usuário moram no app Django `planejamento`.
 
 ## Obstáculos e aprendizados
 

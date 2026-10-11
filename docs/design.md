@@ -70,7 +70,7 @@ Nomes dos campos = nomes dos tokens no código.
 | `texto` | texto principal | `#ECEFF1` |
 | `textoSecundario` | rótulos, datas, detalhes | `#A3ABB2` |
 | `textoTerciario` | dicas, textos desativados | `#8B949B` |
-| `acento` | botões, links, barras de progresso | `#45D699` |
+| `acento` | botões, links, barras de progresso | `#A78BFA` (roxo, escolhido em 2026-10-10; 6,9:1 sobre o fundo) |
 | `textoSobreAcento` | texto em cima do `acento` | `#0F1214` |
 | `fundoEscurecido` | camada atrás das folhas de edição | `#000000` com 60% de opacidade (`rgba(0, 0, 0, 0.6)`), exceção à regra do hexadecimal |
 
@@ -87,7 +87,7 @@ Nomes dos campos = nomes dos tokens no código.
 
 ### Categorias (ícone dos gastos, inspirado no estilo C)
 
-| Categoria | Fundo do ícone | Letra do ícone |
+| Categoria | Fundo do ícone | Cor do ícone |
 |---|---|---|
 | Mercado | `#2E2810` | `#F2D26B` |
 | Restaurantes | `#33200F` | `#F5A56B` |
@@ -98,8 +98,8 @@ Nomes dos campos = nomes dos tokens no código.
 
 | Token | Uso | Valor |
 |---|---|---|
-| `diaPassado` | dias que já passaram | `#2B7A5A` |
-| `diaHoje` | hoje | `#45D699` |
+| `diaPassado` | dias que já passaram | `#5B4AA8` |
+| `diaHoje` | hoje | `#A78BFA` |
 | `diaFuturo` | dias que faltam | `#2A3036` |
 
 ## 5. Tipografia
@@ -148,7 +148,7 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 ### Cartão de par (saldo e fatura; entradas e saídas)
 - Dois cartões lado a lado, `superficie`, canto 16, espaço 12 entre eles.
 - Rótulo em cima (`rotulo`), valor embaixo (`valor`). Pode haver uma linha pequena de variação em `detalhe` (ex.: "+2,5% este mês", sempre com sinal).
-- Cartão de saldo: tocável, abre a edição do início do mês (ver "Folha de edição").
+- Cartão Entrou: tocável, abre a edição do início do mês; cartão Fatura aberta: tocável, abre o limite da fatura (ver "Folha de edição"). Saldo não é tocável.
 
 ### Faixa de aviso
 - `avisoFundo`, contorno `avisoBorda`, texto `aviso`, canto 12.
@@ -194,9 +194,10 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 
 | Campo | Valor |
 |---|---|
-| Conjunto de ícones | a definir (o Expo já traz `@expo/vector-icons`; conferir antes de usar) |
+| Conjunto de ícones | Lucide (`@react-native-vector-icons/lucide`, aprovado em 2026-10-10; o Expo deixou de recomendar o `@expo/vector-icons`) |
 | Estilo | contorno (linha), traço fino |
-| Ícones de categoria | sigla de 2 letras por enquanto (como no estilo C) |
+| Ícones de categoria | ícone Lucide de 16 dentro do círculo colorido: `shopping-cart` (Mercado), `utensils` (Restaurantes), `car` (Transporte), `ellipsis` (Outras) |
+| Ícones dos cartões | 16, cor `textoSecundario`, ao lado do rótulo: `wallet` (Saldo), `credit-card` (Fatura aberta), `arrow-down-left` (Entrou, cor `positivo`), `arrow-up-right` (Saiu, cor `negativo`); aviso com `triangle-alert` (18, cor `aviso`) |
 | Ilustrações | nenhuma |
 
 ## 10. Movimento
@@ -238,7 +239,7 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 - Chegaram dois prints (cada um com três telas), mas havia três linhas de observação. Se existe um Print 3, ele não foi analisado.
 - Todas as cores foram estimadas a olho a partir das imagens, não medidas com conta-gotas.
 - A fonte dos prints parece uma sans geométrica (algo como Plus Jakarta Sans ou Urbanist), mas não consegui identificar com certeza. Mantive Manrope, que tem a mesma sensação e já estava no arquivo.
-- `acento` e `positivo` continuam com o mesmo valor (`#45D699`), como no arquivo original. Se você quiser separar a cor de ação da cor de entrada, é preciso decidir um segundo verde.
+- ~~`acento` e `positivo` com o mesmo valor~~ Resolvido em 2026-10-10: `acento` virou roxo e `positivo` continua verde.
 - Ajuste por daltonismo: o verde do print 1 é mais escuro e saturado. Deixei `positivo` mais claro (`#45D699`) e `negativo` mais alaranjado e mais escuro (`#F2796F`), para que se diferenciem também pela luminosidade (razão de cerca de 1,5 entre eles), além do "+" e do "-" nos valores.
 - Ajuste técnico (gradiente): o cartão de saldo do print 1 usa textura de ondas com brilho. Substituí por `superficie` lisa, sem textura.
 - Ajuste técnico (blur): as folhas de vidro fosco do print 1 viraram `superficieElevada` sólida.

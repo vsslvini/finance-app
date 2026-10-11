@@ -12,7 +12,7 @@ contas Nubank, Inter e PicPay. Os dados vêm da Pluggy (Open Finance) para um ba
 Django + DRF, que guarda tudo no PostgreSQL (no Docker) e entrega JSON a um app React
 Native com Expo. Hoje o backend já sincroniza com a Pluggy e tem API de contas,
 transações, sincronização e resumo do mês. O app mobile já mostra a tela Início com o
-resumo do mês no visual escuro do guia de design, e edita o início do mês e o limite da
+resumo do mês no visual escuro com acento roxo e ícones, e edita o início do mês e o limite da
 fatura; as outras telas são os próximos passos.
 
 ## Ordem de estudo
@@ -37,6 +37,7 @@ aos pré-requisitos dele.
 | 13 | [`modulos/regras-do-mes.md`](modulos/regras-do-mes.md) | Módulo 4a: app novo, tabela de uma linha, `PATCH`, mês começando dias antes, fórmula nova | itens 5 e 7 |
 | 14 | [`jest.md`](jest.md), seções 15 a 17 | dublê que responde por endereço, `jest.mock` de um pacote, digitar e elementos escondidos | item 11 |
 | 15 | [`modulos/design-e-edicao.md`](modulos/design-e-edicao.md) | Módulo 4b: tema, fonte, `Pressable` e `Modal`, a folha de edição do toque ao resumo recarregado | itens 12, 13 e 14 |
+| 16 | [`modulos/ajustes-do-mes.md`](modulos/ajustes-do-mes.md) | Módulo 4c: por que a regra de Entrou e Saiu mudou (o caso real), condições combinadas com `Q`, ícones | item 15 |
 
 ## Documentos de consulta (fora desta pasta)
 

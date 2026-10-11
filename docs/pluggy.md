@@ -138,18 +138,31 @@ PicPay). Funcionou sem erro: 3 conexões, 7 contas e 1187 transações.
   poupança ou outra conta do mesmo banco).
 - **Nenhuma conta foi pulada** por tipo desconhecido: todas vieram como `BANK` ou `CREDIT`.
 
-## 8. Categorias usadas nos cálculos (2026-10-08)
+## 8. Categorias usadas nos cálculos (atualizado em 2026-10-10)
 
 Fonte: guia `products/transaction-categorization`, seção "Category Tree" (conferido em
-2026-10-08). O resumo do mês (`backend/financas/services/resumo.py`) compara a
-`categoria_pluggy` com dois nomes da árvore de categorias da Pluggy:
+2026-10-08 e de novo em 2026-10-10). O resumo do mês (`backend/financas/services/resumo.py`)
+compara a `categoria_pluggy` com nomes da árvore de categorias da Pluggy:
 
-- `Credit card payment` (dentro de "Transfers"): pagamento da fatura do cartão. Não conta
-  como saída, porque as compras do cartão já contaram.
 - `Same person transfer - Cash`, `- PIX` e `- TED`: transferência entre contas da mesma
   pessoa. Não contam como entrada nem como saída. A comparação usa "começa com
   `Same person transfer`", para pegar todas as variações.
+- **Investimentos** (`Investments`, `Automatic investment`, `Fixed income`, `Mutual funds`,
+  `Variable income`, `Margin`, `Pension`): aplicação não conta como saída e resgate não conta
+  como entrada, porque o dinheiro só trocou de lugar. `Proceeds interests and dividends` fica
+  de fora dessa lista: juros e dividendos são ganho de verdade e contam como entrada.
+- `Credit card payment` (dentro de "Transfers"): pagamento da fatura do cartão. Desde
+  2026-10-10, entradas e saídas são contadas só pela conta corrente, então o pagamento da
+  fatura **conta** como saída no mês em que é pago (as compras do cartão ficam só na fatura
+  aberta). O nome só é usado para tirar o pagamento da lista de últimos gastos.
+- **Achado do teste real (2026-10-10):** a Pluggy mandou dois pagamentos de fatura com a
+  categoria genérica `Transfers`, e não `Credit card payment`. A regra nova (contar pela conta
+  corrente) não depende dessa categoria para o total de saídas; só a lista de últimos gastos
+  pode mostrar esses pagamentos.
+
+Os ícones da tela Início usam outros nomes da mesma árvore (`Groceries`, `Food and drinks`,
+`Eating out`, `Food delivery`, `Transportation` e as subcategorias dele); a lista fica em
+`mobile/src/categorias.ts`.
 
 Se a Pluggy mudar esses nomes, ou se passarmos a usar a tradução do `GET /categories`, as
-constantes do `resumo.py` precisam mudar junto.
-
+constantes do `resumo.py` e do `categorias.ts` precisam mudar junto.

@@ -15,6 +15,12 @@ reaproveita o token, o `ler_mes` e o `TransacaoSerializer` de lá.
   - [8. Limites conhecidos](#8-limites-conhecidos)
   - [9. Para estudar mais](#9-para-estudar-mais)
 
+> **Atualização (2026-10-10):** duas regras deste módulo mudaram. O "posso gastar por dia"
+> não desconta mais a fatura e vai até o fim do mês do app ([`regras-do-mes.md`](regras-do-mes.md));
+> entradas e saídas passam a ser contadas só pela conta corrente, com o pagamento da fatura
+> contando como saída e investimentos fora ([`ajustes-do-mes.md`](ajustes-do-mes.md)). O resto
+> deste documento descreve a versão original, útil para estudar o caminho do código.
+
 ## 1. O que o módulo entrega
 
 Uma rota: `GET /api/resumo/?mes=2026-10` (sem `?mes=`, o mês atual; com token). Ela

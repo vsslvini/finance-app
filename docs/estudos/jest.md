@@ -383,6 +383,11 @@ jest.mock('@expo-google-fonts/manrope', () => ({
   nasce com o dublê.
 - É o "monkeypatch de um pacote inteiro"; o `globalThis.fetch = ...` da seção 10 troca uma
   função só.
+- O `tela-inicio-test.tsx` faz o mesmo com os ícones (`@react-native-vector-icons/lucide`): o
+  ícone de verdade nasce vazio e carrega a fonte depois, o que mudaria a tela no meio do
+  teste. O dublê desenha na hora um `Text` com o nome do ícone. A fábrica usa
+  `jest.requireActual('react')` e `React.createElement` em vez de JSX, porque o `jest.mock` é
+  movido para o topo e a fábrica não pode usar nada de fora dela.
 
 ## 17. Digitar, elementos escondidos e propriedades
 
@@ -394,12 +399,15 @@ https://oss.callstack.com/react-native-testing-library/docs/api/queries (conferi
   "2". O campo é achado pelo rótulo: `screen.getByLabelText('Dias antes do dia 1')`.
 - **Conferir o valor de um campo:** `expect(campo).toHaveDisplayValue('3')`.
 - **Elementos escondidos do leitor de tela:** a Testing Library ignora, por padrão, o que está
-  escondido (como a sigla "ME" do ícone, escondida porque o rótulo do gasto já fala a
+  escondido (como o ícone da categoria, escondido porque o rótulo do gasto já fala a
   categoria). Para procurar mesmo assim:
-  `screen.getByText('ME', { includeHiddenElements: true })`.
+  `screen.getByTestId('icone-categoria-shopping-cart', { includeHiddenElements: true })`.
+- **`testID`:** um ícone não tem texto para procurar. O `testID` é uma etiqueta só para testes
+  (`<View testID="icone-categoria-car">`), achada com `getByTestId`. Use só quando não houver
+  texto, rótulo ou papel, porque o usuário não vê o `testID`.
 - **Conferir uma propriedade:** não existe comparador próprio para a dica do leitor de tela
   (`accessibilityHint`). A documentação indica o `toHaveProp` como último recurso:
-  `expect(botao).toHaveProp('accessibilityHint', 'Toque para mudar o início do mês')`.
-- **Botões pelo nome:** `screen.findByRole('button', { name: 'Saldo: 1.250,50 reais' })` acha
-  o cartão tocável pelo papel ("button") e pelo rótulo; se ele não tivesse
+  `expect(botaoEntrou).toHaveProp('accessibilityHint', 'Toque para mudar o início do mês')`.
+- **Botões pelo nome:** `screen.findByRole('button', { name: 'Entrou no mês: 3.000,00 reais' })`
+  acha o cartão tocável pelo papel ("button") e pelo rótulo; se ele não tivesse
   `accessibilityRole="button"`, o teste falharia, e é isso que prova a acessibilidade.
