@@ -1,11 +1,14 @@
-// Ícone de cada gasto: uma sigla de 2 letras com as cores da categoria.
+// Ícone de cada gasto: um ícone Lucide com as cores da categoria.
 // As categorias vêm da Pluggy em inglês; comparamos pelo nome exato.
 import { coresDeCategoria } from '@/tema';
 
+// Nomes dos ícones Lucide usados nas categorias (conferidos no glyphmap do pacote)
+export type NomeDoIconeDeCategoria = 'shopping-cart' | 'utensils' | 'car' | 'ellipsis';
+
 export type IconeDeCategoria = {
-  sigla: 'ME' | 'RE' | 'TR' | 'OU';
+  icone: NomeDoIconeDeCategoria;
   fundo: string;
-  letra: string;
+  cor: string;
 };
 
 const MERCADO = ['Groceries'];
@@ -27,16 +30,24 @@ const TRANSPORTE = [
   'Traffic tickets',
 ];
 
-// "Groceries" -> { sigla: 'ME', ... }; qualquer outra (até "Sem categoria") -> 'OU'
+// Junta o nome do ícone com as cores do tema (a "letra" do guia vira "cor")
+function montar(
+  icone: NomeDoIconeDeCategoria,
+  cores: { fundo: string; letra: string },
+): IconeDeCategoria {
+  return { icone, fundo: cores.fundo, cor: cores.letra };
+}
+
+// "Groceries" -> { icone: 'shopping-cart', ... }; qualquer outra (até "Sem categoria") -> 'ellipsis'
 export function iconeDaCategoria(categoria: string): IconeDeCategoria {
   if (MERCADO.includes(categoria)) {
-    return { sigla: 'ME', ...coresDeCategoria.mercado };
+    return montar('shopping-cart', coresDeCategoria.mercado);
   }
   if (RESTAURANTES.includes(categoria)) {
-    return { sigla: 'RE', ...coresDeCategoria.restaurantes };
+    return montar('utensils', coresDeCategoria.restaurantes);
   }
   if (TRANSPORTE.includes(categoria)) {
-    return { sigla: 'TR', ...coresDeCategoria.transporte };
+    return montar('car', coresDeCategoria.transporte);
   }
-  return { sigla: 'OU', ...coresDeCategoria.outras };
+  return montar('ellipsis', coresDeCategoria.outras);
 }

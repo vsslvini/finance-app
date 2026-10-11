@@ -12,7 +12,7 @@ export const cores = {
   texto: '#ECEFF1',
   textoSecundario: '#A3ABB2',
   textoTerciario: '#8B949B',
-  acento: '#45D699',
+  acento: '#A78BFA',
   textoSobreAcento: '#0F1214',
   // Significado
   positivo: '#45D699',
@@ -22,8 +22,8 @@ export const cores = {
   avisoBorda: '#6B4F1D',
   erro: '#F2796F',
   // Régua de dias do mês
-  diaPassado: '#2B7A5A',
-  diaHoje: '#45D699',
+  diaPassado: '#5B4AA8',
+  diaHoje: '#A78BFA',
   diaFuturo: '#2A3036',
 };
 

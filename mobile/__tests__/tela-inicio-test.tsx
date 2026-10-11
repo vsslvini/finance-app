@@ -7,6 +7,27 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { buscarResumo, type Resumo } from '@/api';
 import InicioScreen from '@/app/index';
 
+// Dublê do pacote de ícones (a ideia do jest.mock está no rotas-test.tsx).
+// O ícone de verdade é um Text que só desenha depois de carregar a fonte
+// Lucide; com o Expo, essa carga é assíncrona e terminaria no meio do teste,
+// fora do nosso controle. O ícone falso é um Text simples com o nome do ícone,
+// desenhado na hora. Os testes conferem o círculo (pelo testID), não o desenho.
+// Usamos jest.requireActual e React.createElement (em vez de JSX) porque o
+// Jest move o jest.mock para o topo do arquivo, e lá a fábrica não pode usar
+// nada de fora dela, nem os imports.
+jest.mock('@react-native-vector-icons/lucide', () => {
+  const React = jest.requireActual('react');
+  const { Text } = jest.requireActual('react-native');
+  // ...resto guarda as outras propriedades (como a que esconde o ícone do
+  // leitor de tela) e as repassa ao Text, para o falso se comportar igual.
+  function IconeFalso({ name, ...resto }: { name: string }) {
+    return React.createElement(Text, resto, name);
+  }
+  // O pacote exporta o mesmo componente de dois jeitos (padrão e com nome
+  // Lucide); o dublê oferece os dois, seja qual for o import da tela.
+  return { __esModule: true, default: IconeFalso, Lucide: IconeFalso };
+});
+
 // ---------------------------------------------------------------------------
 // O que é um mock (dublê)
 //
@@ -38,8 +59,10 @@ const MENSAGEM_SERVIDOR = 'O servidor teve um erro. Tente de novo em instantes.'
 
 // Nomes que o leitor de tela anuncia para os dois cartões que abrem folhas.
 // Com eles achamos os botões do jeito que uma pessoa usando o TalkBack acharia.
-const BOTAO_SALDO = 'Saldo: 1.250,50 reais';
+const BOTAO_ENTROU = 'Entrou no mês: 3.000,00 reais';
 const BOTAO_FATURA = 'Fatura aberta: 499,90 reais';
+// O Saldo tem nome para o leitor de tela, mas não é mais botão.
+const ROTULO_SALDO = 'Saldo: 1.250,50 reais';
 
 const ENDERECO_CONFIGURACOES = 'http://servidor-falso:8000/api/configuracoes/';
 
@@ -293,18 +316,24 @@ describe('Tela Início', () => {
 
     await render(<InicioScreen />);
 
-    // Primeiro gasto (Groceries tem o ícone de mercado, sigla "ME").
-    // A sigla fica escondida do leitor de tela (o rótulo do gasto já fala a
+    // Primeiro gasto (Groceries tem o ícone do carrinho, shopping-cart).
+    // Um ícone não tem texto para procurar, então aqui usamos o testID do
+    // círculo ("icone-categoria-" + nome do ícone), combinado no contrato.
+    // O círculo fica escondido do leitor de tela (o rótulo do gasto já fala a
     // categoria), e a Testing Library ignora o que está escondido. Por isso
     // pedimos includeHiddenElements: "procure também nos escondidos".
     expect(await screen.findByText('Mercado')).toBeOnTheScreen();
-    expect(screen.getByText('ME', { includeHiddenElements: true })).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('icone-categoria-shopping-cart', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
     expect(screen.getByText('- R$ 45,90')).toBeOnTheScreen();
     expect(screen.getByText('08/10 · Nubank · Groceries')).toBeOnTheScreen();
 
-    // Segundo gasto (Transportation tem o ícone de transporte, sigla "TR")
+    // Segundo gasto (Transportation tem o ícone do carro, car)
     expect(screen.getByText('Uber')).toBeOnTheScreen();
-    expect(screen.getByText('TR', { includeHiddenElements: true })).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('icone-categoria-car', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
     expect(screen.getByText('- R$ 18,70')).toBeOnTheScreen();
     expect(screen.getByText('07/10 · Inter · Transportation')).toBeOnTheScreen();
 
@@ -410,7 +439,7 @@ describe('Tela Início', () => {
     expect(screen.getByLabelText('Saiu no mês: 1.830,45 reais')).toBeOnTheScreen();
   });
 
-  it('os cartões Saldo e Fatura aberta são botões, com dica para o leitor de tela', async () => {
+  it('os cartões Entrou e Fatura aberta são botões', async () => {
     fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
 
     await render(<InicioScreen />);
@@ -418,16 +447,44 @@ describe('Tela Início', () => {
     // findByRole acha o elemento com papel de botão e com esse nome. Se o
     // cartão não fosse um botão, não seria achado: é o que garante que o
     // TalkBack anuncia "botão" e que dá para tocar nele.
-    const saldo = await screen.findByRole('button', { name: BOTAO_SALDO });
-    const fatura = screen.getByRole('button', { name: BOTAO_FATURA });
+    expect(await screen.findByRole('button', { name: BOTAO_ENTROU })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: BOTAO_FATURA })).toBeOnTheScreen();
+  });
+
+  it('o cartão Entrou tem a dica "Toque para mudar o início do mês"', async () => {
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+
+    await render(<InicioScreen />);
+    const entrou = await screen.findByRole('button', { name: BOTAO_ENTROU });
 
     // A dica (accessibilityHint) é a frase que o leitor de tela fala depois
     // do nome, explicando o que o toque faz. A Testing Library não tem um
     // comparador próprio para a dica, então usamos o toHaveProp, que confere
     // uma propriedade do elemento (a documentação o indica quando nenhum
     // outro comparador serve).
-    expect(saldo).toHaveProp('accessibilityHint', 'Toque para mudar o início do mês');
+    expect(entrou).toHaveProp('accessibilityHint', 'Toque para mudar o início do mês');
+  });
+
+  it('o cartão Fatura aberta tem a dica "Toque para mudar o limite da fatura"', async () => {
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+
+    await render(<InicioScreen />);
+    const fatura = await screen.findByRole('button', { name: BOTAO_FATURA });
+
     expect(fatura).toHaveProp('accessibilityHint', 'Toque para mudar o limite da fatura');
+  });
+
+  it('o cartão Saldo tem nome para o leitor de tela, mas não é mais um botão', async () => {
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+
+    await render(<InicioScreen />);
+    await screen.findByText('R$ 1.250,50');
+
+    // O cartão existe e o leitor de tela fala o saldo em reais...
+    expect(screen.getByLabelText(ROTULO_SALDO)).toBeOnTheScreen();
+    // ...mas não há botão com esse nome: queryByRole devolve null quando não
+    // acha. Assim ninguém toca no Saldo esperando abrir alguma coisa.
+    expect(screen.queryByRole('button', { name: ROTULO_SALDO })).toBeNull();
   });
 });
 
@@ -441,12 +498,13 @@ describe('Tela Início', () => {
 // ver que o título dela sumiu (queryByText devolve null).
 // ---------------------------------------------------------------------------
 describe('Folha "Início do mês"', () => {
-  it('tocar em Saldo abre a folha com o valor atual do servidor', async () => {
+  it('tocar em Entrou abre a folha com o valor atual do servidor', async () => {
     ligarServidorFalso();
     await render(<InicioScreen />);
 
-    // Faz: toca no cartão Saldo.
-    await fireEvent.press(await screen.findByRole('button', { name: BOTAO_SALDO }));
+    // Faz: toca no cartão Entrou (antes era o Saldo; desde o módulo 4c é o
+    // Entrou que abre esta folha).
+    await fireEvent.press(await screen.findByRole('button', { name: BOTAO_ENTROU }));
 
     // Verifica: o título da folha aparece...
     expect(await screen.findByText('Início do mês')).toBeOnTheScreen();
@@ -462,7 +520,7 @@ describe('Folha "Início do mês"', () => {
   it('salvar "2" manda um PATCH com dias_antes_do_mes 2', async () => {
     ligarServidorFalso();
     await render(<InicioScreen />);
-    await fireEvent.press(await screen.findByRole('button', { name: BOTAO_SALDO }));
+    await fireEvent.press(await screen.findByRole('button', { name: BOTAO_ENTROU }));
     // Espera as configurações chegarem, para o valor do servidor não
     // sobrescrever o que vamos digitar.
     await waitFor(() =>
@@ -489,7 +547,7 @@ describe('Folha "Início do mês"', () => {
   it('depois de salvar, fecha a folha e busca o resumo de novo', async () => {
     ligarServidorFalso();
     await render(<InicioScreen />);
-    await fireEvent.press(await screen.findByRole('button', { name: BOTAO_SALDO }));
+    await fireEvent.press(await screen.findByRole('button', { name: BOTAO_ENTROU }));
     await waitFor(() =>
       expect(screen.getByLabelText('Dias antes do dia 1')).toHaveDisplayValue('3'),
     );
@@ -507,7 +565,7 @@ describe('Folha "Início do mês"', () => {
   it('"Cancelar" fecha a folha sem mandar nada ao servidor', async () => {
     ligarServidorFalso();
     await render(<InicioScreen />);
-    await fireEvent.press(await screen.findByRole('button', { name: BOTAO_SALDO }));
+    await fireEvent.press(await screen.findByRole('button', { name: BOTAO_ENTROU }));
     await screen.findByText('Início do mês');
 
     // Faz: digita um valor novo, mas desiste.

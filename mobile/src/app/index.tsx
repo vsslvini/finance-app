@@ -1,3 +1,4 @@
+import { Lucide } from '@react-native-vector-icons/lucide';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +8,7 @@ import { iconeDaCategoria } from '@/categorias';
 import Botao from '@/componentes/Botao';
 import FolhaDeEdicao, { type CampoEditavel } from '@/componentes/FolhaDeEdicao';
 import ReguaDeDias from '@/componentes/ReguaDeDias';
+import RotuloDoCartao from '@/componentes/RotuloDoCartao';
 import { formatarData, formatarNumero, formatarReais, nomeDoMes } from '@/formatacao';
 import { MENSAGENS_DE_ERRO } from '@/mensagens';
 import { cantos, cores, espaco, fontes, textos } from '@/tema';
@@ -121,18 +123,16 @@ export default function InicioScreen() {
           <ReguaDeDias diaDoMes={resumo.dia_do_mes} diasNoMes={resumo.dias_no_mes} />
         )}
 
-        {/* 4. Saldo e fatura: tocáveis, abrem a folha de edição */}
+        {/* 4. Saldo (só leitura) e fatura (tocável, abre a folha do limite) */}
         <View style={styles.linha}>
-          <Pressable
-            accessibilityRole="button"
+          <View
+            accessible
             accessibilityLabel={rotuloEmReais('Saldo', resumo.saldo_total)}
-            accessibilityHint="Toque para mudar o início do mês"
-            onPress={() => setCampoAberto('inicioDoMes')}
-            style={({ pressed }) => [styles.cartao, styles.cartaoMetade, pressed && styles.apertado]}
+            style={[styles.cartao, styles.cartaoMetade]}
           >
-            <Text style={textos.rotulo}>Saldo</Text>
+            <RotuloDoCartao texto="Saldo" icone="wallet" />
             <Text style={textos.valor}>{formatarReais(resumo.saldo_total)}</Text>
-          </Pressable>
+          </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={rotuloEmReais('Fatura aberta', resumo.fatura_aberta)}
@@ -140,7 +140,7 @@ export default function InicioScreen() {
             onPress={() => setCampoAberto('limiteDaFatura')}
             style={({ pressed }) => [styles.cartao, styles.cartaoMetade, pressed && styles.apertado]}
           >
-            <Text style={textos.rotulo}>Fatura aberta</Text>
+            <RotuloDoCartao texto="Fatura aberta" icone="credit-card" />
             <Text style={textos.valor}>{formatarReais(resumo.fatura_aberta)}</Text>
           </Pressable>
         </View>
@@ -148,30 +148,40 @@ export default function InicioScreen() {
         {/* 5. Aviso de fatura acima do limite */}
         {resumo.fatura_acima_do_limite && resumo.limite_fatura !== null && (
           <View style={styles.aviso}>
+            {/* Ícone só de enfeite: o texto do aviso já explica tudo */}
+            <Lucide
+              name="triangle-alert"
+              size={18}
+              color={cores.aviso}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            />
             <Text style={[textos.corpo, styles.textoAviso]}>
               {`A fatura passou do limite de ${formatarReais(resumo.limite_fatura)}.`}
             </Text>
           </View>
         )}
 
-        {/* 6. Entradas e saídas do mês */}
+        {/* 6. Entradas e saídas do mês: "Entrou" é tocável e abre a folha do início do mês */}
         <View style={styles.linha}>
-          <View
-            accessible
+          <Pressable
+            accessibilityRole="button"
             accessibilityLabel={rotuloEmReais('Entrou no mês', resumo.entradas)}
-            style={[styles.cartao, styles.cartaoMetade]}
+            accessibilityHint="Toque para mudar o início do mês"
+            onPress={() => setCampoAberto('inicioDoMes')}
+            style={({ pressed }) => [styles.cartao, styles.cartaoMetade, pressed && styles.apertado]}
           >
-            <Text style={textos.rotulo}>Entrou</Text>
+            <RotuloDoCartao texto="Entrou" icone="arrow-down-left" corDoIcone={cores.positivo} />
             <Text style={[textos.valor, styles.positivo]}>
               {`+ ${formatarReais(resumo.entradas)}`}
             </Text>
-          </View>
+          </Pressable>
           <View
             accessible
             accessibilityLabel={rotuloEmReais('Saiu no mês', resumo.saidas)}
             style={[styles.cartao, styles.cartaoMetade]}
           >
-            <Text style={textos.rotulo}>Saiu</Text>
+            <RotuloDoCartao texto="Saiu" icone="arrow-up-right" corDoIcone={cores.negativo} />
             <Text style={[textos.valor, styles.negativo]}>
               {`- ${formatarReais(resumo.saidas)}`}
             </Text>
@@ -203,11 +213,12 @@ export default function InicioScreen() {
                 >
                   {/* Círculo da categoria: só desenho, escondido do leitor de tela */}
                   <View
+                    testID={`icone-categoria-${icone.icone}`}
                     importantForAccessibility="no-hide-descendants"
                     accessibilityElementsHidden
                     style={[styles.icone, { backgroundColor: icone.fundo }]}
                   >
-                    <Text style={[styles.sigla, { color: icone.letra }]}>{icone.sigla}</Text>
+                    <Lucide name={icone.icone} size={16} color={icone.cor} />
                   </View>
                   <View style={styles.gastoMeio}>
                     <Text style={textos.corpo}>{gasto.descricao}</Text>
@@ -316,6 +327,10 @@ const styles = StyleSheet.create({
     color: cores.negativo,
   },
   aviso: {
+    // Ícone e texto lado a lado
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaco.pequeno,
     backgroundColor: cores.avisoFundo,
     borderWidth: 1,
     borderColor: cores.avisoBorda,
@@ -323,6 +338,8 @@ const styles = StyleSheet.create({
     padding: espaco.medio,
   },
   textoAviso: {
+    // flex: 1 deixa o texto quebrar a linha ao lado do ícone
+    flex: 1,
     color: cores.aviso,
   },
   subtitulo: {
@@ -344,11 +361,6 @@ const styles = StyleSheet.create({
     borderRadius: cantos.icone,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sigla: {
-    fontFamily: fontes.negrito,
-    fontSize: 11,
-    lineHeight: 14,
   },
   gastoMeio: {
     flex: 1,
