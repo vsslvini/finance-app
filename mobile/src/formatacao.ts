@@ -57,6 +57,56 @@ export function nomeDoMes(ano: number, mes: number): string {
   return `${NOMES_DOS_MESES[mes - 1]} de ${ano}`;
 }
 
+// "2026-10" -> "Outubro de 2026" (o mês vem do backend, não do relógio do celular).
+// Usado no título da tela Início e no texto do plano de guardar.
+export function tituloDoMes(mes: string): string {
+  const ano = Number(mes.slice(0, 4));
+  const numeroDoMes = Number(mes.slice(5, 7));
+  return nomeDoMes(ano, numeroDoMes);
+}
+
+// Texto para o leitor de tela, que lê "1.250,50 reais" melhor do que "R$ 1.250,50".
+// "Saldo: 1.250,50 reais" ou "Posso gastar por dia: menos 10,00 reais"
+export function rotuloEmReais(nome: string, valor: string): string {
+  const menos = valor.startsWith('-') ? 'menos ' : '';
+  return `${nome}: ${menos}${formatarNumero(valor)} reais`;
+}
+
+// "2027-07" (formato da API) -> "07/2027" (formato do campo "Até quando")
+export function formatarMes(mes: string): string {
+  return `${mes.slice(5, 7)}/${mes.slice(0, 4)}`;
+}
+
+// Formato aceito no campo "Até quando": 2 dígitos do mês, barra, 4 dígitos do ano
+const FORMATO_DE_MES = /^(\d{2})\/(\d{4})$/;
+
+// Texto digitado -> texto que a API entende.
+// "07/2027" -> "2027-07"; "" -> null (sem plano).
+// Lança Error('Mês inválido') para qualquer outra coisa ("7/27", "13/2027", "2027-07").
+// Assim como formatarData, trabalha só com o texto, sem usar Date.
+export function lerMes(texto: string): string | null {
+  // Tira todos os espaços, como o lerReais
+  const limpo = texto.replace(/\s/g, '');
+  if (limpo === '') {
+    return null;
+  }
+
+  const partes = FORMATO_DE_MES.exec(limpo);
+  if (partes === null) {
+    throw new Error('Mês inválido');
+  }
+
+  // partes[1] é o mês ("07"); partes[2] é o ano ("2027").
+  // A expressão só confere os dígitos; aqui conferimos se o mês existe.
+  const mes = partes[1];
+  const ano = partes[2];
+  const numeroDoMes = Number(mes);
+  if (numeroDoMes < 1 || numeroDoMes > 12) {
+    throw new Error('Mês inválido');
+  }
+  return `${ano}-${mes}`;
+}
+
 // Formato aceito: dígitos (com pontos de milhar opcionais, de 3 em 3) e,
 // se houver, vírgula com 1 ou 2 casas. Ex.: "1000", "1.000", "1.000,50", "0,5"
 const FORMATO_DE_REAIS = /^(\d{1,3}(\.\d{3})+|\d+)(,(\d{1,2}))?$/;

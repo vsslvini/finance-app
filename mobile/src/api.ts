@@ -14,6 +14,22 @@ export type GastoResumo = {
   total_parcelas: number | null;
 };
 
+// Resposta de GET e PATCH /api/plano/. Os dois null = sem plano.
+export type PlanoDeGuardar = {
+  valor_mensal: string | null; // "500.00"
+  mes_alvo: string | null; // "2027-07"
+};
+
+// Bloco "guardado" do resumo (investimentos e plano de guardar)
+export type Guardado = {
+  total: string; // soma dos investimentos hoje: "1300.00"
+  este_mes: string; // quanto entrou neste mês; negativo se resgatou mais do que aplicou
+  plano: PlanoDeGuardar | null; // null sem plano (com plano, os dois campos vêm preenchidos)
+  previsto: string | null; // quanto haverá no mês alvo; null sem plano
+  progresso: number | null; // porcentagem inteira (pode passar de 100); null sem plano
+  falta_guardar_no_mes: string; // já descontado do "posso gastar"; "0.00" sem plano
+};
+
 // Resposta de GET /api/resumo/ (mesmos campos do ResumoSerializer)
 export type Resumo = {
   mes: string; // "2026-10"
@@ -27,6 +43,7 @@ export type Resumo = {
   saidas: string;
   posso_gastar_por_dia: string | null; // null quando não é o mês de hoje
   ultimos_gastos: GastoResumo[];
+  guardado: Guardado;
 };
 
 // Resposta de GET e PATCH /api/configuracoes/
@@ -78,7 +95,7 @@ async function primeiraMensagem(response: Response): Promise<string> {
   return 'Valor inválido.';
 }
 
-// Ajudante usado pelas três funções da API: faz o fetch com o token, aplica o
+// Ajudante usado por todas as funções da API: faz o fetch com o token, aplica o
 // limite de tempo e traduz o status da resposta em ErroApi.
 // Sem "corpo", é um GET; com "corpo", é um PATCH com JSON.
 async function pedirApi<T>(caminho: string, corpo?: object): Promise<T> {
@@ -147,4 +164,14 @@ export async function salvarConfiguracoes(
   mudancas: Partial<Configuracoes>,
 ): Promise<Configuracoes> {
   return pedirApi<Configuracoes>('/api/configuracoes/', mudancas);
+}
+
+export async function buscarPlano(): Promise<PlanoDeGuardar> {
+  return pedirApi<PlanoDeGuardar>('/api/plano/');
+}
+
+// Manda sempre os dois campos (PATCH): os dois null removem o plano.
+// Se só um vier vazio, quem recusa é o backend (400 com a mensagem dele).
+export async function salvarPlano(plano: PlanoDeGuardar): Promise<PlanoDeGuardar> {
+  return pedirApi<PlanoDeGuardar>('/api/plano/', plano);
 }

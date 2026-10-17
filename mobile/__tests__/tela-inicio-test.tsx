@@ -4,7 +4,7 @@
 // antigos.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
-import { buscarResumo, type Resumo } from '@/api';
+import { buscarResumo, type Guardado, type PlanoDeGuardar, type Resumo } from '@/api';
 import InicioScreen from '@/app/index';
 
 // Dublê do pacote de ícones (a ideia do jest.mock está no rotas-test.tsx).
@@ -64,7 +64,41 @@ const BOTAO_FATURA = 'Fatura aberta: 499,90 reais';
 // O Saldo tem nome para o leitor de tela, mas não é mais botão.
 const ROTULO_SALDO = 'Saldo: 1.250,50 reais';
 
+// A seção "Guardado" também é um botão (abre a folha do plano). Este é o nome
+// dela com o resumo padrão dos testes, em que o total guardado é 0,00.
+const BOTAO_GUARDADO = 'Guardado: 0,00 reais';
+
 const ENDERECO_CONFIGURACOES = 'http://servidor-falso:8000/api/configuracoes/';
+const ENDERECO_PLANO = 'http://servidor-falso:8000/api/plano/';
+
+// O bloco "guardado" do resumo, no jeito mais neutro: nada guardado, sem
+// plano e sem desconto no "posso gastar". É o padrão de todos os testes, para
+// os testes antigos (de antes do módulo 5) continuarem vendo a mesma tela.
+const GUARDADO_SEM_PLANO: Guardado = {
+  total: '0.00',
+  este_mes: '0.00',
+  plano: null,
+  previsto: null,
+  progresso: null,
+  falta_guardar_no_mes: '0.00',
+};
+
+// O bloco "guardado" com um plano: 1.300,00 guardados (500,00 neste mês),
+// plano de 500,00 por mês até julho de 2027, previsão de 5.800,00 e 22% do
+// caminho andado. Usado no caso 10.
+const GUARDADO_COM_PLANO: Guardado = {
+  total: '1300.00',
+  este_mes: '500.00',
+  plano: { valor_mensal: '500.00', mes_alvo: '2027-07' },
+  previsto: '5800.00',
+  progresso: 22,
+  falta_guardar_no_mes: '0.00',
+};
+
+// Respostas do GET e do PATCH de /api/plano/. Sem plano, os dois campos vêm
+// null; depois de salvar, o backend devolve o plano gravado.
+const PLANO_VAZIO: PlanoDeGuardar = { valor_mensal: null, mes_alvo: null };
+const PLANO_SALVO: PlanoDeGuardar = { valor_mensal: '500.00', mes_alvo: '2027-07' };
 
 // Dados falsos no mesmo formato do GET /api/resumo/ (ResumoSerializer do
 // backend). Os valores vêm como texto, como o backend manda.
@@ -105,6 +139,7 @@ const RESUMO_DE_EXEMPLO: Resumo = {
       total_parcelas: null,
     },
   ],
+  guardado: GUARDADO_SEM_PLANO,
 };
 
 // Monta um resumo a partir do exemplo, trocando só o que o teste precisa.
@@ -138,16 +173,18 @@ function respostaFalsa(status: number, dados?: unknown): Response {
 // ---------------------------------------------------------------------------
 // Um servidor falso que responde conforme o endereço
 //
-// Nos testes das folhas, a tela faz três pedidos diferentes: GET do resumo,
-// GET das configurações e PATCH das configurações. O mockResolvedValue
+// Nos testes das folhas, a tela faz pedidos diferentes: GET do resumo, GET e
+// PATCH das configurações e, na folha do plano, GET e PATCH do plano
+// (/api/plano/). O mockResolvedValue
 // devolveria a mesma resposta para todos. Com mockImplementation passamos
 // uma função nossa, que o dublê roda a cada chamada com os mesmos argumentos
 // do fetch (endereço e opções). Olhando o endereço e o método
 // (opcoes?.method; sem método, o fetch faz GET) escolhemos a resposta, como
 // um backend de mentira. O "?." é para quando opções não vierem.
 //
-// patch é a resposta do PATCH; por padrão "deu certo" (200). O teste do erro
-// 400 passa outra.
+// patch é a resposta do PATCH das configurações; por padrão "deu certo"
+// (200). O teste do erro 400 passa outra. O plano sempre começa vazio e o
+// PATCH dele sempre dá certo.
 // ---------------------------------------------------------------------------
 function ligarServidorFalso(patch: Response = respostaFalsa(200, CONFIGURACOES_DE_EXEMPLO)) {
   fetchFalso.mockImplementation(async (endereco, opcoes) => {
@@ -160,6 +197,12 @@ function ligarServidorFalso(patch: Response = respostaFalsa(200, CONFIGURACOES_D
     }
     if (url.includes('/api/configuracoes/')) {
       return respostaFalsa(200, CONFIGURACOES_DE_EXEMPLO);
+    }
+    if (url.includes('/api/plano/') && opcoes?.method === 'PATCH') {
+      return respostaFalsa(200, PLANO_SALVO);
+    }
+    if (url.includes('/api/plano/')) {
+      return respostaFalsa(200, PLANO_VAZIO);
     }
     // Um endereço que não esperávamos: falha alto, para o erro ficar claro.
     throw new Error(`Endereço inesperado no teste: ${url}`);
@@ -630,6 +673,145 @@ describe('Folha "Limite da fatura"', () => {
     ).toBeOnTheScreen();
     // ...e a folha não fechou, para a pessoa corrigir o valor.
     expect(screen.getByText('Limite da fatura')).toBeOnTheScreen();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Módulo 5b: a seção "Guardado" (casos 10 a 14 do plano)
+// ---------------------------------------------------------------------------
+describe('Seção "Guardado"', () => {
+  it('com plano, mostra o total, o que entrou no mês, a barra e a previsão (caso 10)', async () => {
+    // Prepara: o resumo com o bloco "guardado" de um plano em andamento.
+    fetchFalso.mockResolvedValue(
+      respostaFalsa(200, criarResumo({ guardado: GUARDADO_COM_PLANO })),
+    );
+
+    await render(<InicioScreen />);
+
+    // Verifica: o total guardado e quanto entrou neste mês.
+    expect(await screen.findByText('R$ 1.300,00')).toBeOnTheScreen();
+    expect(screen.getByText('+ R$ 500,00 este mês')).toBeOnTheScreen();
+
+    // A barra de progresso. Ela não tem texto, então procuramos pelo papel
+    // "progressbar", o mesmo que faz o leitor de tela anunciar "barra de
+    // progresso". O toHaveAccessibilityValue confere os números que o leitor
+    // de tela fala: de 0 a 100, agora em 22 (o progresso que veio do backend).
+    expect(screen.getByRole('progressbar')).toHaveAccessibilityValue({
+      min: 0,
+      max: 100,
+      now: 22,
+    });
+
+    // A frase da previsão, com o mês do plano por extenso e em minúsculas.
+    expect(
+      screen.getByText('R$ 1.300,00 de R$ 5.800,00 previstos em julho de 2027'),
+    ).toBeOnTheScreen();
+  });
+
+  it('sem plano, convida a criar um e não mostra a barra (caso 11)', async () => {
+    // Prepara: o resumo padrão, que já vem sem plano (GUARDADO_SEM_PLANO).
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+
+    await render(<InicioScreen />);
+
+    // Verifica: o convite aparece...
+    expect(await screen.findByText('Toque para criar um plano de guardar')).toBeOnTheScreen();
+    // ...e não há barra nem frase de previsão (queryBy devolve null quando
+    // não acha; o /.../ pega qualquer texto que contenha o trecho).
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    expect(screen.queryByText(/previstos em/)).toBeNull();
+  });
+});
+
+describe('Folha "Plano de guardar"', () => {
+  it('tocar na seção abre a folha, e salvar "500" e "07/2027" manda o plano e recarrega o resumo (caso 12)', async () => {
+    // Prepara: o servidor falso, que agora também responde /api/plano/ (o
+    // GET devolve "sem plano"; o PATCH devolve o plano salvo).
+    ligarServidorFalso();
+    await render(<InicioScreen />);
+
+    // Faz: toca na seção "Guardado", achada pelo papel de botão e pelo nome
+    // que o leitor de tela fala.
+    await fireEvent.press(await screen.findByRole('button', { name: BOTAO_GUARDADO }));
+
+    // Verifica: a folha abriu. O título é um cabeçalho (papel "header"), e
+    // o name confere que é este cabeçalho, e não o título do mês.
+    expect(await screen.findByRole('header', { name: 'Plano de guardar' })).toBeOnTheScreen();
+
+    // Faz: os campos só aparecem depois que o GET /api/plano/ responde
+    // (como na folha das configurações), por isso o findBy espera o primeiro.
+    // Depois digita nos dois campos e toca em Salvar.
+    await fireEvent.changeText(await screen.findByLabelText('Quanto por mês'), '500');
+    await fireEvent.changeText(screen.getByLabelText('Até quando (MM/AAAA)'), '07/2027');
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Verifica: houve exatamente um PATCH (o chamadasPatch já separa as
+    // chamadas pelo método)...
+    await waitFor(() => expect(chamadasPatch()).toHaveLength(1));
+    // ...no endereço do plano, com o método PATCH e o corpo em JSON...
+    const [endereco, opcoes] = chamadasPatch()[0];
+    expect(endereco).toBe(ENDERECO_PLANO);
+    expect(opcoes).toMatchObject({
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    // ...com os dois campos já no formato do backend: o valor com ponto nos
+    // centavos e o mês como "AAAA-MM"...
+    expect(corpoDoPatch()).toEqual({ valor_mensal: '500.00', mes_alvo: '2027-07' });
+    // ...e o resumo foi pedido de novo (ao abrir a tela e depois de salvar),
+    // porque o plano muda a barra e o "posso gastar".
+    await waitFor(() => expect(chamadasDoResumo()).toHaveLength(2));
+  });
+
+  it('mês em formato errado ("7/27") mostra o aviso e não chama o servidor (caso 13)', async () => {
+    ligarServidorFalso();
+    await render(<InicioScreen />);
+
+    await fireEvent.press(await screen.findByRole('button', { name: BOTAO_GUARDADO }));
+
+    // Faz: um valor válido e um mês no formato errado. O valor é válido de
+    // propósito, para o único erro possível ser o do mês.
+    await fireEvent.changeText(await screen.findByLabelText('Quanto por mês'), '500');
+    await fireEvent.changeText(screen.getByLabelText('Até quando (MM/AAAA)'), '7/27');
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Verifica: o aviso aparece embaixo dos campos...
+    expect(await screen.findByText('Digite o mês como MM/AAAA.')).toBeOnTheScreen();
+    // ...e nenhum PATCH foi feito: o app recusou sozinho, sem incomodar o
+    // servidor.
+    expect(chamadasPatch()).toHaveLength(0);
+  });
+});
+
+describe('Desconto do plano no "posso gastar"', () => {
+  it('com algo a guardar no mês, mostra "já separando" com o valor (caso 14)', async () => {
+    // Prepara: o resumo padrão, trocando só quanto falta guardar no mês.
+    // O "..." copia o bloco sem plano e o campo escrito depois substitui o
+    // de mesmo nome.
+    fetchFalso.mockResolvedValue(
+      respostaFalsa(
+        200,
+        criarResumo({
+          guardado: { ...GUARDADO_SEM_PLANO, falta_guardar_no_mes: '200.00' },
+        }),
+      ),
+    );
+
+    await render(<InicioScreen />);
+
+    expect(await screen.findByText('já separando R$ 200,00 para guardar')).toBeOnTheScreen();
+  });
+
+  it('sem nada a guardar no mês ("0.00"), não mostra "já separando" (caso 14)', async () => {
+    // O resumo padrão já tem falta_guardar_no_mes "0.00".
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+
+    await render(<InicioScreen />);
+    // Espera a tela carregar antes de conferir a ausência (mesmo cuidado do
+    // teste do aviso da fatura).
+    await screen.findByText('R$ 1.250,50');
+
+    expect(screen.queryByText(/já separando/)).toBeNull();
   });
 });
 

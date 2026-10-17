@@ -1,5 +1,5 @@
 // Folha que sobe de baixo da tela para editar uma configuração:
-// o início do mês (toque em "Saldo") ou o limite da fatura (toque em "Fatura aberta").
+// o início do mês (toque em "Entrou") ou o limite da fatura (toque em "Fatura aberta").
 // A tela Início só mostra esta folha quando há um campo aberto; ao aparecer,
 // ela busca as configurações atuais no backend e preenche o campo.
 import { useEffect, useState } from 'react';
@@ -10,20 +10,15 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import {
-  buscarConfiguracoes,
-  ErroApi,
-  salvarConfiguracoes,
-  type Configuracoes,
-} from '@/api';
+import { buscarConfiguracoes, salvarConfiguracoes, type Configuracoes } from '@/api';
 import Botao from '@/componentes/Botao';
+import CampoDeTexto from '@/componentes/CampoDeTexto';
 import { formatarNumero, lerReais } from '@/formatacao';
-import { MENSAGENS_DE_ERRO } from '@/mensagens';
+import { mensagemDoErro } from '@/mensagens';
 import { cantos, cores, espaco, fundoEscurecido, textos } from '@/tema';
 
 export type CampoEditavel = 'inicioDoMes' | 'limiteDaFatura';
@@ -83,17 +78,6 @@ function lerMudancas(campo: CampoEditavel, texto: string): Partial<Configuracoes
   }
 }
 
-// Escolhe a frase que aparece embaixo do campo quando a API falha
-function mensagemDoErro(erro: unknown): string {
-  if (erro instanceof ErroApi) {
-    if (erro.tipo === 'validacao' && erro.mensagem) {
-      return erro.mensagem;
-    }
-    return MENSAGENS_DE_ERRO[erro.tipo];
-  }
-  return MENSAGENS_DE_ERRO.servidor;
-}
-
 // A folha está sempre em um destes estados enquanto busca as configurações
 type Carga = { tipo: 'carregando' } | { tipo: 'erro'; mensagem: string } | { tipo: 'pronta' };
 
@@ -109,7 +93,6 @@ export default function FolhaDeEdicao({ campo, aoCancelar, aoSalvar }: FolhaDeEd
   const [carga, setCarga] = useState<Carga>({ tipo: 'carregando' });
   const [texto, setTexto] = useState('');
   const [erro, setErro] = useState<string | null>(null);
-  const [emFoco, setEmFoco] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
   // useEffect porque buscar as configurações no servidor é um efeito externo:
@@ -182,20 +165,12 @@ export default function FolhaDeEdicao({ campo, aoCancelar, aoSalvar }: FolhaDeEd
 
           {carga.tipo === 'pronta' && (
             <View style={styles.blocoCampo}>
-              <TextInput
-                accessibilityLabel={textosDaFolha.rotuloDoCampo}
-                keyboardType={textosDaFolha.teclado}
-                value={texto}
-                onChangeText={aoDigitar}
-                onFocus={() => setEmFoco(true)}
-                onBlur={() => setEmFoco(false)}
-                placeholderTextColor={cores.textoTerciario}
-                style={[
-                  textos.corpo,
-                  styles.campo,
-                  // Erro tem prioridade sobre o foco
-                  erro !== null ? styles.campoComErro : emFoco && styles.campoEmFoco,
-                ]}
+              <CampoDeTexto
+                rotulo={textosDaFolha.rotuloDoCampo}
+                teclado={textosDaFolha.teclado}
+                valor={texto}
+                aoDigitar={aoDigitar}
+                comErro={erro !== null}
               />
               {erro !== null && (
                 <Text
@@ -245,22 +220,6 @@ const styles = StyleSheet.create({
   },
   blocoCampo: {
     gap: espaco.minimo,
-  },
-  campo: {
-    minHeight: 48,
-    paddingHorizontal: espaco.medio,
-    backgroundColor: cores.superficie,
-    borderWidth: 1,
-    borderColor: cores.borda,
-    borderRadius: cantos.campo,
-  },
-  campoEmFoco: {
-    borderWidth: 2,
-    borderColor: cores.acento,
-  },
-  campoComErro: {
-    borderWidth: 2,
-    borderColor: cores.erro,
   },
   mensagemErro: {
     color: cores.erro,

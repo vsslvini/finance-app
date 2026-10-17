@@ -1,7 +1,14 @@
 // Testes das funções que deixam dinheiro e datas no formato brasileiro.
 // Aqui não tem tela: chamamos a função direto e conferimos o texto que ela
 // devolve. Por isso o arquivo é .ts (sem JSX) e não precisa de render.
-import { formatarData, formatarReais, lerReais, nomeDoMes } from '@/formatacao';
+import {
+  formatarData,
+  formatarMes,
+  formatarReais,
+  lerMes,
+  lerReais,
+  nomeDoMes,
+} from '@/formatacao';
 
 describe('formatarReais', () => {
   it('"1250.50" vira "R$ 1.250,50"', () => {
@@ -66,5 +73,49 @@ describe('lerReais', () => {
     // o erro estouraria antes de o expect conseguir olhar. toThrow com texto
     // confere também a mensagem do erro. É o pytest.raises do Jest.
     expect(() => lerReais('abc')).toThrow('Valor inválido');
+  });
+});
+
+// lerMes faz com o mês o que o lerReais faz com o dinheiro: lê o que a pessoa
+// digitou na folha "Plano de guardar" ("07/2027") e devolve o formato do
+// backend ("2027-07"). Só aceita MM/AAAA: mês com dois dígitos, de 01 a 12, e
+// ano com quatro.
+describe('lerMes', () => {
+  it('"07/2027" vira "2027-07"', () => {
+    expect(lerMes('07/2027')).toBe('2027-07');
+  });
+
+  it('ignora espaços antes e depois (" 07/2027 " vira "2027-07")', () => {
+    expect(lerMes(' 07/2027 ')).toBe('2027-07');
+  });
+
+  it('campo vazio vira null (sem plano)', () => {
+    expect(lerMes('')).toBeNull();
+  });
+
+  it('"7/27" é recusado com erro (o caso 13 da tela)', () => {
+    // Mesmo truque do lerReais: o "() =>" deixa o expect chamar a função e
+    // pegar o erro, em vez de o erro estourar antes.
+    expect(() => lerMes('7/27')).toThrow('Mês inválido');
+  });
+
+  it('mês fora de 01 a 12 é recusado', () => {
+    // Os dois lados do limite: um acima de 12 e o zero.
+    expect(() => lerMes('13/2027')).toThrow('Mês inválido');
+    expect(() => lerMes('00/2027')).toThrow('Mês inválido');
+  });
+
+  it('"2027-07" (o formato do backend) é recusado', () => {
+    // A pessoa digita no formato brasileiro; o formato do backend é só para
+    // a conversa entre o app e o servidor.
+    expect(() => lerMes('2027-07')).toThrow('Mês inválido');
+  });
+});
+
+// formatarMes faz o caminho contrário do lerMes: pega o mês do backend e
+// mostra no campo da folha, no formato que a pessoa digitaria.
+describe('formatarMes', () => {
+  it('"2027-07" vira "07/2027"', () => {
+    expect(formatarMes('2027-07')).toBe('07/2027');
   });
 });

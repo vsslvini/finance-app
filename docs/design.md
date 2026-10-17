@@ -156,6 +156,16 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 ### Bloco de meta (plano de guardar)
 - `superficie`, canto 16; título, barra de progresso (altura 8, `acento` sobre `diaFuturo`) e texto "R$ X de R$ Y".
 
+### Seção Guardado (tela Início, antes de "Últimos gastos")
+- Um cartão só, `superficie`, canto 16, tocável inteiro: abre a folha "Plano de guardar".
+- Rótulo "Guardado" com ícone `piggy-bank`; total em `valor`; embaixo, a variação do mês em
+  `detalhe` com sinal ("+ R$ 500,00 este mês" em `positivo`, "- R$ 100,00 este mês" em `negativo`).
+- Com plano: barra do bloco de meta (altura 8, canto 4, `acento` sobre `diaFuturo`, nunca passa
+  de 100%) e o texto "R$ 1.300,00 de R$ 5.800,00 previstos em julho de 2027" em `rotulo`.
+- Sem plano: no lugar da barra, "Toque para criar um plano de guardar" em `rotulo` com cor `acento`.
+- Com desconto do plano, o destaque "posso gastar" ganha uma linha em `detalhe` logo abaixo do
+  número: "já separando R$ 200,00 para guardar".
+
 ### Lista de gastos
 - Item: ícone de categoria (30x30, canto 15) à esquerda; descrição e detalhe no meio; valor à direita.
 - Divisória de 1 em `borda` entre itens.
@@ -170,6 +180,9 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 ### Folha de edição (ex.: editar o início do mês)
 - Sobe de baixo da tela, `superficieElevada`, cantos de cima 20.
 - Título, explicação curta, campo e botões "Salvar" (principal) e "Cancelar" (secundário).
+- Folha "Plano de guardar": dois campos ("Quanto por mês" e "Até quando (MM/AAAA)"), cada um com
+  o nome visível em `rotulo` em cima; uma mensagem de erro só, embaixo dos dois campos, e a borda
+  vermelha no campo com problema.
 
 ### Campo de texto / número
 - Fundo `superficie`, borda 1 em `borda`, canto 12, altura mínima 48.
@@ -197,7 +210,7 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 | Conjunto de ícones | Lucide (`@react-native-vector-icons/lucide`, aprovado em 2026-10-10; o Expo deixou de recomendar o `@expo/vector-icons`) |
 | Estilo | contorno (linha), traço fino |
 | Ícones de categoria | ícone Lucide de 16 dentro do círculo colorido: `shopping-cart` (Mercado), `utensils` (Restaurantes), `car` (Transporte), `ellipsis` (Outras) |
-| Ícones dos cartões | 16, cor `textoSecundario`, ao lado do rótulo: `wallet` (Saldo), `credit-card` (Fatura aberta), `arrow-down-left` (Entrou, cor `positivo`), `arrow-up-right` (Saiu, cor `negativo`); aviso com `triangle-alert` (18, cor `aviso`) |
+| Ícones dos cartões | 16, cor `textoSecundario`, ao lado do rótulo: `wallet` (Saldo), `credit-card` (Fatura aberta), `arrow-down-left` (Entrou, cor `positivo`), `arrow-up-right` (Saiu, cor `negativo`), `piggy-bank` (Guardado); aviso com `triangle-alert` (18, cor `aviso`) |
 | Ilustrações | nenhuma |
 
 ## 10. Movimento
@@ -224,7 +237,8 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 | Data curta | `08/10` |
 | Mês | `Outubro de 2026` (no título do estilo B, em maiúsculas) |
 | Tom | direto e calmo, frases curtas, sem exclamação |
-| Rótulos | "Posso gastar por dia", "Saldo", "Fatura aberta", "Entrou", "Saiu" |
+| Rótulos | "Posso gastar por dia", "Saldo", "Fatura aberta", "Entrou", "Saiu", "Guardado" |
+| Mês digitado | `07/2027` (campo "Até quando"); no texto da seção Guardado, `julho de 2027` |
 
 ## 13. O que evitar
 

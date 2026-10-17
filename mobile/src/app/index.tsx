@@ -7,9 +7,17 @@ import { buscarResumo, ErroApi, type Resumo, type TipoErroApi } from '@/api';
 import { iconeDaCategoria } from '@/categorias';
 import Botao from '@/componentes/Botao';
 import FolhaDeEdicao, { type CampoEditavel } from '@/componentes/FolhaDeEdicao';
+import FolhaDoPlano from '@/componentes/FolhaDoPlano';
 import ReguaDeDias from '@/componentes/ReguaDeDias';
 import RotuloDoCartao from '@/componentes/RotuloDoCartao';
-import { formatarData, formatarNumero, formatarReais, nomeDoMes } from '@/formatacao';
+import SecaoGuardado from '@/componentes/SecaoGuardado';
+import {
+  formatarData,
+  formatarNumero,
+  formatarReais,
+  rotuloEmReais,
+  tituloDoMes,
+} from '@/formatacao';
 import { MENSAGENS_DE_ERRO } from '@/mensagens';
 import { cantos, cores, espaco, fontes, textos } from '@/tema';
 
@@ -31,19 +39,6 @@ async function carregarEstado(): Promise<Estado> {
   }
 }
 
-// "Saldo: 1.250,50 reais" ou "Posso gastar por dia: menos 10,00 reais"
-function rotuloEmReais(nome: string, valor: string): string {
-  const menos = valor.startsWith('-') ? 'menos ' : '';
-  return `${nome}: ${menos}${formatarNumero(valor)} reais`;
-}
-
-// "2026-10" -> "Outubro de 2026" (o mês vem do backend, não do relógio do celular)
-function tituloDoMes(mes: string): string {
-  const ano = Number(mes.slice(0, 4));
-  const numeroDoMes = Number(mes.slice(5, 7));
-  return nomeDoMes(ano, numeroDoMes);
-}
-
 // "R$ 31,31" -> ["R$ 31", "31"], para desenhar os centavos menores
 function separarCentavos(textoEmReais: string): [string, string] {
   const virgula = textoEmReais.lastIndexOf(',');
@@ -54,6 +49,9 @@ export default function InicioScreen() {
   const [estado, setEstado] = useState<Estado>({ tipo: 'carregando' });
   // Qual folha de edição está aberta (null = nenhuma)
   const [campoAberto, setCampoAberto] = useState<CampoEditavel | null>(null);
+  // A folha do plano de guardar fica num estado separado, porque ela tem dois
+  // campos e fala com outra rota (/api/plano/), diferente da FolhaDeEdicao
+  const [planoAberto, setPlanoAberto] = useState(false);
 
   // useEffect porque buscar dados no servidor é um efeito externo: precisa
   // acontecer uma vez, quando a tela aparece, e não a cada renderização.
@@ -83,6 +81,13 @@ export default function InicioScreen() {
     recarregar();
   }
 
+  // O plano salvou: fecha a folha e recarrega, porque o plano muda a seção
+  // Guardado e o "posso gastar" (o backend desconta o que falta guardar)
+  function aoSalvarPlano() {
+    setPlanoAberto(false);
+    recarregar();
+  }
+
   if (estado.tipo === 'carregando') {
     return (
       <SafeAreaView style={[styles.tela, styles.centro]}>
@@ -106,6 +111,10 @@ export default function InicioScreen() {
 
   const { resumo } = estado;
   const posso = resumo.posso_gastar_por_dia;
+  // O que o backend já tirou do "posso gastar" para o plano de guardar
+  // (null quando não há desconto, e aí a linha "já separando" não aparece)
+  const falta = resumo.guardado.falta_guardar_no_mes;
+  const separando = falta !== '0.00' ? falta : null;
 
   return (
     <SafeAreaView style={styles.tela}>
@@ -116,7 +125,7 @@ export default function InicioScreen() {
         </Text>
 
         {/* 2. Destaque: posso gastar por dia, direto no fundo, sem cartão */}
-        {posso !== null && <Destaque valor={posso} />}
+        {posso !== null && <Destaque valor={posso} separando={separando} />}
 
         {/* 3. Régua de dias do mês */}
         {resumo.dia_do_mes !== null && resumo.dias_no_mes !== null && (
@@ -188,7 +197,10 @@ export default function InicioScreen() {
           </View>
         </View>
 
-        {/* 7. Últimos gastos */}
+        {/* 7. Guardado: investimentos e plano (tocável, abre a folha do plano) */}
+        <SecaoGuardado guardado={resumo.guardado} aoTocar={() => setPlanoAberto(true)} />
+
+        {/* 8. Últimos gastos */}
         <Text accessibilityRole="header" style={[textos.subtitulo, styles.subtitulo]}>
           Últimos gastos
         </Text>
@@ -241,31 +253,45 @@ export default function InicioScreen() {
           aoSalvar={aoSalvarNaFolha}
         />
       )}
+
+      {planoAberto && (
+        <FolhaDoPlano aoCancelar={() => setPlanoAberto(false)} aoSalvar={aoSalvarPlano} />
+      )}
     </SafeAreaView>
   );
 }
 
 type DestaqueProps = {
   valor: string; // posso_gastar_por_dia, ex.: "31.31" ou "-10.00"
+  separando: string | null; // falta_guardar_no_mes, ex.: "200.00"; null = sem desconto
 };
 
 // O número grande do dia. Os centavos ficam menores, mas tudo está num só
 // Text, então o texto completo continua igual a formatarReais(valor).
-function Destaque({ valor }: DestaqueProps) {
+function Destaque({ valor, separando }: DestaqueProps) {
   const negativo = valor.startsWith('-');
   const [parteInteira, centavos] = separarCentavos(formatarReais(valor));
 
   return (
-    <View
-      accessible
-      accessibilityLabel={rotuloEmReais('Posso gastar por dia', valor)}
-      style={styles.destaque}
-    >
-      <Text style={textos.rotulo}>Posso gastar por dia</Text>
-      <Text style={[textos.numeroDestaque, negativo && styles.negativo]}>
-        {parteInteira}
-        <Text style={styles.centavos}>{',' + centavos}</Text>
-      </Text>
+    <View style={styles.destaque}>
+      <View
+        accessible
+        accessibilityLabel={rotuloEmReais('Posso gastar por dia', valor)}
+        style={styles.destaqueNumero}
+      >
+        <Text style={textos.rotulo}>Posso gastar por dia</Text>
+        <Text style={[textos.numeroDestaque, negativo && styles.negativo]}>
+          {parteInteira}
+          <Text style={styles.centavos}>{',' + centavos}</Text>
+        </Text>
+      </View>
+      {/* Fora do bloco "accessible" acima, para o leitor de tela ler esta
+          linha também (o rótulo do bloco substitui os textos de dentro dele) */}
+      {separando !== null && (
+        <Text style={textos.detalhe}>
+          {`já separando ${formatarReais(separando)} para guardar`}
+        </Text>
+      )}
     </View>
   );
 }
@@ -294,6 +320,9 @@ const styles = StyleSheet.create({
   destaque: {
     gap: espaco.minimo,
     paddingVertical: espaco.pequeno,
+  },
+  destaqueNumero: {
+    gap: espaco.minimo,
   },
   centavos: {
     fontFamily: fontes.seminegrito,
