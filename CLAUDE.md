@@ -130,20 +130,21 @@ mas sempre mostra o texto antes e espera aprovação.
 
 (atualizar ao fim de cada sessão; vale só o estado mais recente)
 
-**Onde paramos (2026-10-08):**
+**Onde paramos (2026-10-10):**
 
-- Feito: Módulo 1, API de leitura (passo 4): token do DRF, `GET /api/contas/`, `GET /api/transacoes/?mes=` e `POST /api/sincronizar/`. Módulo 2, resumo do mês (passo 5): `GET /api/resumo/?mes=` com saldo, fatura, entradas, saídas, "posso gastar por dia" e últimos gastos. 68 testes passando e lint ok.
-- Feito também: o fluxo mudou para módulos (regras 1 a 4, 8, 12 e 13); material de estudo em `docs/estudos/`, com o `guia.md` como ponto de entrada; `docs/estudos/drf.md` explica o DRF; dúvidas 5 e 7 decididas em `docs/requisitos.md`.
-- Pendente do Vinicius: rodar `python manage.py migrate` (tabela de tokens) e `python manage.py drf_create_token <usuário>`, e conferir o `/api/resumo/` com os dados reais (`docs/estudos/modulos/resumo-do-mes.md`, seção 7).
-- Limites conhecidos do resumo (seção 8 do doc do módulo): parcelas futuras do mês contam em `saidas`; compras do cartão contam no dia da compra, não no mês da fatura.
-- Dúvidas ainda abertas (em `docs/requisitos.md`): categorias em inglês (traduzir com `GET /categories`?); data de fechamento não vem (RF14); parcelas futuras vêm só em parte (RF13); dúvidas 4 e 6.
-- Pendências do mobile (sem mudança): Expo Router ainda não instalado (o projeto usa `App.tsx`); `@testing-library/react-native` e `@types/jest` estão em `dependencies` (deveriam estar em `devDependencies`); faltam `jest`, `jest-expo` e o script `"test"`.
-- Para recomeçar: ler `docs/inicio-de-sessao.md`; `docker compose up -d`, depois `cd backend && source .venv/bin/activate.fish`. Para estudar: `docs/estudos/guia.md`.
+- Feito nesta sessão (tudo com commit): Módulo 3a (Expo Router e Jest), 3b-1 (tela Início lendo `/api/resumo/`), 4a (app `planejamento` com `Configuracao`: mês do app começando N dias antes e limite da fatura; `GET`/`PATCH /api/configuracoes/`), 4b (visual escuro do `docs/design.md`, fonte Manrope, edição pelo app, aviso de limite) e 4c (entradas e saídas só pela conta corrente; edição do início do mês no cartão "Entrou"; acento roxo; ícones Lucide). Backend 98 testes, mobile 42; lint, `tsc` e `expo-doctor` ok.
+- Já rodado pelo Vinicius: `migrate` (inclusive `planejamento`), token criado, `mobile/.env` preenchido, `DJANGO_ALLOWED_HOSTS` com o IP do Wi-Fi, `ufw` liberando 8081 e 8000 só para `192.168.80.0/24`, configuração com 2 dias antes. App funcionando no Expo Go.
+- Sem commit (fim da sessão): `docs/planos/modulo-5-guardado.md`, este "Estado atual" e o roteiro do `docs/estudos/guia.md`. Pedir aprovação do commit no começo da próxima sessão.
+- Propostas ainda não aprovadas para "Obstáculos e aprendizados" e "Stack e comandos": estão na última mensagem da sessão de 2026-10-10; mostrar de novo e pedir aprovação.
+- Prints de referência de design em `docs/imagens/` (fora do git, no `.gitignore`).
+- Dúvidas ainda abertas (em `docs/requisitos.md`): categorias em inglês (tradução com `GET /categories`?); data de fechamento não vem (RF14); parcelas futuras vêm só em parte (RF13); dúvidas 4 e 6.
+- Para recomeçar: ler `docs/inicio-de-sessao.md`; `docker compose up -d`, `cd backend && source .venv/bin/activate.fish && python manage.py runserver 0.0.0.0:8000`; em outro terminal `cd mobile && npx expo start --clear`. Para estudar: `docs/estudos/guia.md`.
 
-**Próximos passos, em ordem (detalhes em `docs/arquitetura.md`, seção 5):**
+**Próximos passos, em ordem:**
 
-1. Módulo 3, app mobile: base (Expo Router e Jest, corrigindo as pendências acima), depois as telas Início, Transações, Cartões e Contas (`mobile-ui-expert` propõe antes). Começa com o plano do módulo, com os casos de teste.
-2. Depois: faturas futuras (RF13) e os desejáveis (RF08 trocar categoria, RF10 gasto manual, RF09 filtros).
+1. **Trocar o verde por roxo** no `docs/design.md` e no `mobile/src/tema.ts` (pedido do Vinicius, para padronizar). Antes, conversar o freio anotado em `docs/planos/modulo-5-guardado.md`: "Entrou" roxo fica com a mesma cor do `acento`.
+2. **Módulo 5, seção "Guardado"** (plano, decisões e 14 casos de teste já aprovados em `docs/planos/modulo-5-guardado.md`): 5a backend (investimentos da Pluggy, plano de guardar, desconto no "posso gastar") e 5b tela.
+3. Depois: 3b-2 (puxar para baixo e "atualizado às..."), abas e as outras telas (Transações, Cartões, Contas), faturas futuras (RF13) e os desejáveis.
 
 ## Ao fim de cada sessão
 

@@ -49,13 +49,15 @@ Não são para ler do começo ao fim; servem para tirar dúvidas.
 
 ## Para a próxima sessão de estudos
 
-Sugestão de roteiro, de 1 a 2 horas:
+Sugestão de roteiro, de 1 a 2 horas (atualizado em 2026-10-10):
 
-1. Itens 1 e 2 (o pytest), com os testes abertos ao lado.
-2. Item 5 (o DRF), só as seções 1 a 3.
-3. Item 6 (Módulo 1), seção 3, seguindo o caminho de um pedido no código.
-4. Na prática: a seção 6 do item 6 (testar a API com `curl`).
-5. Se sobrar tempo: item 8 (o Jest), comparando com o pytest (seção 9 do `jest.md`).
+1. Item 8 (o Jest, seções 1 a 5), comparando com o pytest (seção 9 do `jest.md`).
+2. Item 12 (tela Início), seção 3: seguir o caminho de uma abertura do app no código,
+   com o `useState` e o `useEffect` abertos ao lado.
+3. Item 16 (ajustes do mês), seção 1: o caso real de "saiu mais do que entrou" mostra por
+   que regras de dinheiro precisam de teste com dados de verdade.
+4. Na prática: rodar `cd mobile && npx jest --verbose` e trocar um texto esperado para ver
+   um teste ficar vermelho (seção 5 do `tela-inicio.md`).
 
 Pendência antiga: entender o funcionamento interno do pytest (descoberta de testes,
 plugins, reescrita do `assert`). Fontes: docs.pytest.org, seção "Get Started"; livro
