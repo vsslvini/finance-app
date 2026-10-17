@@ -15,7 +15,9 @@ export const cores = {
   acento: '#A78BFA',
   textoSobreAcento: '#0F1214',
   // Significado
-  positivo: '#45D699',
+  // Mesmo roxo do acento (2026-10-17): entrada e saída se diferenciam pelo
+  // "+" e "-" e pelo vermelho das saídas
+  positivo: '#A78BFA',
   negativo: '#F2796F',
   aviso: '#F2B84B',
   avisoFundo: '#1E1A10',

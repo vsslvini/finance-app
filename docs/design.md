@@ -78,7 +78,7 @@ Nomes dos campos = nomes dos tokens no código.
 
 | Token | Uso | Valor |
 |---|---|---|
-| `positivo` | entradas, valores bons | `#45D699` |
+| `positivo` | entradas, valores bons | `#A78BFA` (o mesmo roxo do `acento`, desde 2026-10-17) |
 | `negativo` | saídas, valores ruins | `#F2796F` |
 | `aviso` | avisos (ex.: fatura acima do limite) | `#F2B84B` |
 | `avisoFundo` | fundo da faixa de aviso | `#1E1A10` |
@@ -239,15 +239,15 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 - Chegaram dois prints (cada um com três telas), mas havia três linhas de observação. Se existe um Print 3, ele não foi analisado.
 - Todas as cores foram estimadas a olho a partir das imagens, não medidas com conta-gotas.
 - A fonte dos prints parece uma sans geométrica (algo como Plus Jakarta Sans ou Urbanist), mas não consegui identificar com certeza. Mantive Manrope, que tem a mesma sensação e já estava no arquivo.
-- ~~`acento` e `positivo` com o mesmo valor~~ Resolvido em 2026-10-10: `acento` virou roxo e `positivo` continua verde.
-- Ajuste por daltonismo: o verde do print 1 é mais escuro e saturado. Deixei `positivo` mais claro (`#45D699`) e `negativo` mais alaranjado e mais escuro (`#F2796F`), para que se diferenciem também pela luminosidade (razão de cerca de 1,5 entre eles), além do "+" e do "-" nos valores.
+- ~~`acento` e `positivo` com o mesmo valor~~ Resolvido em 2026-10-10: `acento` virou roxo e `positivo` continua verde. Mudou em 2026-10-17: o verde saiu do app, para padronizar, e `positivo` usa o mesmo roxo do `acento`; entrada e saída se diferenciam pelo "+" e "-" e pelo vermelho das saídas.
+- Ajuste por daltonismo (histórico, de quando `positivo` era verde): o verde do print 1 é mais escuro e saturado. Deixei `positivo` mais claro (`#45D699`) e `negativo` mais alaranjado e mais escuro (`#F2796F`), para que se diferenciem também pela luminosidade (razão de cerca de 1,5 entre eles), além do "+" e do "-" nos valores.
 - Ajuste técnico (gradiente): o cartão de saldo do print 1 usa textura de ondas com brilho. Substituí por `superficie` lisa, sem textura.
 - Ajuste técnico (blur): as folhas de vidro fosco do print 1 viraram `superficieElevada` sólida.
 - Ajuste técnico (gráfico): o gráfico de área em degradê do print 2 não foi adotado. Se um gráfico entrar no app, definir se será linha simples ou barras sólidas.
 - Contrastes conferidos (razão contra o fundo onde o texto aparece): `texto` acima de 13:1; `textoSecundario` 6,6:1 sobre `superficieElevada`; `textoTerciario` 5,0:1 sobre `superficieElevada` (o pior caso) e 5,5:1 sobre `superficie`; `acento` 9,2:1 sobre `superficie`; `textoSobreAcento` 10,2:1 sobre `acento`; `negativo` e `erro` 6,3:1 sobre `superficie`; `aviso` 9,7:1 sobre `avisoFundo`; letras de categoria entre 7:1 e 10:1 sobre o fundo do ícone. Mudei `textoTerciario` (era `#8794A1`) e `textoSecundario` (era `#9AA7B4`) para acompanhar os novos cinzas das superfícies.
 - `diaFuturo` (`#2A3036`) tem pouco contraste contra o `fundo` (cerca de 1,4:1). Aceitei porque é um elemento decorativo e a informação também aparece em texto ("dia 10 de 31"). Se quiser mais presença, clarear para `#343B42`.
 - `avisoBorda` é só contorno decorativo; o texto do aviso é que carrega a informação.
-- Categorias: o print 1 mostra uma barra de gastos com verde, amarelo, laranja e azul, sem dizer qual cor é de qual categoria. Escolhi amarelo para Mercado, laranja para Restaurantes e azul para Transporte, deixando o verde só para entradas. Trocar se preferir outra ligação.
+- Categorias: o print 1 mostra uma barra de gastos com verde, amarelo, laranja e azul, sem dizer qual cor é de qual categoria. Escolhi amarelo para Mercado, laranja para Restaurantes e azul para Transporte, deixando a cor das entradas fora das categorias. Trocar se preferir outra ligação.
 - Ícone de categoria: os prints usam círculos (canto 15 em ícone de 30x30), então mudei do canto 10 anterior. Se preferir o quadrado arredondado do estilo C, voltar para 10.
 - Abas: o print 1 mostra só ícones, sem texto. Coloquei ícone com texto curto por clareza (e leitores de tela). Se quiser só ícones, as abas precisam de `accessibilityLabel` de qualquer forma.
 - Falta decidir quais abas existirão e quais ícones representam cada uma.
