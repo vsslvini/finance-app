@@ -10,6 +10,7 @@ Documentação oficial: https://docs.pluggy.ai (índice para leitura: https://do
 - **Item**: uma conexão com um banco. No nosso código, cada item vira uma `Conexao`.
 - **Account**: conta corrente, poupança ou cartão de crédito de um item. Vira uma `Conta`.
 - **Transaction**: entrada ou saída de uma conta. Vira uma `Transacao`.
+- **Investment**: um investimento de um item (CDB, fundo, Tesouro...). Vira um `Investimento` (seção 9).
 - **Connector**: o "conector" de cada banco na Pluggy. No nosso caso usamos o conector **MeuPluggy**, que lê os bancos já conectados no Meu Pluggy.
 
 ## 2. Meu Pluggy (uso pessoal)
@@ -105,7 +106,8 @@ Na maioria das mudanças (inclusive `PENDING` para `POSTED`), a Pluggy mantém o
 Fonte: guia `developer-tools/rate-limits` (conferido em 2026-10-06).
 
 - `POST /auth`, `GET /accounts` e `GET /transactions`: até 360 chamadas por minuto, por IP.
-- Uso no projeto (decidido em 2026-10-08, limite conferido de novo no mesmo dia): uma sincronização faz por volta de 15 chamadas (1 `POST /auth`, 1 `GET /accounts` por conexão e as páginas de `GET /transactions` de cada conta), bem abaixo do limite. Por isso o `POST /api/sincronizar/` do nosso backend não tem limite de uma vez por hora. Se passar do limite, a Pluggy responde `429 Too Many Requests`, com o cabeçalho `Retry-After` dizendo quantos segundos esperar.
+- `GET /investments` (e `GET /investments/{id}`): também 360 por minuto, por IP (conferido em 2026-10-17). Cada rota tem o seu limite, contado à parte.
+- Uso no projeto (decidido em 2026-10-08, limite conferido de novo no mesmo dia): uma sincronização faz por volta de 15 chamadas (1 `POST /auth`, 1 `GET /accounts` por conexão e as páginas de `GET /transactions` de cada conta), bem abaixo do limite. Desde o Módulo 5 (2026-10-17), mais 1 `GET /investments` por conexão (uma página guarda até 500 investimentos). Por isso o `POST /api/sincronizar/` do nosso backend não tem limite de uma vez por hora. Se passar do limite, a Pluggy responde `429 Too Many Requests`, com o cabeçalho `Retry-After` dizendo quantos segundos esperar.
 
 ## 7. O que vimos no teste real (2026-10-07)
 
@@ -166,3 +168,48 @@ Os ícones da tela Início usam outros nomes da mesma árvore (`Groceries`, `Foo
 
 Se a Pluggy mudar esses nomes, ou se passarmos a usar a tradução do `GET /categories`, as
 constantes do `resumo.py` e do `categorias.ts` precisam mudar junto.
+
+A mesma lista de categorias de investimento (`INVESTIMENTO`, no `resumo.py`) também calcula o
+"guardado este mês" do Módulo 5: aplicações menos resgates na conta corrente, no mês do app.
+
+## 9. Investimentos: `GET /investments?itemId=<id do item>`
+
+Fontes (conferidas em 2026-10-17):
+
+- Referência da rota: https://docs.pluggy.ai/en/reference/investment/investments-list
+- Guia do produto: https://docs.pluggy.ai/en/docs/products/investments.md
+- Limites: https://docs.pluggy.ai/en/docs/developer-tools/rate-limits.md
+
+Usado pelo `sincronizar()` desde o Módulo 5 (seção "Guardado" da tela Início), em
+`listar_investimentos()` (`backend/financas/integracoes/pluggy.py`).
+
+- Parâmetros: `itemId` (obrigatório), `type` (filtro opcional, não usamos), `pageSize`
+  (padrão 500) e `page` (padrão 1).
+- **Paginação por número de página**, diferente das transações (que usam o cursor `next`):
+  a resposta é `{"page", "total", "totalPages", "results": [...]}`. Pedimos `page=1`, `page=2`...
+  até chegar em `totalPages`. Sem nenhum investimento, `totalPages` vem 0 e paramos na primeira.
+- A lista vem inteira a cada chamada, então o `sincronizar()` apaga os investimentos daquela
+  conexão que não vieram mais (não há nada manual nos investimentos para proteger).
+
+Campos que nos interessam:
+
+| Campo da Pluggy | Significado | No nosso model |
+|---|---|---|
+| `id` | id do investimento | `Investimento.id_pluggy` |
+| `itemId` | id do item (a conexão) | (a conexão já vem do laço do `sincronizar()`) |
+| `name` | nome no banco ou corretora | `Investimento.nome` |
+| `type` | `FIXED_INCOME`, `SECURITY`, `MUTUAL_FUND`, `EQUITY`, `ETF`, `COE` (ou `OTHER`) | `Investimento.tipo` |
+| `subtype` | detalhe do tipo, opcional (ex.: `CDB`, `PGBL`, `RETIREMENT`) | `Investimento.subtipo` |
+| `balance` | saldo **líquido** de hoje (já sem taxas e impostos) | `Investimento.saldo` |
+| `status` | `ACTIVE` (comprado e confirmado), `PENDING` (compra em validação) ou `TOTAL_WITHDRAWAL` (vendido ou transferido) | `Investimento.status` |
+| `institution` | objeto `{"name", "number"}`, opcional; o guia diz que só o conector CEI B3 manda | `Investimento.instituicao` (o `name`, ou vazio) |
+
+- Existe também o `amount` (valor **bruto**, com impostos). Usamos o `balance`, porque é o que
+  sobraria se o dinheiro fosse resgatado hoje.
+- O campo `transactions` dentro do investimento está obsoleto para aplicações criadas depois de
+  2023-03-21; a Pluggy indica a rota `GET /investments/{id}/transactions`. Não usamos: o
+  "guardado este mês" vem das transações da conta corrente (seção 8).
+- O guia não diz de quanto em quanto tempo os investimentos são atualizados. No Meu Pluggy,
+  imaginamos que valha a atualização de 24 horas da seção 2 (não conferido).
+- Ainda não vimos a resposta real do Meu Pluggy para investimentos; conferir no primeiro
+  `sincronizar()` de verdade depois do Módulo 5.

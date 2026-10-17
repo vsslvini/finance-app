@@ -3,17 +3,17 @@
 Mapa de tudo o que existe para estudar no projeto, na ordem certa. Atualizado a cada
 sessão e sempre que um documento de estudo novo entra nesta pasta.
 
-Última atualização: 2026-10-10.
+Última atualização: 2026-10-17.
 
 ## O projeto em poucas linhas
 
 App pessoal de finanças: mostra em tempo real entradas, saídas, saldos e faturas das
 contas Nubank, Inter e PicPay. Os dados vêm da Pluggy (Open Finance) para um backend
 Django + DRF, que guarda tudo no PostgreSQL (no Docker) e entrega JSON a um app React
-Native com Expo. Hoje o backend já sincroniza com a Pluggy e tem API de contas,
-transações, sincronização e resumo do mês. O app mobile já mostra a tela Início com o
-resumo do mês no visual escuro com acento roxo e ícones, e edita o início do mês e o limite da
-fatura; as outras telas são os próximos passos.
+Native com Expo. Hoje o backend já sincroniza com a Pluggy (inclusive investimentos) e tem API de contas,
+transações, sincronização, resumo do mês e plano de guardar. O app mobile já mostra a tela Início com o
+resumo do mês no visual escuro com acento roxo e ícones, e edita o início do mês, o limite da
+fatura e o plano de guardar (seção Guardado); as outras telas são os próximos passos.
 
 ## Ordem de estudo
 
@@ -38,6 +38,8 @@ aos pré-requisitos dele.
 | 14 | [`jest.md`](jest.md), seções 15 a 17 | dublê que responde por endereço, `jest.mock` de um pacote, digitar e elementos escondidos | item 11 |
 | 15 | [`modulos/design-e-edicao.md`](modulos/design-e-edicao.md) | Módulo 4b: tema, fonte, `Pressable` e `Modal`, a folha de edição do toque ao resumo recarregado | itens 12, 13 e 14 |
 | 16 | [`modulos/ajustes-do-mes.md`](modulos/ajustes-do-mes.md) | Módulo 4c: por que a regra de Entrou e Saiu mudou (o caso real), condições combinadas com `Q`, ícones | item 15 |
+| 17 | [`modulos/guardado-backend.md`](modulos/guardado-backend.md) | Módulo 5a: investimentos da Pluggy, plano de guardar, funções puras, `validate()` com dois campos, `context` e serializer dentro de serializer | itens 13 e 16 |
+| 18 | [`modulos/guardado-tela.md`](modulos/guardado-tela.md) | Módulo 5b: seção Guardado, barra de progresso acessível, componente reaproveitado, folha com dois campos | item 17 |
 
 ## Documentos de consulta (fora desta pasta)
 

@@ -31,6 +31,8 @@ App Django `financas` para os dados dos bancos. Metas e dívidas entram depois, 
 | `Conexao` | um banco conectado no Meu Pluggy | id da Pluggy, nome do banco, última atualização |
 | `Conta` | conta corrente ou cartão | conexão, id da Pluggy, tipo, nome, saldo; no cartão: limite total, limite disponível, fechamento, vencimento |
 | `Transacao` | cada entrada ou saída | conta, data, descrição, valor, categoria da Pluggy, categoria manual, parcela X de Y, id da Pluggy (vazio se manual) |
+| `Investimento` | cada investimento da Pluggy (desde 2026-10-17) | conexão, id da Pluggy, nome, tipo, subtipo, instituição, saldo, status |
+| `PlanoDeGuardar` (app `planejamento`) | o plano de guardar, uma linha só | valor por mês e mês alvo (os dois vazios = sem plano) |
 
 - Os ids das conexões (copiados do painel da Pluggy) são cadastrados pelo admin do Django.
 - Valores em dinheiro usam `DecimalField`, exato até o centavo (RNF04).
@@ -65,7 +67,7 @@ Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pl
 
 | Rota | Requisitos |
 |---|---|
-| `GET /api/resumo/?mes=2026-10` | saldo total, entradas, saídas, posso gastar por dia, últimos gastos (RF15 a RF18) |
+| `GET /api/resumo/?mes=2026-10` | saldo total, entradas, saídas, posso gastar por dia, últimos gastos (RF15 a RF18) e o bloco `guardado` (RF04, RF28, RF29) |
 | `GET /api/contas/` | lista de contas com o nome do banco (o app agrupa), com dados do cartão (RF01 a RF03, RF11, RF12, RF14) |
 | `GET /api/transacoes/?mes=...` | transações do mês, com filtros opcionais (RF05 a RF07, RF09) |
 | `PATCH /api/transacoes/<id>/` | trocar a categoria (RF08) |
@@ -73,6 +75,7 @@ Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pl
 | `GET /api/faturas-futuras/` | estimativa por mês (RF13) |
 | `POST /api/sincronizar/` | atualizar agora (RF24) |
 | `GET` e `PATCH /api/configuracoes/` | dias antes do mês e limite da fatura, do app `planejamento` (RF30, RF31) |
+| `GET` e `PATCH /api/plano/` | plano de guardar (valor por mês e mês alvo `AAAA-MM`), do app `planejamento` (RF28) |
 
 Os cálculos ficam no backend, não no app: uma fonte só da verdade, testada com pytest.
 

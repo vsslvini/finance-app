@@ -50,7 +50,7 @@ quando o código estiver pronto.
 
 ## 5b: tela (`mobile-ui-expert` revisa; `react-native-expert` e `mobile-tester` fazem)
 
-1. Seção "Guardado" antes de "Últimos gastos": ícone `piggy-bank`, total, "+ R$ 300,00 este
+1. Seção "Guardado" antes de "Últimos gastos": ícone `piggy-bank`, total, "+ R$ 500,00 este
    mês", barra roxa e "R$ 1.300,00 de R$ 5.800,00 previstos em julho de 2027". Sem plano:
    "Toque para criar um plano de guardar".
 2. Tocar na seção abre a folha "Plano de guardar": "Quanto por mês" (reais, usa `lerReais`) e
@@ -80,7 +80,7 @@ quando o código estiver pronto.
 
 5b (tela):
 
-10. A seção mostra o total, "+ R$ 300,00 este mês", a barra e "R$ 1.300,00 de R$ 5.800,00
+10. A seção mostra o total, "+ R$ 500,00 este mês", a barra e "R$ 1.300,00 de R$ 5.800,00
     previstos em julho de 2027".
 11. Sem plano, "Toque para criar um plano de guardar".
 12. Tocar na seção abre "Plano de guardar"; salvar "500" e "07/2027" manda
