@@ -3,13 +3,16 @@ from decimal import Decimal
 
 import pytest
 
-from financas.models import Conexao, Conta, Transacao
+from financas.models import Conexao, Conta, Investimento, Transacao
 from financas.services.resumo import resumo_do_mes
 
 # Dia fixo: o service recebe "hoje" como parâmetro, então os testes não
 # dependem do dia em que rodam
 HOJE = date(2026, 10, 8)
 OUTUBRO = date(2026, 10, 1)
+# Plano de guardar dos testes: 500 por mês até julho de 2027
+POR_MES = Decimal("500.00")
+JULHO_2027 = date(2027, 7, 1)
 
 
 @pytest.fixture
@@ -47,6 +50,23 @@ def criar_transacao(conta, **campos):
     }
     dados.update(campos)
     return Transacao.objects.create(conta=conta, **dados)
+
+
+def criar_investimento(conexao, id_pluggy, saldo, status="ACTIVE"):
+    # Investimento com o mínimo; id_pluggy muda em cada um (é único)
+    return Investimento.objects.create(
+        conexao=conexao,
+        id_pluggy=id_pluggy,
+        nome=f"Investimento {id_pluggy}",
+        tipo="FIXED_INCOME",
+        saldo=saldo,
+        status=status,
+    )
+
+
+def aplicar(conta, valor, data=date(2026, 10, 5), categoria="Investments"):
+    # Aplicação (valor negativo) ou resgate (positivo) na conta
+    return criar_transacao(conta, data=data, valor=valor, categoria_pluggy=categoria)
 
 
 def test_saldo_soma_correntes_e_fatura_soma_cartoes(conexao):
@@ -389,3 +409,98 @@ def test_sem_dados_tudo_zero(db):
     assert resumo["entradas"] == Decimal("0.00")
     assert resumo["saidas"] == Decimal("0.00")
     assert resumo["ultimos_gastos"] == []
+
+
+def test_guardado_total_soma_os_saldos_dos_investimentos(conexao):
+    # Caso 3 do Módulo 5: total = soma dos saldos (1000 + 300); o resgatado
+    # (TOTAL_WITHDRAWAL, saldo zero) continua no banco, mas não muda a soma
+    criar_investimento(conexao, "cdb", Decimal("1000.00"))
+    criar_investimento(conexao, "tesouro", Decimal("300.00"))
+    criar_investimento(conexao, "resgatado", Decimal("0.00"), "TOTAL_WITHDRAWAL")
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE)
+
+    assert resumo["guardado"]["total"] == Decimal("1300.00")
+
+
+def test_guardado_este_mes_e_aplicacoes_menos_resgates(corrente, cartao):
+    # Caso 4 do Módulo 5: aplicações de 300 e 200 menos o resgate de 100, na
+    # corrente, em outubro: 400. Ficam de fora: aplicação de setembro, aplicação
+    # no cartão, dividendos (não é aplicação) e um gasto comum
+    aplicar(corrente, Decimal("-300.00"))
+    aplicar(corrente, Decimal("-200.00"), categoria="Fixed income")
+    aplicar(corrente, Decimal("100.00"))
+    aplicar(corrente, Decimal("-700.00"), data=date(2026, 9, 30))
+    aplicar(cartao, Decimal("-50.00"))
+    aplicar(corrente, Decimal("20.00"), categoria="Proceeds interests and dividends")
+    criar_transacao(corrente, descricao="Padaria", valor=Decimal("-10.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE)
+
+    assert resumo["guardado"]["este_mes"] == Decimal("400.00")
+
+
+def test_guardado_este_mes_segue_o_inicio_do_mes_do_app(corrente):
+    # Caso 4 do Módulo 5: com 2 dias antes, outubro começa em 29/09, então a
+    # aplicação de 30/09 conta em outubro; com 0 dias antes, não conta
+    aplicar(corrente, Decimal("-300.00"), data=date(2026, 9, 30))
+
+    com_dois_dias = resumo_do_mes(OUTUBRO, HOJE, dias_antes=2)
+    sem_dias = resumo_do_mes(OUTUBRO, HOJE, dias_antes=0)
+
+    assert com_dois_dias["guardado"]["este_mes"] == Decimal("300.00")
+    assert sem_dias["guardado"]["este_mes"] == Decimal("0.00")
+
+
+def test_posso_gastar_desconta_o_que_falta_guardar(conexao):
+    # Caso 7 do Módulo 5: saldo 1400, plano de 500, já guardou 300: faltam 200.
+    # (1400 - 200) / 24 dias (08 a 31/10) = 50.00
+    corrente = criar_conta(conexao, saldo=Decimal("1400.00"))
+    aplicar(corrente, Decimal("-300.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE, valor_mensal=POR_MES, mes_alvo=JULHO_2027)
+
+    assert resumo["guardado"]["falta_guardar_no_mes"] == Decimal("200.00")
+    assert resumo["posso_gastar_por_dia"] == Decimal("50.00")
+
+
+def test_posso_gastar_com_o_mes_guardado_nao_desconta(conexao):
+    # Caso 7 do Módulo 5: guardou 600, mais que os 500 do plano: não falta nada,
+    # 1400 / 24 = 58.333..., vira 58.33
+    corrente = criar_conta(conexao, saldo=Decimal("1400.00"))
+    aplicar(corrente, Decimal("-600.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE, valor_mensal=POR_MES, mes_alvo=JULHO_2027)
+
+    assert resumo["guardado"]["falta_guardar_no_mes"] == Decimal("0.00")
+    assert resumo["posso_gastar_por_dia"] == Decimal("58.33")
+
+
+def test_posso_gastar_sem_plano_fica_igual_a_hoje(conexao):
+    # Caso 7 do Módulo 5: sem plano, nada é descontado: 1400 / 24 = 58.33
+    corrente = criar_conta(conexao, saldo=Decimal("1400.00"))
+    aplicar(corrente, Decimal("-300.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE)
+
+    assert resumo["guardado"]["falta_guardar_no_mes"] == Decimal("0.00")
+    assert resumo["posso_gastar_por_dia"] == Decimal("58.33")
+
+
+def test_guardado_com_plano_traz_previsto_e_progresso(corrente):
+    # Casos 5 e 6 do Módulo 5, pelo resumo: 1300 guardados, os 500 de outubro
+    # já aplicados, 500 por mês até julho de 2027: previsto 1300 + 9 x 500 =
+    # 5800, progresso 1300 / 5800 = 22,41%, vira 22
+    criar_investimento(corrente.conexao, "cdb", Decimal("1300.00"))
+    aplicar(corrente, Decimal("-500.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE, valor_mensal=POR_MES, mes_alvo=JULHO_2027)
+
+    assert resumo["guardado"] == {
+        "total": Decimal("1300.00"),
+        "este_mes": Decimal("500.00"),
+        "plano": {"valor_mensal": POR_MES, "mes_alvo": JULHO_2027},
+        "previsto": Decimal("5800.00"),
+        "progresso": 22,
+        "falta_guardar_no_mes": Decimal("0.00"),
+    }

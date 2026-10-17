@@ -55,3 +55,25 @@ def listar_transacoes(api_key, conta_id):
         transacoes.extend(dados["results"])
 
     return transacoes
+
+
+def listar_investimentos(api_key, item_id):
+    # Aqui a paginação é por número de página (page e totalPages), e não pelo
+    # "next" das transações; sem resultados, totalPages vem 0 e o laço para
+    investimentos = []
+    pagina = 1
+    total_de_paginas = 1
+    while pagina <= total_de_paginas:
+        resposta = requests.get(
+            f"{URL}/investments",
+            params={"itemId": item_id, "page": pagina},
+            headers=cabecalho(api_key),
+            timeout=TIMEOUT,
+        )
+        resposta.raise_for_status()
+        dados = resposta.json()
+        investimentos.extend(dados["results"])
+        total_de_paginas = dados["totalPages"]
+        pagina += 1
+
+    return investimentos

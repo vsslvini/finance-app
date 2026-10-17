@@ -122,3 +122,39 @@ def test_listar_transacoes_com_uma_pagina_so(monkeypatch):
 
     assert transacoes == [{"id": "t1"}]
     assert len(chamadas) == 1
+
+
+def test_listar_investimentos_junta_as_duas_paginas(monkeypatch):
+    # Caso 1 do Módulo 5: investimentos em duas páginas; a Pluggy pagina por
+    # número (page e totalPages), então a segunda chamada pede a página 2
+    primeira = RespostaFalsa(
+        {"page": 1, "total": 2, "totalPages": 2, "results": [{"id": "inv-1"}]}
+    )
+    segunda = RespostaFalsa(
+        {"page": 2, "total": 2, "totalPages": 2, "results": [{"id": "inv-2"}]}
+    )
+    chamadas = trocar_get(monkeypatch, primeira, segunda)
+
+    investimentos = pluggy.listar_investimentos("chave-falsa", "item-1")
+
+    assert investimentos == [{"id": "inv-1"}, {"id": "inv-2"}]
+    assert len(chamadas) == 2
+    assert chamadas[0]["url"] == f"{URL}/investments"
+    assert chamadas[0]["params"] == {"itemId": "item-1", "page": 1}
+    assert chamadas[1]["url"] == f"{URL}/investments"
+    assert chamadas[1]["params"] == {"itemId": "item-1", "page": 2}
+    assert chamadas[0]["headers"]["X-API-KEY"] == "chave-falsa"
+    assert chamadas[1]["headers"]["X-API-KEY"] == "chave-falsa"
+    assert chamadas[0]["timeout"]
+
+
+def test_listar_investimentos_sem_nenhum(monkeypatch):
+    # Caso 1 do Módulo 5: conexão sem investimentos (totalPages 0) faz uma
+    # chamada só e devolve lista vazia, sem pedir a página 2
+    resposta = RespostaFalsa({"page": 1, "total": 0, "totalPages": 0, "results": []})
+    chamadas = trocar_get(monkeypatch, resposta)
+
+    investimentos = pluggy.listar_investimentos("chave-falsa", "item-1")
+
+    assert investimentos == []
+    assert len(chamadas) == 1

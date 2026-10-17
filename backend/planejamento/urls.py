@@ -4,4 +4,5 @@ from planejamento import views
 
 urlpatterns = [
     path("configuracoes/", views.configuracoes, name="configuracoes"),
+    path("plano/", views.plano, name="plano"),
 ]

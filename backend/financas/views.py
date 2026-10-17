@@ -15,7 +15,7 @@ from financas.serializers import ContaSerializer, ResumoSerializer, TransacaoSer
 from financas.services import sincronizacao
 from financas.services.periodo import mes_atual, periodo_do_mes
 from financas.services.resumo import resumo_do_mes
-from planejamento.models import Configuracao
+from planejamento.models import Configuracao, PlanoDeGuardar
 
 MES_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-10."
 PLUGGY_FORA = "Não foi possível falar com a Pluggy. Tente de novo mais tarde."
@@ -66,12 +66,21 @@ class TransacoesView(generics.ListAPIView):
 
 @api_view(["GET"])
 def resumo(request):
-    # A view lê a configuração e entrega ao service só os números que ele usa
+    # A view lê a configuração e o plano de guardar e entrega ao service só os
+    # números que ele usa
     configuracao = Configuracao.atual()
+    plano = PlanoDeGuardar.atual()
     dias_antes = configuracao.dias_antes_do_mes
     hoje = timezone.localdate()
     mes = ler_mes(request.query_params.get("mes"), hoje, dias_antes)
-    dados = resumo_do_mes(mes, hoje, dias_antes, configuracao.limite_fatura)
+    dados = resumo_do_mes(
+        mes,
+        hoje,
+        dias_antes,
+        configuracao.limite_fatura,
+        valor_mensal=plano.valor_mensal,
+        mes_alvo=plano.mes_alvo,
+    )
     return Response(ResumoSerializer(dados).data)
 
 

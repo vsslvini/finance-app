@@ -6,7 +6,7 @@ from django.utils import timezone
 
 # Importa o módulo (e não as funções) para os testes conseguirem trocá-las
 from financas.integracoes import pluggy
-from financas.models import Conexao, Conta, Transacao
+from financas.models import Conexao, Conta, Investimento, Transacao
 
 TIPOS_DE_CONTA = {
     "BANK": Conta.Tipo.CORRENTE,
@@ -83,6 +83,31 @@ def apagar_transacoes_que_sumiram(conta, transacoes):
     ).exclude(id_pluggy__in=ids_recebidos).delete()
 
 
+def salvar_investimento(conexao, dados):
+    # institution pode vir null (a Pluggy diz que só um conector manda)
+    instituicao = dados.get("institution") or {}
+    Investimento.objects.update_or_create(
+        id_pluggy=dados["id"],
+        defaults={
+            "conexao": conexao,
+            "nome": dados["name"],
+            "tipo": dados["type"],
+            "subtipo": dados.get("subtype") or "",
+            "instituicao": instituicao.get("name") or "",
+            "saldo": para_decimal(dados["balance"]),
+            "status": dados.get("status") or "",
+        },
+    )
+
+
+def apagar_investimentos_que_sumiram(conexao, investimentos):
+    # Diferente das transações, a lista de investimentos vem sempre inteira e não
+    # há nada manual neles; então o que não veio saiu daquela conexão
+    ids_recebidos = [dados["id"] for dados in investimentos]
+    da_conexao = Investimento.objects.filter(conexao=conexao)
+    da_conexao.exclude(id_pluggy__in=ids_recebidos).delete()
+
+
 def sincronizar():
     # Tudo ou nada: se der erro no meio, o banco volta a como estava
     with transaction.atomic():
@@ -97,6 +122,11 @@ def sincronizar():
                 for dados_transacao in transacoes:
                     salvar_transacao(conta, dados_transacao)
                 apagar_transacoes_que_sumiram(conta, transacoes)
+
+            investimentos = pluggy.listar_investimentos(api_key, conexao.id_pluggy)
+            for dados_investimento in investimentos:
+                salvar_investimento(conexao, dados_investimento)
+            apagar_investimentos_que_sumiram(conexao, investimentos)
 
             conexao.ultima_atualizacao = timezone.now()
             conexao.save()

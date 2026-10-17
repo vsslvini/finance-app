@@ -5,8 +5,8 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from financas.models import Conexao, Conta, Transacao
-from planejamento.models import Configuracao
+from financas.models import Conexao, Conta, Investimento, Transacao
+from planejamento.models import Configuracao, PlanoDeGuardar
 
 MES_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-10."
 
@@ -68,6 +68,7 @@ def test_resumo_traz_as_chaves_e_dinheiro_como_texto(cliente_com_token):
         "ultimos_gastos",
         "limite_fatura",
         "fatura_acima_do_limite",
+        "guardado",
     }
     assert dados["saldo_total"] == "1000.00"
     assert dados["fatura_aberta"] == "0.00"
@@ -167,3 +168,60 @@ def test_resumo_mes_invalido_responde_400_com_mensagem(cliente_com_token):
 
         assert resposta.status_code == 400
         assert resposta.json() == {"detail": MES_INVALIDO}
+
+
+def test_resumo_sem_plano_traz_guardado_com_plano_null(cliente_com_token):
+    # Caso 9 do Módulo 5: sem investimentos e sem plano, o bloco guardado vem
+    # com zeros como texto, plano null e nada faltando guardar
+    resposta = cliente_com_token.get("/api/resumo/")
+
+    assert resposta.status_code == 200
+    assert resposta.json()["guardado"] == {
+        "total": "0.00",
+        "este_mes": "0.00",
+        "plano": None,
+        "previsto": None,
+        "progresso": None,
+        "falta_guardar_no_mes": "0.00",
+    }
+
+
+def test_resumo_com_plano_traz_o_bloco_guardado(cliente_com_token, monkeypatch):
+    # Caso 9 do Módulo 5: hoje 08/10/2026, 1300 guardados, 300 aplicados em
+    # outubro e plano de 500 por mês até julho de 2027. Outubro ainda não foi
+    # guardado, então previsto = 1300 + 10 x 500 = 6300, progresso 20 (20,63%)
+    # e faltam 200. O mês do plano sai como "2027-07", igual em /api/plano/
+    fixar_hoje(monkeypatch, date(2026, 10, 8))
+    plano = PlanoDeGuardar.atual()
+    plano.valor_mensal = Decimal("500.00")
+    plano.mes_alvo = date(2027, 7, 1)
+    plano.save()
+    conexao = Conexao.objects.create(id_pluggy="item-nubank", nome_banco="Nubank")
+    Investimento.objects.create(
+        conexao=conexao,
+        id_pluggy="cdb",
+        nome="CDB Nubank",
+        tipo="FIXED_INCOME",
+        saldo=Decimal("1300.00"),
+    )
+    conta = Conta.objects.create(
+        conexao=conexao, tipo="corrente", nome="Conta Nubank", saldo=Decimal(0)
+    )
+    Transacao.objects.create(
+        conta=conta,
+        data=date(2026, 10, 5),
+        descricao="Aplicação",
+        valor=Decimal("-300.00"),
+        categoria_pluggy="Investments",
+    )
+
+    resposta = cliente_com_token.get("/api/resumo/")
+
+    assert resposta.json()["guardado"] == {
+        "total": "1300.00",
+        "este_mes": "300.00",
+        "plano": {"valor_mensal": "500.00", "mes_alvo": "2027-07"},
+        "previsto": "6300.00",
+        "progresso": 20,
+        "falta_guardar_no_mes": "200.00",
+    }

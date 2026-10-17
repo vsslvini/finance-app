@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from financas.models import Conta, Transacao
+from planejamento.serializers import PlanoDeGuardarSerializer
 
 
 class ContaSerializer(serializers.ModelSerializer):
@@ -48,6 +49,21 @@ class TransacaoSerializer(serializers.ModelSerializer):
         )
 
 
+class GuardadoSerializer(serializers.Serializer):
+    # O bloco "guardado" do resumo, também um dict
+    total = serializers.DecimalField(max_digits=12, decimal_places=2)
+    este_mes = serializers.DecimalField(max_digits=12, decimal_places=2)
+    # O mesmo serializer de /api/plano/, para o mês sair igual ("2027-07");
+    # None (null no JSON) quando não há plano
+    plano = PlanoDeGuardarSerializer(allow_null=True)
+    # Os dois None quando não há plano
+    previsto = serializers.DecimalField(
+        max_digits=12, decimal_places=2, allow_null=True
+    )
+    progresso = serializers.IntegerField(allow_null=True)
+    falta_guardar_no_mes = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
 class ResumoSerializer(serializers.Serializer):
     # Serializer comum (não ModelSerializer): o resumo é um dict, não um model.
     # Sem ele, o Response transformaria Decimal em float (ex.: 1000.0); o
@@ -70,3 +86,4 @@ class ResumoSerializer(serializers.Serializer):
         max_digits=12, decimal_places=2, allow_null=True
     )
     fatura_acima_do_limite = serializers.BooleanField()
+    guardado = GuardadoSerializer()

@@ -64,3 +64,20 @@ class Transacao(models.Model):
     def categoria_exibida(self):
         # "" e None contam como vazio, então o "or" pula para a próxima opção
         return self.categoria_manual or self.categoria_pluggy or "Sem categoria"
+
+
+class Investimento(models.Model):
+    conexao = models.ForeignKey(Conexao, on_delete=models.PROTECT)
+    # Todo investimento vem da Pluggy (não há investimento manual)
+    id_pluggy = models.CharField(max_length=100, unique=True)
+    nome = models.CharField(max_length=255)
+    # Texto da Pluggy como veio (ex.: FIXED_INCOME e CDB)
+    tipo = models.CharField(max_length=30)
+    subtipo = models.CharField(max_length=50, blank=True, default="")
+    instituicao = models.CharField(max_length=255, blank=True, default="")
+    saldo = models.DecimalField(max_digits=12, decimal_places=2)
+    # ACTIVE, PENDING ou TOTAL_WITHDRAWAL (resgatado, com saldo zero)
+    status = models.CharField(max_length=30, blank=True, default="")
+
+    def __str__(self):
+        return self.nome

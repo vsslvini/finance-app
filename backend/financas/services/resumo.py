@@ -2,7 +2,8 @@ from decimal import ROUND_FLOOR, Decimal
 
 from django.db.models import Q, Sum
 
-from financas.models import Conta, Transacao
+from financas.models import Conta, Investimento, Transacao
+from financas.services.guardado import bloco_guardado
 from financas.services.periodo import mes_atual, periodo_do_mes
 
 # Categorias da Pluggy que não são gasto nem ganho de verdade, num lugar só:
@@ -37,10 +38,13 @@ def somar(queryset, campo):
     return queryset.aggregate(total=Sum(campo))["total"] or ZERO
 
 
-def resumo_do_mes(mes, hoje, dias_antes=0, limite=None):
+def resumo_do_mes(
+    mes, hoje, dias_antes=0, limite=None, valor_mensal=None, mes_alvo=None
+):
     # "hoje" vem de fora para os testes fixarem o dia sem trocar o relógio.
     # dias_antes e limite também vêm de fora (a view lê da Configuracao), para
-    # os testes não precisarem salvar configuração no banco
+    # os testes não precisarem salvar configuração no banco. Pelo mesmo motivo,
+    # valor_mensal e mes_alvo (o plano de guardar) vêm de fora, None sem plano
     inicio, fim = periodo_do_mes(mes.year, mes.month, dias_antes)
     # range inclui as duas pontas: inicio <= data <= fim
     transacoes_do_mes = Transacao.objects.filter(data__range=(inicio, fim))
@@ -55,6 +59,17 @@ def resumo_do_mes(mes, hoje, dias_antes=0, limite=None):
     # pago, porque a fatura é paga com o salário seguinte; as compras do cartão
     # ficam só na fatura_aberta. No cartão, positivo é estorno, não dinheiro novo
     correntes_do_mes = transacoes_do_mes.filter(conta__tipo=Conta.Tipo.CORRENTE)
+
+    # Guardado: todos os investimentos contam (decidido em 2026-10-10). Este mês
+    # = aplicações - resgates na corrente, pelas mesmas categorias que ficam fora
+    # de entradas e saidas. Aplicação é saída (negativa), por isso o sinal
+    # trocado; "ZERO -" em vez de "-" para não aparecer "-0.00" sem nenhuma
+    total_guardado = somar(Investimento.objects.all(), "saldo")
+    guardado_este_mes = ZERO - somar(correntes_do_mes.filter(INVESTIMENTO), "valor")
+    guardado = bloco_guardado(
+        total_guardado, guardado_este_mes, mes, valor_mensal, mes_alvo
+    )
+
     correntes_do_mes = correntes_do_mes.exclude(NAO_CONTA_NO_MES)
     entradas = somar(correntes_do_mes.filter(valor__gt=0), "valor")
     # abs: as saídas são negativas no banco, mas o app mostra o valor positivo
@@ -72,9 +87,11 @@ def resumo_do_mes(mes, hoje, dias_antes=0, limite=None):
         # No último dia ainda sobra 1 dia, então não há divisão por zero
         dias_restantes = (fim - hoje).days + 1
         # A fatura não é descontada: ela é paga com o salário do mês seguinte.
+        # O que falta guardar no mês é descontado (RF29): já tem destino.
         # ROUND_FLOOR arredonda para baixo, inclusive nos negativos, para nunca
         # sugerir gastar mais do que se tem
-        posso_gastar_por_dia = (saldo_total / dias_restantes).quantize(
+        disponivel = saldo_total - guardado["falta_guardar_no_mes"]
+        posso_gastar_por_dia = (disponivel / dias_restantes).quantize(
             Decimal("0.01"), rounding=ROUND_FLOOR
         )
 
@@ -99,4 +116,5 @@ def resumo_do_mes(mes, hoje, dias_antes=0, limite=None):
         # None = sem limite; aí nunca avisa
         "limite_fatura": limite,
         "fatura_acima_do_limite": limite is not None and fatura_aberta > limite,
+        "guardado": guardado,
     }

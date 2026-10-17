@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 import requests
 
-from financas.models import Conexao, Conta, Transacao
+from financas.models import Conexao, Conta, Investimento, Transacao
 from financas.services.sincronizacao import sincronizar
 
 
@@ -56,6 +56,22 @@ def transacao_pluggy(**campos):
     return transacao
 
 
+def investimento_pluggy(**campos):
+    # Investimento no formato da Pluggy (GET /investments)
+    investimento = {
+        "id": "investimento-cdb",
+        "itemId": "item-nubank",
+        "name": "CDB Nubank",
+        "type": "FIXED_INCOME",
+        "subtype": "CDB",
+        "balance": 1000.5,
+        "status": "ACTIVE",
+        "institution": None,
+    }
+    investimento.update(campos)
+    return investimento
+
+
 @pytest.fixture
 def conexao(db):
     # Conexão cadastrada no admin, com o id do item copiado do painel da Pluggy
@@ -64,11 +80,13 @@ def conexao(db):
 
 @pytest.fixture
 def dados_pluggy(monkeypatch):
-    # O que a Pluggy falsa devolve: contas por id do item e transações por id da
-    # conta. O teste pode mudar este dicionário antes de chamar sincronizar()
+    # O que a Pluggy falsa devolve: contas e investimentos por id do item e
+    # transações por id da conta. O teste pode mudar este dicionário antes de
+    # chamar sincronizar(). Sem investimentos por padrão
     dados = {
         "contas": {"item-nubank": [conta_pluggy()]},
         "transacoes": {"conta-corrente": [transacao_pluggy()]},
+        "investimentos": {},
     }
 
     def obter_api_key_falso():
@@ -80,6 +98,9 @@ def dados_pluggy(monkeypatch):
     def listar_transacoes_falso(api_key, conta_id):
         return dados["transacoes"].get(conta_id, [])
 
+    def listar_investimentos_falso(api_key, item_id):
+        return dados["investimentos"].get(item_id, [])
+
     monkeypatch.setattr(
         "financas.integracoes.pluggy.obter_api_key", obter_api_key_falso
     )
@@ -88,6 +109,9 @@ def dados_pluggy(monkeypatch):
     )
     monkeypatch.setattr(
         "financas.integracoes.pluggy.listar_transacoes", listar_transacoes_falso
+    )
+    monkeypatch.setattr(
+        "financas.integracoes.pluggy.listar_investimentos", listar_investimentos_falso
     )
     return dados
 
@@ -358,3 +382,76 @@ def test_transacao_de_outra_conta_nao_e_apagada(conexao, dados_pluggy):
 
     assert Transacao.objects.filter(id_pluggy="compra-cartao").exists()
     assert Transacao.objects.count() == 3
+
+
+@pytest.mark.django_db
+def test_investimento_vira_investimento_da_conexao(conexao, dados_pluggy):
+    # Caso 2 do Módulo 5: cada investimento da Pluggy vira um Investimento da sua
+    # conexão; institution null vira "" e, quando vem, guardamos o nome dela
+    dados_pluggy["investimentos"]["item-nubank"] = [
+        investimento_pluggy(),
+        investimento_pluggy(
+            id="investimento-tesouro",
+            name="Tesouro Selic 2029",
+            type="SECURITY",
+            subtype="TREASURY",
+            balance=300.0,
+            institution={"name": "BANCO BTG PACTUAL S/A", "number": "30306294000145"},
+        ),
+    ]
+
+    sincronizar()
+
+    cdb = Investimento.objects.get(id_pluggy="investimento-cdb")
+    assert cdb.conexao == conexao
+    assert cdb.nome == "CDB Nubank"
+    assert cdb.tipo == "FIXED_INCOME"
+    assert cdb.subtipo == "CDB"
+    assert cdb.saldo == Decimal("1000.50")
+    assert cdb.status == "ACTIVE"
+    assert cdb.instituicao == ""
+    tesouro = Investimento.objects.get(id_pluggy="investimento-tesouro")
+    assert tesouro.instituicao == "BANCO BTG PACTUAL S/A"
+    assert tesouro.saldo == Decimal("300.00")
+
+
+@pytest.mark.django_db
+def test_saldo_novo_atualiza_o_investimento_existente(conexao, dados_pluggy):
+    # Caso 2 do Módulo 5: na segunda vez, o saldo novo atualiza o mesmo
+    # investimento, sem criar outro
+    dados_pluggy["investimentos"]["item-nubank"] = [investimento_pluggy()]
+    sincronizar()
+    pk_antes = Investimento.objects.get().pk
+    dados_pluggy["investimentos"]["item-nubank"][0]["balance"] = 1200.0
+
+    sincronizar()
+
+    investimento = Investimento.objects.get()
+    assert investimento.pk == pk_antes
+    assert investimento.saldo == Decimal("1200.00")
+    assert Investimento.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_investimento_que_sumiu_da_conexao_e_apagado(conexao, dados_pluggy):
+    # Caso 2 do Módulo 5: o investimento que não veio mais é apagado, mas só o
+    # daquela conexão; o de outra conexão continua
+    inter = Conexao.objects.create(id_pluggy="item-inter", nome_banco="Inter")
+    dados_pluggy["investimentos"] = {
+        "item-nubank": [
+            investimento_pluggy(id="cdb-nubank"),
+            investimento_pluggy(id="fundo-nubank", type="MUTUAL_FUND"),
+        ],
+        "item-inter": [investimento_pluggy(id="cdb-inter", itemId="item-inter")],
+    }
+    sincronizar()
+    dados_pluggy["investimentos"]["item-nubank"] = [
+        investimento_pluggy(id="cdb-nubank"),
+    ]
+
+    sincronizar()
+
+    assert not Investimento.objects.filter(id_pluggy="fundo-nubank").exists()
+    assert Investimento.objects.get(id_pluggy="cdb-nubank").conexao == conexao
+    assert Investimento.objects.get(id_pluggy="cdb-inter").conexao == inter
+    assert Investimento.objects.count() == 2
