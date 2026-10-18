@@ -41,6 +41,7 @@ aos pré-requisitos dele.
 | 17 | [`modulos/guardado-backend.md`](modulos/guardado-backend.md) | Módulo 5a: investimentos da Pluggy, plano de guardar, funções puras, `validate()` com dois campos, `context` e serializer dentro de serializer | itens 13 e 16 |
 | 18 | [`modulos/guardado-tela.md`](modulos/guardado-tela.md) | Módulo 5b: seção Guardado, barra de progresso acessível, componente reaproveitado, folha com dois campos | item 17 |
 | 19 | [`modulos/atualizar.md`](modulos/atualizar.md) | Módulo 3b-2: puxar para baixo (`RefreshControl`), hora sem converter fuso, função pura com "hoje" de fora | itens 12 e 18 |
+| 20 | [`modulos/faturas-futuras.md`](modulos/faturas-futuras.md) | Módulo 7: estimar faturas pelas parcelas, expressão regular, tupla como chave, `divmod` para meses | item 17 |
 
 ## Documentos de consulta (fora desta pasta)
 
