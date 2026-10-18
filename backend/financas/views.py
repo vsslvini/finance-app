@@ -9,10 +9,16 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from financas.models import Conexao, Conta, Transacao
-from financas.serializers import ContaSerializer, ResumoSerializer, TransacaoSerializer
+from financas.serializers import (
+    ContaSerializer,
+    FaturasFuturasSerializer,
+    ResumoSerializer,
+    TransacaoSerializer,
+)
 
 # Importa o módulo (e não a função) para os testes conseguirem trocá-la
 from financas.services import sincronizacao
+from financas.services.faturas_futuras import estimar_faturas
 from financas.services.periodo import mes_atual, periodo_do_mes
 from financas.services.resumo import resumo_do_mes
 from planejamento.models import Configuracao, PlanoDeGuardar
@@ -82,6 +88,15 @@ def resumo(request):
         mes_alvo=plano.mes_alvo,
     )
     return Response(ResumoSerializer(dados).data)
+
+
+@api_view(["GET"])
+def faturas_futuras(request):
+    # Como o resumo: a view lê os dias antes da configuração (o mês atual do
+    # app depende deles) e o service faz a conta
+    dias_antes = Configuracao.atual().dias_antes_do_mes
+    dados = estimar_faturas(timezone.localdate(), dias_antes)
+    return Response(FaturasFuturasSerializer(dados).data)
 
 
 @api_view(["POST"])

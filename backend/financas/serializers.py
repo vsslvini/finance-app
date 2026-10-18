@@ -90,3 +90,22 @@ class ResumoSerializer(serializers.Serializer):
     # Sai no fuso do projeto (TIME_ZONE), ex.: "2026-10-17T14:32:05-04:00", então o
     # app só recorta o texto, sem converter fuso; null se nunca sincronizou
     ultima_atualizacao = serializers.DateTimeField(allow_null=True)
+
+
+class CartaoFuturoSerializer(serializers.Serializer):
+    # Um cartão dentro de um mês das faturas futuras (um dict, como o resumo)
+    conta = serializers.IntegerField()
+    nome_banco = serializers.CharField()
+    nome_conta = serializers.CharField()
+    total = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class MesFuturoSerializer(serializers.Serializer):
+    mes = serializers.CharField()
+    total = serializers.DecimalField(max_digits=12, decimal_places=2)
+    cartoes = CartaoFuturoSerializer(many=True)
+
+
+class FaturasFuturasSerializer(serializers.Serializer):
+    # O DecimalField devolve o dinheiro como texto ("245.30"), igual ao resumo
+    meses = MesFuturoSerializer(many=True)

@@ -72,7 +72,7 @@ Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pl
 | `GET /api/transacoes/?mes=...` | transações do mês, com filtros opcionais (RF05 a RF07, RF09) |
 | `PATCH /api/transacoes/<id>/` | trocar a categoria (RF08) |
 | `POST /api/transacoes/` | gasto manual (RF10) |
-| `GET /api/faturas-futuras/` | estimativa por mês (RF13) |
+| `GET /api/faturas-futuras/` | estimativa dos 6 meses seguintes ao mês atual do app, pelas compras parceladas do cartão: total do mês e total por cartão (RF13) |
 | `POST /api/sincronizar/` | atualizar agora (RF24) |
 | `GET` e `PATCH /api/configuracoes/` | dias antes do mês e limite da fatura, do app `planejamento` (RF30, RF31) |
 | `GET` e `PATCH /api/plano/` | plano de guardar (valor por mês e mês alvo `AAAA-MM`), do app `planejamento` (RF28) |
