@@ -1,4 +1,5 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { buscarContas, buscarFaturasFuturas, type Conta, type FaturasFuturas } from '@/api';
@@ -7,6 +8,7 @@ import Carregando from '@/componentes/Carregando';
 import EstadoVazio from '@/componentes/EstadoVazio';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
 import ProximasFaturas from '@/componentes/ProximasFaturas';
+import { entradaEmCascata } from '@/movimento';
 import { cantos, cores, espaco, textos } from '@/tema';
 import { useCarga } from '@/useCarga';
 
@@ -97,10 +99,16 @@ export default function CartoesScreen() {
           <>
             {/* Poucos cartões, então um map simples basta; FlatList dentro de
                 ScrollView não é recomendado */}
-            {cartoes.map((cartao) => (
-              <BlocoDoCartao key={cartao.id} cartao={cartao} />
+            {/* Cada bloco entra em cascata (seção 10 do guia), só na primeira
+                carga: puxar para baixo não desmonta os blocos */}
+            {cartoes.map((cartao, indice) => (
+              <Animated.View key={cartao.id} entering={entradaEmCascata(indice)}>
+                <BlocoDoCartao cartao={cartao} />
+              </Animated.View>
             ))}
-            <ProximasFaturas meses={estado.dados.faturasFuturas.meses} />
+            <Animated.View entering={entradaEmCascata(cartoes.length)}>
+              <ProximasFaturas meses={estado.dados.faturasFuturas.meses} />
+            </Animated.View>
           </>
         )}
       </ScrollView>

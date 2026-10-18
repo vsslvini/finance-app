@@ -1,6 +1,7 @@
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { buscarDividas, type Divida } from '@/api';
@@ -11,6 +12,7 @@ import EstadoVazio from '@/componentes/EstadoVazio';
 import FolhaDaDivida from '@/componentes/FolhaDaDivida';
 import FolhaDeNovaDivida from '@/componentes/FolhaDeNovaDivida';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
+import { entradaEmCascata } from '@/movimento';
 import { cantos, cores, espaco, textos } from '@/tema';
 import { useCarga } from '@/useCarga';
 
@@ -126,8 +128,11 @@ export default function DividasScreen() {
         ) : (
           // Poucas dívidas, então um map simples basta; FlatList dentro de
           // ScrollView não é recomendado
-          dividas.map((divida) => (
-            <CartaoDeDivida key={divida.id} divida={divida} aoTocar={() => setAberta(divida)} />
+          // Cada cartão entra em cascata (seção 10 do guia), só na primeira carga
+          dividas.map((divida, indice) => (
+            <Animated.View key={divida.id} entering={entradaEmCascata(indice)}>
+              <CartaoDeDivida divida={divida} aoTocar={() => setAberta(divida)} />
+            </Animated.View>
           ))
         )}
       </ScrollView>

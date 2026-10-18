@@ -312,7 +312,7 @@ do `docs/planos/modulo-13-embelezamento.md`; a tabela abaixo já vale como regra
 | Duração | de 150 a 500 ms; nada passa de 500 ms |
 | Curva | `Easing.out(Easing.cubic)` ao entrar, `Easing.in(Easing.cubic)` ao sair; sem mola com quique |
 | Toque | resposta instantânea, sem animação (ver a tabela de toque) |
-| Reduzir movimento | sempre respeitado: `ReduceMotion.System` (padrão no Reanimated 4); no `Modal`, `useReducedMotion()` troca `slide` por `fade` |
+| Reduzir movimento | sempre respeitado: `ReduceMotion.System` (padrão no Reanimated 4); a `Folha` usa `Modal` com `fade` (esmaecer não é movimento) |
 | Acessibilidade | o conteúdo animado já está acessível desde o primeiro quadro (rótulos e valores reais, mesmo no meio da animação) |
 
 ### O que anima e o que não anima
@@ -323,9 +323,9 @@ do `docs/planos/modulo-13-embelezamento.md`; a tabela abaixo já vale como regra
 | Toque em botão de ícone (setas, Voltar) e em linha de lista | só opacidade 0,7, troca imediata | 1 |
 | Folhas (as 5) | fundo com `fade`; a folha sobe com `SlideInDown` de 250 ms; fechar continua instantâneo | 2 (feita) |
 | Barra de progresso | enche de 0 ao valor em 500 ms com `scaleX` (origem à esquerda), só ao aparecer | 2 (feita) |
-| Entrada em cascata (Início e cartões de Cartões, Contas e Dívidas) | `FadeInDown` de 200 ms, subida de 8, atraso de 40 ms por bloco, no máximo 6 blocos, só na primeira carga | 3 |
-| Troca de mês (Transações e Relatório) | `FadeIn` de 150 ms no conteúdo | 3 |
-| Carregamento do Início | esqueleto com blocos `superficie` e pulso de opacidade de 0,5 a 1 em 900 ms (parado com "reduzir movimento"); a frase "Carregando o resumo..." continua visível | 3 |
+| Entrada em cascata (Início e cartões de Cartões, Contas e Dívidas) | `FadeInDown` de 200 ms, subida de 8, atraso de 40 ms por bloco, no máximo 6 blocos, só na primeira carga | 3 (feita) |
+| Troca de mês (Transações e Relatório) | `FadeIn` de 150 ms no conteúdo | 3 (feita) |
+| Carregamento do Início | esqueleto com blocos `superficie` e pulso de opacidade de 0,5 a 1 em 900 ms (parado com "reduzir movimento"); a frase "Carregando o resumo..." continua visível | 3 (feita) |
 
 Não animam: valores em dinheiro (o "posso gastar" aparece pronto), puxar para baixo, troca de aba,
 itens de listas longas, régua de dias, erros e avisos.
@@ -341,6 +341,23 @@ itens de listas longas, régua de dias, erros e avisos.
   `Easing.out(Easing.cubic)`), com `transformOrigin: 'left center'` (aceito pelo RN 0.86 e pelo
   Reanimated 4.5.1). Mudanças de valor partem do ponto atual. O `accessibilityValue` usa o número
   real desde o primeiro quadro.
+
+### Cascata, troca de mês e esqueleto (entrega 3)
+
+- `mobile/src/movimento.ts` guarda as entradas: `entradaEmCascata(indice)` (`FadeInDown` de
+  200 ms, `Easing.out(Easing.cubic)`, subida de 8 com `withInitialValues`, atraso de
+  `indice * 40` ms; do 7º bloco em diante devolve `undefined`, sem animação) e
+  `ENTRADA_DO_CONTEUDO` (`FadeIn` de 150 ms).
+- O `Animated.View` com `entering` fica por fora dos `Pressable`. No Início, os blocos são o
+  destaque, a régua, Saldo/Fatura, Entrou/Saiu e Guardado; em Cartões, Contas e Dívidas, um por
+  cartão (ou grupo). Transações (FlatList) e itens de listas longas não animam.
+- Só na primeira carga: puxar para baixo não desmonta os blocos. No Início, depois de salvar numa
+  folha, o resumo é relido sem passar por "carregando" (função `reler`), para a cascata não repetir.
+- Troca de mês: o conteúdo de sucesso de `ListaDeTransacoes` e `RelatorioDoMes` entra com
+  `ENTRADA_DO_CONTEUDO` (a `key={mes}` monta o componente de novo); setas e título ficam parados.
+- `EsqueletoDoInicio`: blocos `superficie` no formato da tela, escondidos do leitor de tela, com
+  pulso de opacidade (`withRepeat` + `withTiming`, 900 ms). Com "reduzir movimento" ligado, o
+  `withTiming` vai direto ao valor final (`ReduceMotion.System`, padrão do Reanimated 4). A frase "Carregando o resumo..." continua visível embaixo.
 
 ### Toque (entrega 1)
 

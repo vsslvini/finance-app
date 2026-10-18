@@ -12,6 +12,7 @@
 // a lista de antes fica na tela até a nova chegar, sem "Carregando...".
 import { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { buscarTransacoes, type Transacao } from '@/api';
 import Carregando from '@/componentes/Carregando';
@@ -20,6 +21,7 @@ import FolhaDeCategoria from '@/componentes/FolhaDeCategoria';
 import ItemDeTransacao from '@/componentes/ItemDeTransacao';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
 import { tituloDoMes } from '@/formatacao';
+import { ENTRADA_DO_CONTEUDO } from '@/movimento';
 import { cantos, cores, espaco, textos } from '@/tema';
 import { useCarga } from '@/useCarga';
 
@@ -53,7 +55,9 @@ export default function ListaDeTransacoes({ mes }: ListaDeTransacoesProps) {
   const transacoes = estado.dados;
 
   return (
-    <View style={styles.area}>
+    // FadeIn só quando este conteúdo aparece (ao trocar de mês ele é montado
+    // de novo, por causa da key); puxar para baixo não repete
+    <Animated.View entering={ENTRADA_DO_CONTEUDO} style={styles.area}>
       {falhouAoAtualizar && (
         // accessibilityLiveRegion faz o leitor de tela do Android ler o aviso
         // assim que ele aparece, sem a pessoa precisar procurar
@@ -105,7 +109,7 @@ export default function ListaDeTransacoes({ mes }: ListaDeTransacoesProps) {
           aoTrocar={aoTrocarCategoria}
         />
       )}
-    </View>
+    </Animated.View>
   );
 }
 

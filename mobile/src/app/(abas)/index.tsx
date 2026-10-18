@@ -1,20 +1,14 @@
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { buscarResumo, ErroApi, sincronizar, type Resumo, type TipoErroApi } from '@/api';
 import { iconeDaCategoria } from '@/categorias';
 import Botao from '@/componentes/Botao';
+import EsqueletoDoInicio from '@/componentes/EsqueletoDoInicio';
 import EstadoVazio from '@/componentes/EstadoVazio';
 import FolhaDeEdicao, { type CampoEditavel } from '@/componentes/FolhaDeEdicao';
 import FolhaDoPlano from '@/componentes/FolhaDoPlano';
@@ -31,6 +25,7 @@ import {
   tituloDoMes,
 } from '@/formatacao';
 import { MENSAGENS_DE_ERRO } from '@/mensagens';
+import { entradaEmCascata } from '@/movimento';
 import { cantos, cores, espaco, fontes, textos, toque } from '@/tema';
 
 // A tela está sempre em um destes três estados
@@ -115,24 +110,37 @@ export default function InicioScreen() {
     }
   }
 
+  // Relê o resumo sem passar por 'carregando' (sem sincronizar com a Pluggy):
+  // o resumo antigo fica na tela até o novo chegar, os blocos continuam
+  // montados e a cascata de entrada não se repete. Se falhar, o resumo antigo
+  // continua lá, só com o aviso embaixo do título.
+  async function reler() {
+    try {
+      const resumo = await buscarResumo();
+      setEstado({ tipo: 'sucesso', resumo });
+      setFalhouAoAtualizar(false);
+    } catch {
+      setFalhouAoAtualizar(true);
+    }
+  }
+
   // A folha salvou: fecha a folha e mostra o resumo com o valor novo
   function aoSalvarNaFolha() {
     setCampoAberto(null);
-    recarregar();
+    reler();
   }
 
-  // O plano salvou: fecha a folha e recarrega, porque o plano muda a seção
+  // O plano salvou: fecha a folha e relê, porque o plano muda a seção
   // Guardado e o "posso gastar" (o backend desconta o que falta guardar)
   function aoSalvarPlano() {
     setPlanoAberto(false);
-    recarregar();
+    reler();
   }
 
   if (estado.tipo === 'carregando') {
     return (
-      <SafeAreaView style={[styles.tela, styles.centro]}>
-        <ActivityIndicator size="large" color={cores.acento} />
-        <Text style={[textos.corpo, styles.textoSecundario]}>Carregando o resumo...</Text>
+      <SafeAreaView style={styles.tela}>
+        <EsqueletoDoInicio />
       </SafeAreaView>
     );
   }
@@ -200,15 +208,24 @@ export default function InicioScreen() {
         </View>
 
         {/* 2. Destaque: posso gastar por dia, direto no fundo, sem cartão */}
-        {posso !== null && <Destaque valor={posso} separando={separando} />}
+        {/* Os cinco blocos principais entram em cascata (seção 10 do guia). O
+            Animated.View fica por fora dos Pressables. Os índices são fixos,
+            mesmo quando um bloco não aparece */}
+        {posso !== null && (
+          <Animated.View entering={entradaEmCascata(0)}>
+            <Destaque valor={posso} separando={separando} />
+          </Animated.View>
+        )}
 
         {/* 3. Régua de dias do mês */}
         {resumo.dia_do_mes !== null && resumo.dias_no_mes !== null && (
-          <ReguaDeDias diaDoMes={resumo.dia_do_mes} diasNoMes={resumo.dias_no_mes} />
+          <Animated.View entering={entradaEmCascata(1)}>
+            <ReguaDeDias diaDoMes={resumo.dia_do_mes} diasNoMes={resumo.dias_no_mes} />
+          </Animated.View>
         )}
 
         {/* 4. Saldo (só leitura) e fatura (tocável, abre a folha do limite) */}
-        <View style={styles.linha}>
+        <Animated.View entering={entradaEmCascata(2)} style={styles.linha}>
           <View
             accessible
             accessibilityLabel={rotuloEmReais('Saldo', resumo.saldo_total)}
@@ -227,7 +244,7 @@ export default function InicioScreen() {
             <RotuloDoCartao texto="Fatura aberta" icone="credit-card" />
             <Text style={textos.valor}>{formatarReais(resumo.fatura_aberta)}</Text>
           </Pressable>
-        </View>
+        </Animated.View>
 
         {/* 5. Aviso de fatura acima do limite */}
         {resumo.fatura_acima_do_limite && resumo.limite_fatura !== null && (
@@ -263,7 +280,7 @@ export default function InicioScreen() {
         )}
 
         {/* 6. Entradas e saídas do mês: "Entrou" é tocável e abre a folha do início do mês */}
-        <View style={styles.linha}>
+        <Animated.View entering={entradaEmCascata(3)} style={styles.linha}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={rotuloEmReais('Entrou no mês', resumo.entradas)}
@@ -294,7 +311,7 @@ export default function InicioScreen() {
               <Text style={textos.detalhe}>{`inclui ${formatarReais(dividasDoMes)} de dívidas`}</Text>
             )}
           </View>
-        </View>
+        </Animated.View>
 
         {/* 6b. Abre a tela Relatório por cima das abas (ela mora na pilha da
             raiz, fora do grupo (abas)); o push empilha, e o "Voltar" de lá
@@ -306,7 +323,9 @@ export default function InicioScreen() {
         />
 
         {/* 7. Guardado: investimentos e plano (tocável, abre a folha do plano) */}
-        <SecaoGuardado guardado={resumo.guardado} aoTocar={() => setPlanoAberto(true)} />
+        <Animated.View entering={entradaEmCascata(4)}>
+          <SecaoGuardado guardado={resumo.guardado} aoTocar={() => setPlanoAberto(true)} />
+        </Animated.View>
 
         {/* 8. Últimos gastos */}
         <Text accessibilityRole="header" style={[textos.subtitulo, styles.subtitulo]}>
@@ -418,9 +437,6 @@ const styles = StyleSheet.create({
   conteudo: {
     padding: espaco.grande,
     gap: espaco.medio,
-  },
-  textoSecundario: {
-    color: cores.textoSecundario,
   },
   textoCentro: {
     textAlign: 'center',

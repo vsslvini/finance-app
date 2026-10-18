@@ -1,4 +1,5 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { buscarContas, type Conta } from '@/api';
@@ -6,6 +7,7 @@ import Carregando from '@/componentes/Carregando';
 import EstadoVazio from '@/componentes/EstadoVazio';
 import LinhaDeConta from '@/componentes/LinhaDeConta';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
+import { entradaEmCascata } from '@/movimento';
 import { cantos, cores, espaco, textos } from '@/tema';
 import { useCarga } from '@/useCarga';
 
@@ -100,7 +102,12 @@ export default function ContasScreen() {
           // ScrollView não é recomendado. A key usa o índice junto do banco
           // para não repetir, caso a API um dia mande o mesmo banco separado
           grupos.map((grupo, indice) => (
-            <View key={`${grupo.banco}-${indice}`} style={styles.grupo}>
+            // Cada grupo entra em cascata (seção 10 do guia), só na primeira carga
+            <Animated.View
+              key={`${grupo.banco}-${indice}`}
+              entering={entradaEmCascata(indice)}
+              style={styles.grupo}
+            >
               <Text accessibilityRole="header" style={textos.subtitulo}>
                 {grupo.banco}
               </Text>
@@ -109,7 +116,7 @@ export default function ContasScreen() {
                   <LinhaDeConta key={conta.id} conta={conta} comDivisoria={posicao > 0} />
                 ))}
               </View>
-            </View>
+            </Animated.View>
           ))
         )}
       </ScrollView>
