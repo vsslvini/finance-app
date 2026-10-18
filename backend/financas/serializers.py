@@ -135,6 +135,27 @@ class ResumoSerializer(serializers.Serializer):
     ultima_atualizacao = serializers.DateTimeField(allow_null=True)
 
 
+class CategoriaDoMesSerializer(serializers.Serializer):
+    # Uma linha dos gastos por categoria do relatório (um dict, como o resumo)
+    categoria = serializers.CharField()
+    # "" quando o gasto não tem categoria (igual à lista de transações)
+    categoria_original = serializers.CharField()
+    total = serializers.DecimalField(max_digits=12, decimal_places=2)
+    porcentagem = serializers.IntegerField()
+
+
+class RelatorioSerializer(serializers.Serializer):
+    # Como o ResumoSerializer: o DecimalField devolve o dinheiro como texto
+    mes = serializers.CharField()
+    entradas = serializers.DecimalField(max_digits=12, decimal_places=2)
+    saidas = serializers.DecimalField(max_digits=12, decimal_places=2)
+    saldo_do_mes = serializers.DecimalField(max_digits=12, decimal_places=2)
+    total_gastos = serializers.DecimalField(max_digits=12, decimal_places=2)
+    gastos_por_categoria = CategoriaDoMesSerializer(many=True)
+    # As traduções que a view manda no context chegam aqui, como no resumo
+    maiores_gastos = TransacaoSerializer(many=True)
+
+
 class CartaoFuturoSerializer(serializers.Serializer):
     # Um cartão dentro de um mês das faturas futuras (um dict, como o resumo)
     conta = serializers.IntegerField()

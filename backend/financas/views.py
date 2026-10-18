@@ -16,6 +16,7 @@ from financas.serializers import (
     CategoriaSerializer,
     ContaSerializer,
     FaturasFuturasSerializer,
+    RelatorioSerializer,
     ResumoSerializer,
     TransacaoSerializer,
 )
@@ -24,6 +25,7 @@ from financas.serializers import (
 from financas.services import sincronizacao
 from financas.services.faturas_futuras import estimar_faturas
 from financas.services.periodo import mes_atual, periodo_do_mes
+from financas.services.relatorio import relatorio_do_mes
 from financas.services.resumo import resumo_do_mes
 from planejamento.models import Configuracao, PlanoDeGuardar
 
@@ -133,6 +135,18 @@ def resumo(request):
     )
     contexto = {"traducoes": Categoria.traducoes()}
     return Response(ResumoSerializer(dados, context=contexto).data)
+
+
+@api_view(["GET"])
+def relatorio(request):
+    dias_antes = Configuracao.atual().dias_antes_do_mes
+    mes = ler_mes(request.query_params.get("mes"), timezone.localdate(), dias_antes)
+    # Lidas uma vez: o service traduz as categorias, e o serializer, os maiores
+    # gastos
+    traducoes = Categoria.traducoes()
+    dados = relatorio_do_mes(mes, dias_antes, traducoes)
+    contexto = {"traducoes": traducoes}
+    return Response(RelatorioSerializer(dados, context=contexto).data)
 
 
 @api_view(["GET"])

@@ -69,6 +69,7 @@ Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pl
 | Rota | Requisitos |
 |---|---|
 | `GET /api/resumo/?mes=2026-10` | saldo total, entradas, saídas, posso gastar por dia, últimos gastos (RF15 a RF18) e o bloco `guardado` (RF04, RF28, RF29) |
+| `GET /api/relatorio/?mes=2026-10` | relatório do mês: entradas, saídas e saldo do mês (iguais aos do resumo), total de gastos (corrente e cartão, sem pagamento de fatura), gastos por categoria (traduzida, com porcentagem) e os 5 maiores gastos no formato da lista de transações (RF27, desde 2026-10-17) |
 | `GET /api/contas/` | lista de contas com o nome do banco (o app agrupa), com dados do cartão (RF01 a RF03, RF11, RF12, RF14) |
 | `GET /api/transacoes/?mes=...` | transações do mês, com filtros opcionais (RF05 a RF07, RF09); cada uma traz `categoria` (em português, para mostrar) e `categoria_original` (o nome em inglês da Pluggy) |
 | `PATCH /api/transacoes/<id>/` | trocar a categoria com `{"categoria_manual": "Groceries"}` (o nome em inglês de uma categoria da lista; `""` volta para a da Pluggy) e receber a transação no formato da lista (RF08, desde 2026-10-17) |

@@ -9,6 +9,7 @@ urlpatterns = [
     path("transacoes/<int:pk>/", views.trocar_categoria, name="trocar-categoria"),
     path("categorias/", views.CategoriasView.as_view(), name="categorias"),
     path("resumo/", views.resumo, name="resumo"),
+    path("relatorio/", views.relatorio, name="relatorio"),
     path("faturas-futuras/", views.faturas_futuras, name="faturas-futuras"),
     path("sincronizar/", views.sincronizar, name="sincronizar"),
 ]

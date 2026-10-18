@@ -38,6 +38,21 @@ def somar(queryset, campo):
     return queryset.aggregate(total=Sum(campo))["total"] or ZERO
 
 
+def entradas_e_saidas(transacoes_do_mes):
+    # Entradas e saidas contam só pela conta corrente (decidido em 2026-10-10, no
+    # lugar da regra de 2026-10-08, que contava as compras do cartão e não o
+    # pagamento da fatura). Assim o pagamento da fatura conta no mês em que é
+    # pago, porque a fatura é paga com o salário seguinte; as compras do cartão
+    # ficam só na fatura_aberta. No cartão, positivo é estorno, não dinheiro novo.
+    # Função à parte porque o relatório do mês usa a mesma regra
+    correntes = transacoes_do_mes.filter(conta__tipo=Conta.Tipo.CORRENTE)
+    correntes = correntes.exclude(NAO_CONTA_NO_MES)
+    entradas = somar(correntes.filter(valor__gt=0), "valor")
+    # abs: as saídas são negativas no banco, mas o app mostra o valor positivo
+    saidas = abs(somar(correntes.filter(valor__lt=0), "valor"))
+    return entradas, saidas
+
+
 def resumo_do_mes(
     mes, hoje, dias_antes=0, limite=None, valor_mensal=None, mes_alvo=None
 ):
@@ -53,11 +68,6 @@ def resumo_do_mes(
     # Cartão fica fora do saldo: o "saldo" do cartão é a fatura
     saldo_total = somar(Conta.objects.filter(tipo=Conta.Tipo.CORRENTE), "saldo")
     fatura_aberta = somar(Conta.objects.filter(tipo=Conta.Tipo.CARTAO), "saldo")
-    # Entradas e saidas contam só pela conta corrente (decidido em 2026-10-10, no
-    # lugar da regra de 2026-10-08, que contava as compras do cartão e não o
-    # pagamento da fatura). Assim o pagamento da fatura conta no mês em que é
-    # pago, porque a fatura é paga com o salário seguinte; as compras do cartão
-    # ficam só na fatura_aberta. No cartão, positivo é estorno, não dinheiro novo
     correntes_do_mes = transacoes_do_mes.filter(conta__tipo=Conta.Tipo.CORRENTE)
 
     # Guardado: todos os investimentos contam (decidido em 2026-10-10). Este mês
@@ -70,10 +80,7 @@ def resumo_do_mes(
         total_guardado, guardado_este_mes, mes, valor_mensal, mes_alvo
     )
 
-    correntes_do_mes = correntes_do_mes.exclude(NAO_CONTA_NO_MES)
-    entradas = somar(correntes_do_mes.filter(valor__gt=0), "valor")
-    # abs: as saídas são negativas no banco, mas o app mostra o valor positivo
-    saidas = abs(somar(correntes_do_mes.filter(valor__lt=0), "valor"))
+    entradas, saidas = entradas_e_saidas(transacoes_do_mes)
 
     # Os três só fazem sentido no mês de hoje; nos outros meses ficam None
     posso_gastar_por_dia = None
