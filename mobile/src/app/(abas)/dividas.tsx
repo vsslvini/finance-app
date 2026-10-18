@@ -17,7 +17,7 @@ import CartaoDeDivida from '@/componentes/CartaoDeDivida';
 import Carregando from '@/componentes/Carregando';
 import EstadoVazio from '@/componentes/EstadoVazio';
 import FolhaDaDivida from '@/componentes/FolhaDaDivida';
-import FolhaDeNovaDivida from '@/componentes/FolhaDeNovaDivida';
+import FolhaDoCadastroDeDivida from '@/componentes/FolhaDoCadastroDeDivida';
 import FolhaDoGastoFixo from '@/componentes/FolhaDoGastoFixo';
 import LinhaDeGastoFixo from '@/componentes/LinhaDeGastoFixo';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
@@ -40,13 +40,16 @@ function buscarAPagar(): Promise<[GastoFixo[], Divida[]]> {
 // seções. Em cada gasto fixo, "Marcar pago" ou "Desmarcar" muda o pagamento do
 // mês e relê a lista; tocar no gasto abre a folha para editar ou apagar. Tocar
 // num cartão de dívida abre a folha da dívida (parcelas, marcar como paga,
-// apagar). Depois de qualquer mudança, a lista é lida de novo.
+// apagar); nela, "Editar dívida" fecha essa folha e abre a do cadastro com os
+// campos preenchidos. Depois de qualquer mudança, a lista é lida de novo.
 export default function DividasScreen() {
   const { estado, recarregar, atualizar, atualizando, falhouAoAtualizar } =
     useCarga(buscarAPagar);
   const [novaAberta, setNovaAberta] = useState(false);
   // A dívida cuja folha está aberta (null = nenhuma)
   const [aberta, setAberta] = useState<Divida | null>(null);
+  // A dívida na folha de edição (null = nenhuma)
+  const [editando, setEditando] = useState<Divida | null>(null);
   const [novoFixoAberto, setNovoFixoAberto] = useState(false);
   // O gasto fixo cuja folha está aberta (null = nenhum)
   const [fixoAberto, setFixoAberto] = useState<GastoFixo | null>(null);
@@ -104,10 +107,24 @@ export default function DividasScreen() {
     atualizar();
   }
 
-  // A nova dívida foi salva: fecha a folha e relê a lista (sem tela de carregando)
-  function aoSalvarNova() {
+  // A dívida (nova ou editada) foi salva: fecha a folha e relê a lista (sem
+  // tela de carregando)
+  function aoSalvarDivida() {
     setNovaAberta(false);
+    setEditando(null);
     atualizar();
+  }
+
+  // "Editar dívida" na folha das parcelas: fecha essa folha e abre a do cadastro
+  // com a dívida (são dois Modals, e dois abertos juntos dão problema). Usa a
+  // dívida que veio da folha, que já tem as parcelas marcadas; se alguma mudou,
+  // relê a lista agora, porque cancelar a edição não relê.
+  function aoEditarDivida(divida: Divida, mudou: boolean) {
+    setAberta(null);
+    setEditando(divida);
+    if (mudou) {
+      atualizar();
+    }
   }
 
   // Fechar a folha da dívida: só relê se alguma parcela mudou
@@ -222,8 +239,15 @@ export default function DividasScreen() {
         )}
       </ScrollView>
 
-      {novaAberta && (
-        <FolhaDeNovaDivida aoCancelar={() => setNovaAberta(false)} aoSalvar={aoSalvarNova} />
+      {(novaAberta || editando !== null) && (
+        <FolhaDoCadastroDeDivida
+          divida={editando ?? undefined}
+          aoCancelar={() => {
+            setNovaAberta(false);
+            setEditando(null);
+          }}
+          aoSalvar={aoSalvarDivida}
+        />
       )}
 
       {(novoFixoAberto || fixoAberto !== null) && (
@@ -239,7 +263,12 @@ export default function DividasScreen() {
       )}
 
       {aberta !== null && (
-        <FolhaDaDivida divida={aberta} aoFechar={aoFecharDivida} aoApagar={aoApagarDivida} />
+        <FolhaDaDivida
+          divida={aberta}
+          aoFechar={aoFecharDivida}
+          aoApagar={aoApagarDivida}
+          aoEditar={aoEditarDivida}
+        />
       )}
     </SafeAreaView>
   );

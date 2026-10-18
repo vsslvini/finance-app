@@ -61,6 +61,7 @@ const DIVIDA_TIA = {
   motivo: 'Empréstimo do carro',
   valor_total: '1000.00',
   total_parcelas: 3,
+  mes_inicio: '2026-10',
   parcelas_pagas: 1,
   valor_pago: '333.33',
   valor_restante: '666.67',
@@ -145,6 +146,8 @@ let respostaDasDividas: () => Promise<Response>;
 let respostaDoCadastro: () => Promise<Response>;
 let respostaDaParcela: () => Promise<Response>;
 let respostaDoApagar: () => Promise<Response>;
+// A edição da dívida (módulo 15b): PATCH /api/dividas/<id>/.
+let respostaDaEdicao: () => Promise<Response>;
 // Os gastos fixos (módulo 14b). Por padrão não há nenhum, para os testes das
 // dívidas verem a mesma tela de antes.
 let respostaDosFixos: () => Promise<Response>;
@@ -158,6 +161,7 @@ beforeEach(() => {
   respostaDoCadastro = async () => respostaFalsa(201, DIVIDA_TIA);
   respostaDaParcela = async () => respostaFalsa(200, DIVIDA_TIA);
   respostaDoApagar = async () => respostaFalsa(204);
+  respostaDaEdicao = async () => respostaFalsa(200, DIVIDA_TIA);
   respostaDosFixos = async () => respostaFalsa(200, []);
   respostaDoCadastroFixo = async () => respostaFalsa(201, FIXO_A_PAGAR);
   respostaDaEdicaoFixo = async () => respostaFalsa(200, FIXO_A_PAGAR);
@@ -192,6 +196,9 @@ beforeEach(() => {
     }
     if (url.includes('/api/dividas/') && metodo === 'DELETE') {
       return respostaDoApagar();
+    }
+    if (url.includes('/api/dividas/') && metodo === 'PATCH') {
+      return respostaDaEdicao();
     }
     if (url.includes('/api/parcelas/') && metodo === 'PATCH') {
       return respostaDaParcela();
@@ -754,6 +761,122 @@ describe('Folha da dívida', () => {
     expect(screen.getByRole('button', { name: 'Apagar dívida' })).toBeOnTheScreen();
     expect(screen.queryByText('As 3 parcelas também serão apagadas.')).toBeNull();
     expect(chamadas('DELETE', '/api/dividas/')).toHaveLength(0);
+  });
+});
+
+// ===========================================================================
+// Módulo 15b: editar dívida
+// ===========================================================================
+
+// Uma dívida sem nenhuma parcela paga (a única que pode mudar valor, parcelas
+// e mês), começando em novembro de 2026.
+const DIVIDA_SEM_PAGAS = criarDivida({
+  mes_inicio: '2026-11',
+  parcelas_pagas: 0,
+  valor_pago: '0.00',
+  valor_restante: '1000.00',
+  proxima_parcela: { id: 1, numero: 1, mes: '2026-11', valor: '333.33', atrasada: false },
+  parcelas: [
+    parcela(1, '2026-11', '333.33', false, false),
+    parcela(2, '2026-12', '333.33', false, false),
+    parcela(3, '2027-01', '333.34', false, false),
+  ],
+});
+
+// Abre a folha "Editar dívida": mostra a aba com a dívida dada, toca no
+// cartão, toca em "Editar dívida" e espera o título da folha de cadastro.
+async function abrirEdicaoDaDivida(divida: Record<string, unknown>) {
+  respostaDasDividas = async () => respostaFalsa(200, [divida]);
+  await render(<DividasScreen />);
+  await fireEvent.press(await screen.findByRole('button', { name: /^Dívida com Tia Maria/ }));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Editar dívida' }));
+  await screen.findByRole('header', { name: 'Editar dívida' });
+}
+
+describe('Editar dívida (15b)', () => {
+  it('"Editar dívida" abre a folha com o título e os campos preenchidos (caso 1)', async () => {
+    // Confere o que a pessoa vê ao abrir: título "Editar dívida" e cada campo
+    // já com os dados atuais (valor formatado, mês como MM/AAAA).
+    await abrirEdicaoDaDivida(DIVIDA_SEM_PAGAS);
+
+    expect(screen.getByLabelText('Para quem')).toHaveDisplayValue('Tia Maria');
+    expect(screen.getByLabelText('Motivo (opcional)')).toHaveDisplayValue('Empréstimo do carro');
+    expect(screen.getByLabelText('Valor total')).toHaveDisplayValue('1.000,00');
+    expect(screen.getByLabelText('Parcelas')).toHaveDisplayValue('3');
+    expect(screen.getByLabelText('Mês da primeira parcela (MM/AAAA)')).toHaveDisplayValue(
+      '11/2026',
+    );
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Salvar' })).toBeOnTheScreen();
+    // A folha das parcelas fechou para dar lugar à de edição.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Apagar dívida' })).toBeNull());
+  });
+
+  it('mudar o valor e salvar manda o PATCH com os dados novos, fecha a folha e relê a lista (caso 2)', async () => {
+    // Confere o fluxo completo de salvar: o corpo do PATCH no formato da API,
+    // a folha fechando e a lista sendo pedida de novo.
+    await abrirEdicaoDaDivida(DIVIDA_SEM_PAGAS);
+
+    await fireEvent.changeText(screen.getByLabelText('Valor total'), '1.200,00');
+    await fireEvent.changeText(screen.getByLabelText('Parcelas'), '4');
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(() => expect(chamadas('PATCH', '/api/dividas/1/')).toHaveLength(1));
+    const [endereco, opcoes] = chamadas('PATCH', '/api/dividas/1/')[0];
+    expect(endereco).toBe(`${ENDERECO_BASE}/api/dividas/1/`);
+    expect(opcoes).toMatchObject({
+      headers: { Authorization: 'Token token-falso', 'Content-Type': 'application/json' },
+    });
+    expect(corpoDe('PATCH', '/api/dividas/1/')).toEqual({
+      credor: 'Tia Maria',
+      motivo: 'Empréstimo do carro',
+      valor_total: '1200.00',
+      parcelas: 4,
+      mes_inicio: '2026-11',
+    });
+    await waitFor(() => expect(screen.queryByRole('header', { name: 'Editar dívida' })).toBeNull());
+    await waitFor(() => expect(chamadas('GET', '/api/dividas/')).toHaveLength(2));
+  });
+
+  it('com parcela paga, esconde valor, parcelas e mês, mostra o aviso e salva só credor e motivo (caso 3)', async () => {
+    // DIVIDA_TIA tem uma parcela paga. Confere que os campos travados não
+    // aparecem, que o aviso aparece e que o PATCH leva só os dois campos livres.
+    await abrirEdicaoDaDivida(DIVIDA_TIA);
+
+    expect(screen.queryByLabelText('Valor total')).toBeNull();
+    expect(screen.queryByLabelText('Parcelas')).toBeNull();
+    expect(screen.queryByLabelText('Mês da primeira parcela (MM/AAAA)')).toBeNull();
+    expect(
+      screen.getByText(
+        'Com parcela paga, só dá para mudar para quem e o motivo. Para mudar o valor, desmarque as parcelas pagas.',
+      ),
+    ).toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByLabelText('Para quem'), 'Tio João');
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(() => expect(chamadas('PATCH', '/api/dividas/1/')).toHaveLength(1));
+    expect(corpoDe('PATCH', '/api/dividas/1/')).toEqual({
+      credor: 'Tio João',
+      motivo: 'Empréstimo do carro',
+    });
+  });
+
+  it('se a API recusa a edição, a folha continua aberta e mostra a mensagem (caso 4)', async () => {
+    // O servidor falso responde 400 (mesmo formato do erro do cadastro).
+    // Confere que a pessoa vê a mensagem e não perde o que digitou.
+    respostaDaEdicao = async () =>
+      respostaFalsa(400, {
+        mes_inicio: ['Mês inválido. Use o formato AAAA-MM, ex.: 2026-11.'],
+      });
+    await abrirEdicaoDaDivida(DIVIDA_SEM_PAGAS);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(
+      await screen.findByText('Mês inválido. Use o formato AAAA-MM, ex.: 2026-11.'),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Editar dívida' })).toBeOnTheScreen();
   });
 });
 

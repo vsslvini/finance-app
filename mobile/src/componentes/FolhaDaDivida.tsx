@@ -1,6 +1,7 @@
-// Folha da dívida: a lista de parcelas (tocar marca ou desmarca como paga) e o
-// botão de apagar, que pede dois toques. A folha parte da dívida que a aba já
-// tem e a troca pela resposta do backend a cada parcela marcada.
+// Folha da dívida: a lista de parcelas (tocar marca ou desmarca como paga), o
+// botão "Editar dívida" (a aba abre a folha do cadastro) e o de apagar, que pede
+// dois toques. A folha parte da dívida que a aba já tem e a troca pela resposta
+// do backend a cada parcela marcada.
 import { Lucide, type LucideIconName } from '@react-native-vector-icons/lucide';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View, type ColorValue } from 'react-native';
@@ -17,12 +18,16 @@ type FolhaDaDividaProps = {
   // "mudou" é true se alguma parcela foi marcada ou desmarcada (a aba relê a lista)
   aoFechar: (mudou: boolean) => void;
   aoApagar: () => void; // chamada depois que o backend apagou a dívida
+  // "Editar dívida": entrega a dívida como está agora (com as parcelas já
+  // marcadas aqui) e se alguma parcela mudou; a aba troca esta folha pela do cadastro
+  aoEditar: (divida: Divida, mudou: boolean) => void;
 };
 
 export default function FolhaDaDivida({
   divida: dividaInicial,
   aoFechar,
   aoApagar,
+  aoEditar,
 }: FolhaDaDividaProps) {
   const [divida, setDivida] = useState(dividaInicial);
   const [mudou, setMudou] = useState(false);
@@ -117,13 +122,19 @@ export default function FolhaDaDivida({
         </View>
         <View style={styles.botaoMetade}>
           <Botao
-            titulo={confirmando ? 'Toque de novo para apagar' : 'Apagar dívida'}
+            titulo="Editar dívida"
             tipo="principal"
-            aoTocar={apagar}
+            aoTocar={() => aoEditar(divida, mudou)}
             desativado={salvando}
           />
         </View>
       </View>
+      <Botao
+        titulo={confirmando ? 'Toque de novo para apagar' : 'Apagar dívida'}
+        tipo="secundario"
+        aoTocar={apagar}
+        desativado={salvando}
+      />
     </Folha>
   );
 }

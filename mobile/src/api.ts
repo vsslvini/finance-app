@@ -167,6 +167,7 @@ export type Divida = {
   parcelas_pagas: number;
   valor_pago: string;
   valor_restante: string;
+  mes_inicio: string; // mês da primeira parcela: "2026-11"
   proxima_parcela: ProximaParcela | null; // null quando tudo está pago
   parcelas: ParcelaDaDivida[];
 };
@@ -409,6 +410,13 @@ export async function buscarDividas(): Promise<Divida[]> {
 // Cadastra uma dívida; o backend gera as parcelas e devolve a dívida pronta
 export async function criarDivida(nova: NovaDivida): Promise<Divida> {
   return pedirApi<Divida>('/api/dividas/', 'POST', nova);
+}
+
+// Edita a dívida; todos os campos são opcionais e só os enviados mudam. Se
+// valor, parcelas ou mês mudarem, o backend gera as parcelas de novo (e recusa
+// com 400 se alguma parcela já estiver paga). Devolve a dívida atualizada.
+export async function editarDivida(id: number, dados: Partial<NovaDivida>): Promise<Divida> {
+  return pedirApi<Divida>(`/api/dividas/${id}/`, 'PATCH', dados);
 }
 
 // Marca (true) ou desmarca (false) uma parcela como paga. O backend devolve a
