@@ -13,7 +13,7 @@ Django + DRF, que guarda tudo no PostgreSQL (no Docker) e entrega JSON a um app 
 Native com Expo. Hoje o backend já sincroniza com a Pluggy (inclusive investimentos) e tem API de contas,
 transações, sincronização, resumo do mês e plano de guardar. O app mobile já mostra a tela Início com o
 resumo do mês no visual escuro com acento roxo e ícones, e edita o início do mês, o limite da
-fatura e o plano de guardar (seção Guardado); as outras telas são os próximos passos.
+fatura e o plano de guardar (seção Guardado); e tem as abas Transações, Cartões e Contas.
 
 ## Ordem de estudo
 
@@ -42,6 +42,7 @@ aos pré-requisitos dele.
 | 18 | [`modulos/guardado-tela.md`](modulos/guardado-tela.md) | Módulo 5b: seção Guardado, barra de progresso acessível, componente reaproveitado, folha com dois campos | item 17 |
 | 19 | [`modulos/atualizar.md`](modulos/atualizar.md) | Módulo 3b-2: puxar para baixo (`RefreshControl`), hora sem converter fuso, função pura com "hoje" de fora | itens 12 e 18 |
 | 20 | [`modulos/faturas-futuras.md`](modulos/faturas-futuras.md) | Módulo 7: estimar faturas pelas parcelas, expressão regular, tupla como chave, `divmod` para meses | item 17 |
+| 21 | [`modulos/abas-e-telas.md`](modulos/abas-e-telas.md) | Módulo 6: grupo de rotas e abas, hook próprio (`useCarga`), `key` para trocar de mês, testes com ajudante compartilhado | itens 15 e 19 |
 
 ## Documentos de consulta (fora desta pasta)
 
