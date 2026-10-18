@@ -9,7 +9,7 @@ import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } fro
 import type { Transacao } from '@/api';
 import { iconeDaCategoria } from '@/categorias';
 import { formatarData, formatarNumero, formatarReais } from '@/formatacao';
-import { cantos, cores, espaco, textos } from '@/tema';
+import { cantos, cores, espaco, textos, toque } from '@/tema';
 
 type ItemDeTransacaoProps = {
   transacao: Transacao;
@@ -104,7 +104,7 @@ export default function ItemDeTransacao({
       // O "hint" é lido depois do rótulo e conta o que o toque faz
       accessibilityHint="Toque para trocar a categoria"
       onPress={aoTocar}
-      style={({ pressed }) => [estiloDaLinha, pressed && styles.apertado]}
+      style={({ pressed }) => [estiloDaLinha, pressed && toque.apertadoIcone]}
     >
       {conteudo}
     </Pressable>
@@ -131,9 +131,6 @@ const styles = StyleSheet.create({
   cantosDeBaixo: {
     borderBottomLeftRadius: cantos.cartao,
     borderBottomRightRadius: cantos.cartao,
-  },
-  apertado: {
-    opacity: 0.7,
   },
   icone: {
     width: 30,

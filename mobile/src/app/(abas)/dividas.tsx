@@ -7,6 +7,7 @@ import { buscarDividas, type Divida } from '@/api';
 import Botao from '@/componentes/Botao';
 import CartaoDeDivida from '@/componentes/CartaoDeDivida';
 import Carregando from '@/componentes/Carregando';
+import EstadoVazio from '@/componentes/EstadoVazio';
 import FolhaDaDivida from '@/componentes/FolhaDaDivida';
 import FolhaDeNovaDivida from '@/componentes/FolhaDeNovaDivida';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
@@ -120,7 +121,7 @@ export default function DividasScreen() {
 
         {dividas.length === 0 ? (
           <View style={styles.vazio}>
-            <Text style={[textos.corpo, styles.textoVazio]}>Nenhuma dívida cadastrada.</Text>
+            <EstadoVazio icone="hand-coins" texto="Nenhuma dívida cadastrada." />
           </View>
         ) : (
           // Poucas dívidas, então um map simples basta; FlatList dentro de
@@ -177,9 +178,5 @@ const styles = StyleSheet.create({
     backgroundColor: cores.superficie,
     borderRadius: cantos.cartao,
     padding: espaco.grande,
-  },
-  textoVazio: {
-    color: cores.textoSecundario,
-    textAlign: 'center',
   },
 });

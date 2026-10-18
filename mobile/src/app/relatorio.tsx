@@ -10,7 +10,7 @@ import ConteudoDoRelatorio from '@/componentes/ConteudoDoRelatorio';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
 import RelatorioDoMes from '@/componentes/RelatorioDoMes';
 import { mesVizinho, tituloDoMes } from '@/formatacao';
-import { cores, espaco, textos } from '@/tema';
+import { cores, espaco, textos, toque } from '@/tema';
 import { useCarga } from '@/useCarga';
 
 // Tela Relatório (RF27): os números de um mês, os gastos por categoria e os
@@ -49,7 +49,7 @@ export default function RelatorioScreen() {
         accessibilityRole="button"
         accessibilityLabel="Voltar"
         onPress={voltar}
-        style={({ pressed }) => [styles.botaoDeIcone, pressed && styles.apertado]}
+        style={({ pressed }) => [styles.botaoDeIcone, pressed && toque.apertadoIcone]}
       >
         <Lucide
           name="chevron-left"
@@ -104,7 +104,7 @@ export default function RelatorioScreen() {
           accessibilityRole="button"
           accessibilityLabel="Mês anterior"
           onPress={() => setMesEscolhido(mesVizinho(mes, -1))}
-          style={({ pressed }) => [styles.botaoDeIcone, pressed && styles.apertado]}
+          style={({ pressed }) => [styles.botaoDeIcone, pressed && toque.apertadoIcone]}
         >
           <Lucide
             name="chevron-left"
@@ -127,7 +127,7 @@ export default function RelatorioScreen() {
           disabled={noMesAtual}
           accessibilityState={{ disabled: noMesAtual }}
           onPress={() => setMesEscolhido(mesVizinho(mes, 1))}
-          style={({ pressed }) => [styles.botaoDeIcone, pressed && styles.apertado]}
+          style={({ pressed }) => [styles.botaoDeIcone, pressed && toque.apertadoIcone]}
         >
           <Lucide
             name="chevron-right"
@@ -180,9 +180,6 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  apertado: {
-    opacity: 0.7,
   },
   tituloNoMeio: {
     // O título ocupa o meio, entre os dois botões (ou o botão e o espaço)

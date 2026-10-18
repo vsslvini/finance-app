@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { buscarContas, buscarFaturasFuturas, type Conta, type FaturasFuturas } from '@/api';
 import BlocoDoCartao from '@/componentes/BlocoDoCartao';
 import Carregando from '@/componentes/Carregando';
+import EstadoVazio from '@/componentes/EstadoVazio';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
 import ProximasFaturas from '@/componentes/ProximasFaturas';
 import { cantos, cores, espaco, textos } from '@/tema';
@@ -90,7 +91,7 @@ export default function CartoesScreen() {
         {cartoes.length === 0 ? (
           // Sem cartão, não há fatura futura para mostrar: a seção some
           <View style={styles.vazio}>
-            <Text style={[textos.corpo, styles.textoVazio]}>Nenhum cartão encontrado.</Text>
+            <EstadoVazio icone="credit-card" texto="Nenhum cartão encontrado." />
           </View>
         ) : (
           <>
@@ -126,9 +127,5 @@ const styles = StyleSheet.create({
     backgroundColor: cores.superficie,
     borderRadius: cantos.cartao,
     padding: espaco.grande,
-  },
-  textoVazio: {
-    color: cores.textoSecundario,
-    textAlign: 'center',
   },
 });

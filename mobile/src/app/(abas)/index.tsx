@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { buscarResumo, ErroApi, sincronizar, type Resumo, type TipoErroApi } from '@/api';
 import { iconeDaCategoria } from '@/categorias';
 import Botao from '@/componentes/Botao';
+import EstadoVazio from '@/componentes/EstadoVazio';
 import FolhaDeEdicao, { type CampoEditavel } from '@/componentes/FolhaDeEdicao';
 import FolhaDoPlano from '@/componentes/FolhaDoPlano';
 import ReguaDeDias from '@/componentes/ReguaDeDias';
@@ -30,7 +31,7 @@ import {
   tituloDoMes,
 } from '@/formatacao';
 import { MENSAGENS_DE_ERRO } from '@/mensagens';
-import { cantos, cores, espaco, fontes, textos } from '@/tema';
+import { cantos, cores, espaco, fontes, textos, toque } from '@/tema';
 
 // A tela está sempre em um destes três estados
 type Estado =
@@ -221,7 +222,7 @@ export default function InicioScreen() {
             accessibilityLabel={rotuloEmReais('Fatura aberta', resumo.fatura_aberta)}
             accessibilityHint="Toque para mudar o limite da fatura"
             onPress={() => setCampoAberto('limiteDaFatura')}
-            style={({ pressed }) => [styles.cartao, styles.cartaoMetade, pressed && styles.apertado]}
+            style={({ pressed }) => [styles.cartao, styles.cartaoMetade, pressed && toque.apertado]}
           >
             <RotuloDoCartao texto="Fatura aberta" icone="credit-card" />
             <Text style={textos.valor}>{formatarReais(resumo.fatura_aberta)}</Text>
@@ -268,7 +269,7 @@ export default function InicioScreen() {
             accessibilityLabel={rotuloEmReais('Entrou no mês', resumo.entradas)}
             accessibilityHint="Toque para mudar o início do mês"
             onPress={() => setCampoAberto('inicioDoMes')}
-            style={({ pressed }) => [styles.cartao, styles.cartaoMetade, pressed && styles.apertado]}
+            style={({ pressed }) => [styles.cartao, styles.cartaoMetade, pressed && toque.apertado]}
           >
             <RotuloDoCartao texto="Entrou" icone="arrow-down-left" corDoIcone={cores.positivo} />
             <Text style={[textos.valor, styles.positivo]}>
@@ -314,9 +315,7 @@ export default function InicioScreen() {
 
         <View style={styles.cartao}>
           {resumo.ultimos_gastos.length === 0 ? (
-            <Text style={[textos.corpo, styles.textoSecundario, styles.textoCentro]}>
-              Nenhum gasto neste mês ainda.
-            </Text>
+            <EstadoVazio icone="receipt" texto="Nenhum gasto neste mês ainda." />
           ) : (
             // Poucos itens (os últimos gastos), então um map simples basta;
             // FlatList dentro de ScrollView não é recomendado
@@ -461,9 +460,6 @@ const styles = StyleSheet.create({
     // Cada cartão ocupa metade da linha; com fonte grande, vai para baixo
     flexGrow: 1,
     flexBasis: 150,
-  },
-  apertado: {
-    opacity: 0.7,
   },
   positivo: {
     color: cores.positivo,

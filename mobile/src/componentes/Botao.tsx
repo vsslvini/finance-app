@@ -1,7 +1,7 @@
 // Botão do guia de design: "principal" (fundo cheio) ou "secundario" (só contorno).
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { cantos, cores, espaco, textos } from '@/tema';
+import { cantos, cores, espaco, textos, toque } from '@/tema';
 
 type BotaoProps = {
   titulo: string;
@@ -21,7 +21,8 @@ export default function Botao({ titulo, aoTocar, tipo, desativado = false }: Bot
       style={({ pressed }) => [
         styles.botao,
         principal ? styles.principal : styles.secundario,
-        (pressed || desativado) && styles.apagado,
+        pressed && toque.apertado,
+        desativado && styles.apagado,
       ]}
     >
       <Text style={[textos.botao, principal ? styles.textoPrincipal : styles.textoSecundario]}>

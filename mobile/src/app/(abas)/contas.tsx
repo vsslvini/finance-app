@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { buscarContas, type Conta } from '@/api';
 import Carregando from '@/componentes/Carregando';
+import EstadoVazio from '@/componentes/EstadoVazio';
 import LinhaDeConta from '@/componentes/LinhaDeConta';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
 import { cantos, cores, espaco, textos } from '@/tema';
@@ -91,8 +92,8 @@ export default function ContasScreen() {
         </View>
 
         {grupos.length === 0 ? (
-          <View style={styles.cartao}>
-            <Text style={[textos.corpo, styles.textoVazio]}>Nenhuma conta encontrada.</Text>
+          <View style={[styles.cartao, styles.vazio]}>
+            <EstadoVazio icone="landmark" texto="Nenhuma conta encontrada." />
           </View>
         ) : (
           // Poucas contas, então um map simples basta; FlatList dentro de
@@ -142,9 +143,8 @@ const styles = StyleSheet.create({
     // Sem respiro em cima e embaixo: cada linha já tem o seu (paddingVertical)
     paddingHorizontal: espaco.grande,
   },
-  textoVazio: {
-    color: cores.textoSecundario,
-    textAlign: 'center',
+  vazio: {
+    // O estado vazio não tem linhas, então o respiro de cima e de baixo vem daqui
     paddingVertical: espaco.grande,
   },
 });

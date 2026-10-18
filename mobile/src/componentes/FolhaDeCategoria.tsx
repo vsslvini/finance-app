@@ -22,7 +22,7 @@ import { buscarCategorias, trocarCategoria, type Categoria, type Transacao } fro
 import Botao from '@/componentes/Botao';
 import CampoDeTexto from '@/componentes/CampoDeTexto';
 import { mensagemDoErro } from '@/mensagens';
-import { cantos, cores, espaco, fundoEscurecido, textos } from '@/tema';
+import { cantos, cores, espaco, fundoEscurecido, textos, toque } from '@/tema';
 
 // "Saúde" -> "saude". O normalize('NFD') separa a letra do acento ("u" + "´"),
 // e o replace apaga os acentos soltos (a faixa ̀-ͯ do Unicode).
@@ -225,7 +225,7 @@ function OpcaoDeCategoria({ nome, detalhe, selecionada, aoTocar }: OpcaoDeCatego
       // "selected" faz o leitor de tela dizer que esta é a categoria atual
       accessibilityState={{ selected: selecionada }}
       onPress={aoTocar}
-      style={({ pressed }) => [styles.opcao, pressed && styles.apertado]}
+      style={({ pressed }) => [styles.opcao, pressed && toque.apertadoIcone]}
     >
       <View style={styles.nomeDaOpcao}>
         <Text style={textos.corpo}>{nome}</Text>
@@ -287,9 +287,6 @@ const styles = StyleSheet.create({
   },
   nomeDaOpcao: {
     flex: 1,
-  },
-  apertado: {
-    opacity: 0.7,
   },
   vazio: {
     textAlign: 'center',

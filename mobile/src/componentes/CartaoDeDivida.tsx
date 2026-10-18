@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import type { Divida } from '@/api';
 import BarraDeProgresso from '@/componentes/BarraDeProgresso';
 import { formatarNumero, formatarReais, mesPorExtenso } from '@/formatacao';
-import { cantos, cores, espaco, textos } from '@/tema';
+import { cantos, cores, espaco, textos, toque } from '@/tema';
 
 type CartaoDeDividaProps = {
   divida: Divida;
@@ -49,7 +49,7 @@ export default function CartaoDeDivida({ divida, aoTocar }: CartaoDeDividaProps)
       accessibilityLabel={rotulo}
       accessibilityHint="Toque para ver as parcelas"
       onPress={aoTocar}
-      style={({ pressed }) => [styles.cartao, pressed && styles.apertado]}
+      style={({ pressed }) => [styles.cartao, pressed && toque.apertado]}
     >
       <Text style={textos.valor}>{divida.credor}</Text>
       {motivo !== '' && <Text style={textos.detalhe}>{motivo}</Text>}
@@ -73,9 +73,6 @@ const styles = StyleSheet.create({
     borderRadius: cantos.cartao,
     padding: espaco.grande,
     gap: espaco.pequeno,
-  },
-  apertado: {
-    opacity: 0.7,
   },
   textoAtrasada: {
     color: cores.aviso,

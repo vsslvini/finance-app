@@ -7,6 +7,7 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { Relatorio } from '@/api';
+import EstadoVazio from '@/componentes/EstadoVazio';
 import ItemDeTransacao from '@/componentes/ItemDeTransacao';
 import LinhaDeCategoria from '@/componentes/LinhaDeCategoria';
 import RotuloDoCartao from '@/componentes/RotuloDoCartao';
@@ -94,7 +95,7 @@ export default function ConteudoDoRelatorio({
 
       {semGastos ? (
         <View style={styles.cartao}>
-          <Text style={[textos.corpo, styles.textoVazio]}>Nenhum gasto neste mês.</Text>
+          <EstadoVazio icone="receipt" texto="Nenhum gasto neste mês." />
         </View>
       ) : (
         <>
@@ -182,10 +183,6 @@ const styles = StyleSheet.create({
   },
   negativo: {
     color: cores.negativo,
-  },
-  textoVazio: {
-    color: cores.textoSecundario,
-    textAlign: 'center',
   },
   cabecalhoDaSecao: {
     // Título, frase e total juntos, mais perto entre si do que dos blocos

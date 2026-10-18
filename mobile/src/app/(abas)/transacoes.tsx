@@ -8,7 +8,7 @@ import Carregando from '@/componentes/Carregando';
 import ListaDeTransacoes from '@/componentes/ListaDeTransacoes';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
 import { mesVizinho, tituloDoMes } from '@/formatacao';
-import { cores, espaco, textos } from '@/tema';
+import { cores, espaco, textos, toque } from '@/tema';
 import { useCarga } from '@/useCarga';
 
 // Tela Transações: as transações de um mês, com setas para trocar de mês.
@@ -58,7 +58,7 @@ export default function TransacoesScreen() {
           accessibilityRole="button"
           accessibilityLabel="Mês anterior"
           onPress={() => setMesEscolhido(mesVizinho(mes, -1))}
-          style={({ pressed }) => [styles.seta, pressed && styles.apertado]}
+          style={({ pressed }) => [styles.seta, pressed && toque.apertadoIcone]}
         >
           <Lucide
             name="chevron-left"
@@ -81,7 +81,7 @@ export default function TransacoesScreen() {
           disabled={noMesAtual}
           accessibilityState={{ disabled: noMesAtual }}
           onPress={() => setMesEscolhido(mesVizinho(mes, 1))}
-          style={({ pressed }) => [styles.seta, pressed && styles.apertado]}
+          style={({ pressed }) => [styles.seta, pressed && toque.apertadoIcone]}
         >
           <Lucide
             name="chevron-right"
@@ -118,9 +118,6 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  apertado: {
-    opacity: 0.7,
   },
   titulo: {
     // O título ocupa o meio, entre as duas setas

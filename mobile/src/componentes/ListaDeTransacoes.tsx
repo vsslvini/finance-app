@@ -15,6 +15,7 @@ import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { buscarTransacoes, type Transacao } from '@/api';
 import Carregando from '@/componentes/Carregando';
+import EstadoVazio from '@/componentes/EstadoVazio';
 import FolhaDeCategoria from '@/componentes/FolhaDeCategoria';
 import ItemDeTransacao from '@/componentes/ItemDeTransacao';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
@@ -77,9 +78,10 @@ export default function ListaDeTransacoes({ mes }: ListaDeTransacoesProps) {
         )}
         ListEmptyComponent={
           <View style={styles.vazio}>
-            <Text style={[textos.corpo, styles.textoVazio]}>
-              {`Nenhuma transação em ${tituloDoMes(mes)}.`}
-            </Text>
+            <EstadoVazio
+              icone="arrow-left-right"
+              texto={`Nenhuma transação em ${tituloDoMes(mes)}.`}
+            />
           </View>
         }
         contentContainerStyle={styles.conteudo}
@@ -124,9 +126,5 @@ const styles = StyleSheet.create({
     backgroundColor: cores.superficie,
     borderRadius: cantos.cartao,
     padding: espaco.grande,
-  },
-  textoVazio: {
-    color: cores.textoSecundario,
-    textAlign: 'center',
   },
 });

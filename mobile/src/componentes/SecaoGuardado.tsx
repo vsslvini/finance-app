@@ -7,7 +7,7 @@ import type { Guardado } from '@/api';
 import BarraDeProgresso from '@/componentes/BarraDeProgresso';
 import RotuloDoCartao from '@/componentes/RotuloDoCartao';
 import { formatarReais, rotuloEmReais, tituloDoMes } from '@/formatacao';
-import { cantos, cores, espaco, textos } from '@/tema';
+import { cantos, cores, espaco, textos, toque } from '@/tema';
 
 // "500.00" -> "+ R$ 500,00 este mês"; "-100.00" -> "- R$ 100,00 este mês"
 function textoDoMes(esteMes: string): string {
@@ -33,7 +33,7 @@ export default function SecaoGuardado({ guardado, aoTocar }: SecaoGuardadoProps)
       accessibilityLabel={rotuloEmReais('Guardado', total)}
       accessibilityHint="Toque para editar o plano de guardar"
       onPress={aoTocar}
-      style={({ pressed }) => [styles.cartao, pressed && styles.apertado]}
+      style={({ pressed }) => [styles.cartao, pressed && toque.apertado]}
     >
       <RotuloDoCartao texto="Guardado" icone="piggy-bank" />
       <Text style={textos.valor}>{formatarReais(total)}</Text>
@@ -65,9 +65,6 @@ const styles = StyleSheet.create({
     borderRadius: cantos.cartao,
     padding: espaco.grande,
     gap: espaco.minimo,
-  },
-  apertado: {
-    opacity: 0.7,
   },
   positivo: {
     color: cores.positivo,

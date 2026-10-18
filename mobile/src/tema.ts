@@ -71,6 +71,20 @@ export const cantos = {
   folha: 20,
 };
 
+// Seção 10 do guia: resposta ao toque, num lugar só. A troca é imediata (sem
+// animação), e as telas aplicam o estilo quando o Pressable está "pressed".
+export const toque = StyleSheet.create({
+  // Cartões tocáveis e o Botao: opacidade 0,85 e escala 0,98
+  apertado: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  // Botões de ícone (setas, Voltar) e linhas dentro de listas: só opacidade 0,7
+  apertadoIcone: {
+    opacity: 0.7,
+  },
+});
+
 // Seção 5 do guia: estilos de texto.
 // "tabular-nums" deixa todos os dígitos com a mesma largura, para os valores
 // em dinheiro não "pularem" quando mudam.

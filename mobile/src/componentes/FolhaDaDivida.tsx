@@ -18,7 +18,7 @@ import { apagarDivida, marcarParcela, type Divida, type ParcelaDaDivida } from '
 import Botao from '@/componentes/Botao';
 import { formatarNumero, formatarReais, mesPorExtenso, tituloDoMes } from '@/formatacao';
 import { mensagemDoErro } from '@/mensagens';
-import { cantos, cores, espaco, fundoEscurecido, textos } from '@/tema';
+import { cantos, cores, espaco, fundoEscurecido, textos, toque } from '@/tema';
 
 type FolhaDaDividaProps = {
   divida: Divida;
@@ -178,7 +178,7 @@ function LinhaDeParcela({ parcela, total, salvando, aoTocar }: LinhaDeParcelaPro
       accessibilityState={{ checked: parcela.paga, disabled: salvando }}
       disabled={salvando}
       onPress={aoTocar}
-      style={({ pressed }) => [styles.linha, (pressed || salvando) && styles.apertado]}
+      style={({ pressed }) => [styles.linha, (pressed || salvando) && toque.apertadoIcone]}
     >
       <View style={styles.linhaMeio}>
         <Text style={textos.corpo}>{`Parcela ${parcela.numero} de ${total}`}</Text>
@@ -230,9 +230,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: cores.borda,
     paddingVertical: espaco.pequeno,
-  },
-  apertado: {
-    opacity: 0.7,
   },
   linhaMeio: {
     flex: 1,
