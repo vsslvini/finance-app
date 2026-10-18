@@ -155,8 +155,51 @@ let respostaDoCadastroFixo: () => Promise<Response>;
 let respostaDaEdicaoFixo: () => Promise<Response>;
 let respostaDoApagarFixo: () => Promise<Response>;
 let respostaDoPagamento: () => Promise<Response>;
+// Módulo 17b: o planejamento por mês (GET /api/a-pagar/) e as configurações
+// (GET e PATCH /api/configuracoes/, usadas pela folha "Renda mensal").
+let respostaDoAPagar: () => Promise<Response>;
+let respostaDasConfiguracoes: () => Promise<Response>;
+let respostaDaEdicaoDasConfiguracoes: () => Promise<Response>;
+
+// Um mês no formato do GET /api/a-pagar/ (módulo 17a). O dinheiro vem como
+// texto e o percentual da renda é texto ("38.7") ou null (sem renda).
+function mesAPagar(
+  mes: string,
+  fixos: string,
+  dividas: string,
+  total: string,
+  falta: string,
+  percentual: string | null,
+) {
+  return { mes, fixos, dividas, total, falta, percentual_da_renda: percentual };
+}
+
+// Padrão: sem renda e 6 meses zerados (de outubro de 2026 a março de 2027).
+const SEIS_MESES_ZERADOS = ['2026-10', '2026-11', '2026-12', '2027-01', '2027-02', '2027-03'].map(
+  (mes) => mesAPagar(mes, '0.00', '0.00', '0.00', '0.00', null),
+);
+const A_PAGAR_SEM_RENDA = { renda_mensal: null, meses: SEIS_MESES_ZERADOS };
+
+// Com renda de R$ 5.000,00 e valores diferentes em cada mês, para cada texto
+// da tela ser fácil de achar. O primeiro mês: 1.600,40 + 333,33 = 1.933,73.
+const A_PAGAR_COM_RENDA = {
+  renda_mensal: '5000.00',
+  meses: [
+    mesAPagar('2026-10', '1600.40', '333.33', '1933.73', '300.00', '38.7'),
+    mesAPagar('2026-11', '1700.00', '333.33', '2033.33', '2033.33', '40.7'),
+    mesAPagar('2026-12', '1700.00', '333.34', '2033.34', '2033.34', '40.7'),
+    mesAPagar('2027-01', '1710.00', '0.00', '1710.00', '1710.00', '34.2'),
+    mesAPagar('2027-02', '1720.00', '0.00', '1720.00', '1720.00', '34.4'),
+    mesAPagar('2027-03', '1730.00', '50.00', '1780.00', '1780.00', '35.6'),
+  ],
+};
 
 beforeEach(() => {
+  respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_SEM_RENDA);
+  respostaDasConfiguracoes = async () =>
+    respostaFalsa(200, { dias_antes_do_mes: 0, limite_fatura: null, renda_mensal: '5000.00' });
+  respostaDaEdicaoDasConfiguracoes = async () =>
+    respostaFalsa(200, { dias_antes_do_mes: 0, limite_fatura: null, renda_mensal: '6000.00' });
   respostaDasDividas = async () => respostaFalsa(200, [DIVIDA_TIA]);
   respostaDoCadastro = async () => respostaFalsa(201, DIVIDA_TIA);
   respostaDaParcela = async () => respostaFalsa(200, DIVIDA_TIA);
@@ -171,6 +214,15 @@ beforeEach(() => {
     const url = String(endereco);
     // Sem método, o fetch faz GET.
     const metodo = opcoes?.method ?? 'GET';
+    if (url.endsWith('/api/a-pagar/')) {
+      return respostaDoAPagar();
+    }
+    if (url.endsWith('/api/configuracoes/') && metodo === 'PATCH') {
+      return respostaDaEdicaoDasConfiguracoes();
+    }
+    if (url.endsWith('/api/configuracoes/')) {
+      return respostaDasConfiguracoes();
+    }
     // Gastos fixos: a rota do pagamento (/pagamentos/) vem primeiro, porque o
     // endereço dela também contém /api/gastos-fixos/.
     if (url.includes('/api/gastos-fixos/') && url.includes('/pagamentos/')) {
@@ -1092,33 +1144,12 @@ describe('Gastos fixos na lista (14b, casos 8 a 12)', () => {
 // ===========================================================================
 // Módulo 16: totais na aba "A pagar"
 // ===========================================================================
-describe('Totais na aba A pagar (módulo 16)', () => {
-  it('com fixos a pagar e um pago, mostra quanto falta pagar e o total por mês (caso 4)', async () => {
-    // Prepara: dois fixos a pagar (1.200,00 e 99,90) e um já pago (300,50).
-    // Falta = 1200,00 + 99,90 = 1.299,90; total por mês = 1.600,40.
-    respostaDosFixos = async () =>
-      respostaFalsa(200, [
-        criarFixo({ id: 1, nome: 'Apartamento', valor: '1200.00' }),
-        criarFixo({ id: 2, nome: 'Internet', valor: '99.90' }),
-        criarFixo({
-          id: 3,
-          nome: 'Luz',
-          valor: '300.50',
-          este_mes: { mes: '2026-10', situacao: 'pago_manual' },
-        }),
-      ]);
-
-    await render(<DividasScreen />);
-
-    expect(
-      await screen.findByText('Falta pagar este mês: R$ 1.299,90 (de R$ 1.600,40 por mês)'),
-    ).toBeOnTheScreen();
-  });
-
-  it('fixo que ainda não começou não entra no total por mês (caso 5)', async () => {
-    // Prepara: um a pagar (1.200,00), um pago automático (99,90) e um que só
-    // começa em novembro (80,00). O "por mês" deve somar só os dois primeiros
-    // (1.299,90); se a Academia entrasse, daria 1.379,90.
+describe('Linhas de total da aba A pagar (módulo 17b, casos 4 a 6)', () => {
+  it('a linha dos fixos mostra "Total: R$ X por mês" somando todos, inclusive os que ainda não começaram (caso 4)', async () => {
+    // Confere a soma de TODOS os fixos cadastrados: a pagar (1.200,00), pago
+    // automático (99,90) e um que só começa em novembro (80,00).
+    // 1200,00 + 99,90 + 80,00 = 1.379,90. Se a Academia ficasse de fora,
+    // daria 1.299,90.
     respostaDosFixos = async () =>
       respostaFalsa(200, [
         criarFixo({ id: 1, nome: 'Apartamento', valor: '1200.00' }),
@@ -1139,12 +1170,12 @@ describe('Totais na aba A pagar (módulo 16)', () => {
 
     await render(<DividasScreen />);
 
-    expect(
-      await screen.findByText('Falta pagar este mês: R$ 1.200,00 (de R$ 1.299,90 por mês)'),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText('Total: R$ 1.379,90 por mês')).toBeOnTheScreen();
+    // As frases antigas do módulo 16 não existem mais.
+    expect(screen.queryByText(/Falta pagar este mês/)).toBeNull();
   });
 
-  it('com duas dívidas, mostra quanto falta pagar e o total delas (caso 6)', async () => {
+  it('a linha das dívidas mostra "Falta R$ Z no total (de R$ T)" somando as dívidas (caso 5)', async () => {
     // Prepara: a dívida da Tia (falta 666,67 de 1.000,00) e outra de 500,00
     // sem nada pago. Falta = 666,67 + 500,00 = 1.166,67; total = 1.500,00.
     const dividaDoTio = criarDivida({
@@ -1163,10 +1194,13 @@ describe('Totais na aba A pagar (módulo 16)', () => {
 
     await render(<DividasScreen />);
 
-    expect(await screen.findByText('Falta pagar: R$ 1.166,67 (de R$ 1.500,00)')).toBeOnTheScreen();
+    expect(
+      await screen.findByText('Falta R$ 1.166,67 no total (de R$ 1.500,00)'),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText(/Falta pagar: /)).toBeNull();
   });
 
-  it('sem fixos e sem dívidas, nenhuma das duas frases de total aparece (caso 7)', async () => {
+  it('sem fixos e sem dívidas, as duas linhas de total não aparecem (caso 6)', async () => {
     // Prepara: as duas listas vazias. Esperamos o aviso das dívidas para ter
     // certeza de que a tela terminou de carregar antes de procurar o que não deve existir.
     respostaDasDividas = async () => respostaFalsa(200, []);
@@ -1175,8 +1209,103 @@ describe('Totais na aba A pagar (módulo 16)', () => {
     await render(<DividasScreen />);
     await screen.findByText('Nenhuma dívida cadastrada.');
 
-    expect(screen.queryByText(/Falta pagar este mês/)).toBeNull();
-    expect(screen.queryByText(/Falta pagar: /)).toBeNull();
+    expect(screen.queryByText(/^Total: .* por mês$/)).toBeNull();
+    expect(screen.queryByText(/no total \(de /)).toBeNull();
+  });
+});
+
+// ===========================================================================
+// Módulo 17b: cartão "Por mês" e renda
+// ===========================================================================
+describe('Cartão "Por mês" (módulo 17b, casos 1 a 3)', () => {
+  it('mostra os 6 meses com nome, total, "Fixos R$ X · Dívidas R$ Y" e "Falta R$ W" (caso 1)', async () => {
+    // Prepara: o servidor devolve 6 meses com valores diferentes.
+    // Confere o que a pessoa lê no cartão: o nome de cada mês e, no primeiro
+    // mês, o total, o detalhe e quanto ainda falta pagar.
+    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COM_RENDA);
+
+    await render(<DividasScreen />);
+
+    // Os 6 nomes de mês (o primeiro texto espera a tela carregar).
+    expect(await screen.findByText('Outubro de 2026')).toBeOnTheScreen();
+    for (const titulo of [
+      'Novembro de 2026',
+      'Dezembro de 2026',
+      'Janeiro de 2027',
+      'Fevereiro de 2027',
+      'Março de 2027',
+    ]) {
+      expect(screen.getByText(titulo)).toBeOnTheScreen();
+    }
+    // O detalhe, o total e o "Falta" do primeiro mês. O total pode repetir em
+    // outro lugar da tela, por isso getAllByText.
+    expect(screen.getByText('Fixos R$ 1.600,40 · Dívidas R$ 333,33')).toBeOnTheScreen();
+    expect(screen.getAllByText('R$ 1.933,73').length).toBeGreaterThan(0);
+    expect(screen.getByText('Falta R$ 300,00')).toBeOnTheScreen();
+    // Um mês do meio, para provar que cada linha usa os próprios valores.
+    expect(screen.getByText('Fixos R$ 1.710,00 · Dívidas R$ 0,00')).toBeOnTheScreen();
+    expect(screen.getAllByText('Falta R$ 1.710,00').length).toBeGreaterThan(0);
+  });
+
+  it('com renda, mostra "38,7% da renda" e o botão "Renda: R$ 5.000,00" (caso 2)', async () => {
+    // Confere que o percentual usa vírgula e que a renda aparece no topo
+    // como um botão (porque dá para tocar nela e mudar).
+    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COM_RENDA);
+
+    await render(<DividasScreen />);
+
+    expect(await screen.findByText('38,7% da renda')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Renda: R$ 5.000,00' })).toBeOnTheScreen();
+  });
+
+  it('sem renda, mostra o convite para informar e nenhuma porcentagem (caso 2)', async () => {
+    // O servidor padrão responde renda_mensal null e percentual null.
+    await render(<DividasScreen />);
+
+    expect(
+      await screen.findByRole('button', {
+        name: 'Informe sua renda para ver quanto isso tira dela.',
+      }),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText(/% da renda/)).toBeNull();
+  });
+
+  it('tocar na renda abre a folha "Renda mensal" com o valor atual no campo (caso 3)', async () => {
+    // Confere que a folha abre com o título certo e já preenchida com o
+    // valor que o servidor guarda (5000.00 aparece como 5.000,00).
+    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COM_RENDA);
+    await render(<DividasScreen />);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Renda: R$ 5.000,00' }));
+
+    expect(await screen.findByRole('header', { name: 'Renda mensal' })).toBeOnTheScreen();
+    await waitFor(() =>
+      expect(screen.getByLabelText('Renda mensal em reais')).toHaveDisplayValue('5.000,00'),
+    );
+  });
+
+  it('salvar a renda manda o PATCH com renda_mensal e a aba busca o planejamento de novo (caso 3)', async () => {
+    // Confere o fluxo completo: digitar 6.000,00, salvar, o PATCH levar
+    // "6000.00" (só o campo editado) e o GET /api/a-pagar/ ser repetido
+    // (um na abertura e outro depois de salvar).
+    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COM_RENDA);
+    await render(<DividasScreen />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Renda: R$ 5.000,00' }));
+    const campo = await screen.findByLabelText('Renda mensal em reais');
+    await waitFor(() => expect(campo).toHaveDisplayValue('5.000,00'));
+
+    await fireEvent.changeText(campo, '6.000,00');
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(() => expect(chamadas('PATCH', '/api/configuracoes/')).toHaveLength(1));
+    const [endereco, opcoes] = chamadas('PATCH', '/api/configuracoes/')[0];
+    expect(endereco).toBe(`${ENDERECO_BASE}/api/configuracoes/`);
+    expect(opcoes).toMatchObject({
+      headers: { Authorization: 'Token token-falso', 'Content-Type': 'application/json' },
+    });
+    expect(corpoDe('PATCH', '/api/configuracoes/')).toEqual({ renda_mensal: '6000.00' });
+    await waitFor(() => expect(chamadas('GET', '/api/a-pagar/')).toHaveLength(2));
+    await waitFor(() => expect(screen.queryByRole('header', { name: 'Renda mensal' })).toBeNull());
   });
 });
 

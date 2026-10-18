@@ -1,6 +1,7 @@
 // Folha que sobe de baixo da tela para editar uma configuração:
-// o início do mês (toque em "Entrou") ou o limite da fatura (toque em "Fatura aberta").
-// A tela Início só mostra esta folha quando há um campo aberto; ao aparecer,
+// o início do mês (toque em "Entrou"), o limite da fatura (toque em "Fatura aberta")
+// ou a renda mensal (toque na renda do cartão "Por mês", na aba "A pagar").
+// A tela só mostra esta folha quando há um campo aberto; ao aparecer,
 // ela busca as configurações atuais no backend e preenche o campo.
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -13,7 +14,7 @@ import { formatarNumero, lerReais } from '@/formatacao';
 import { mensagemDoErro } from '@/mensagens';
 import { cores, espaco, textos } from '@/tema';
 
-export type CampoEditavel = 'inicioDoMes' | 'limiteDaFatura';
+export type CampoEditavel = 'inicioDoMes' | 'limiteDaFatura' | 'rendaMensal';
 
 // Textos fixos de cada folha
 const TEXTOS_DA_FOLHA: Record<
@@ -41,6 +42,14 @@ const TEXTOS_DA_FOLHA: Record<
     teclado: 'decimal-pad',
     valorInvalido: 'Digite um valor, ex.: 1.000,00.',
   },
+  rendaMensal: {
+    titulo: 'Renda mensal',
+    explicacao:
+      'Quanto você recebe por mês. Serve para mostrar quanto os gastos fixos e as dívidas tiram da sua renda. Deixe vazio para não usar.',
+    rotuloDoCampo: 'Renda mensal em reais',
+    teclado: 'decimal-pad',
+    valorInvalido: 'Digite um valor, ex.: 5.000,00.',
+  },
 };
 
 // Texto que aparece no campo quando a folha abre
@@ -48,7 +57,8 @@ function textoInicial(campo: CampoEditavel, config: Configuracoes): string {
   if (campo === 'inicioDoMes') {
     return String(config.dias_antes_do_mes);
   }
-  return config.limite_fatura === null ? '' : formatarNumero(config.limite_fatura);
+  const valor = campo === 'limiteDaFatura' ? config.limite_fatura : config.renda_mensal;
+  return valor === null ? '' : formatarNumero(valor);
 }
 
 // Lê o texto digitado e monta o que vai para a API.
@@ -63,8 +73,9 @@ function lerMudancas(campo: CampoEditavel, texto: string): Partial<Configuracoes
     return { dias_antes_do_mes: Number(limpo) };
   }
   try {
-    // lerReais devolve null para campo vazio (sem limite)
-    return { limite_fatura: lerReais(texto) };
+    // lerReais devolve null para campo vazio (sem limite, ou sem renda)
+    const valor = lerReais(texto);
+    return campo === 'limiteDaFatura' ? { limite_fatura: valor } : { renda_mensal: valor };
   } catch {
     return null;
   }

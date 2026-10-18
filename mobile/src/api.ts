@@ -226,6 +226,23 @@ export type Relatorio = {
 export type Configuracoes = {
   dias_antes_do_mes: number;
   limite_fatura: string | null; // "1000.00" ou null (sem limite)
+  renda_mensal: string | null; // "5000.00" ou null (sem renda informada)
+};
+
+// Um mês do cartão "Por mês" da aba "A pagar"
+export type MesAPagar = {
+  mes: string; // "2026-10"
+  fixos: string; // gastos fixos que já começaram até esse mês: "1600.40"
+  dividas: string; // parcelas de dívida desse mês: "333.33"
+  total: string; // fixos + dívidas: "1933.73"
+  falta: string; // o que ainda não foi pago: "300.00"
+  percentual_da_renda: string | null; // "38.7" ou null (sem renda)
+};
+
+// Resposta de GET /api/a-pagar/: 6 meses, o primeiro é o mês atual do app
+export type APagarPorMes = {
+  renda_mensal: string | null;
+  meses: MesAPagar[];
 };
 
 // Tempo máximo de espera pela resposta do servidor (15 segundos)
@@ -400,6 +417,12 @@ export async function salvarConfiguracoes(
 // Devolve a hora da sincronização; o resumo novo é buscado depois, à parte.
 export async function sincronizar(): Promise<{ ultima_atualizacao: string | null }> {
   return pedirApi<{ ultima_atualizacao: string | null }>('/api/sincronizar/', 'POST');
+}
+
+// O planejamento dos próximos 6 meses (fixos e parcelas de dívida), feito pelo
+// backend. O app só mostra; a conta toda fica no backend.
+export async function buscarAPagarPorMes(): Promise<APagarPorMes> {
+  return pedirApi<APagarPorMes>('/api/a-pagar/');
 }
 
 // Todas as dívidas, na ordem da API (mais recente primeiro)

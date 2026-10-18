@@ -5,17 +5,21 @@ import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+  buscarAPagarPorMes,
   buscarDividas,
   buscarGastosFixos,
   desmarcarGastoFixoPago,
   marcarGastoFixoPago,
+  type APagarPorMes,
   type Divida,
   type GastoFixo,
 } from '@/api';
 import Botao from '@/componentes/Botao';
 import CartaoDeDivida from '@/componentes/CartaoDeDivida';
+import CartaoPorMes from '@/componentes/CartaoPorMes';
 import Carregando from '@/componentes/Carregando';
 import EstadoVazio from '@/componentes/EstadoVazio';
+import FolhaDeEdicao from '@/componentes/FolhaDeEdicao';
 import FolhaDaDivida from '@/componentes/FolhaDaDivida';
 import FolhaDoCadastroDeDivida from '@/componentes/FolhaDoCadastroDeDivida';
 import FolhaDoGastoFixo from '@/componentes/FolhaDoGastoFixo';
@@ -27,23 +31,26 @@ import { entradaEmCascata } from '@/movimento';
 import { cantos, cores, espaco, textos } from '@/tema';
 import { useCarga } from '@/useCarga';
 
-// Busca os dois pedidos juntos. Fica fora do componente para ser sempre a mesma
+// Busca os três pedidos juntos. Fica fora do componente para ser sempre a mesma
 // função entre renderizações (o useCarga depende disso). Se um falhar, o
 // Promise.all falha e a tela mostra o erro.
-function buscarAPagar(): Promise<[GastoFixo[], Divida[]]> {
-  return Promise.all([buscarGastosFixos(), buscarDividas()]);
+function buscarAPagar(): Promise<[GastoFixo[], Divida[], APagarPorMes]> {
+  return Promise.all([buscarGastosFixos(), buscarDividas(), buscarAPagarPorMes()]);
 }
 
-// Aba "A pagar": gastos fixos e dívidas. O arquivo e o endereço continuam
-// "dividas" (/dividas) porque a aba nasceu como Dívidas; só o nome mudou.
+// Aba "A pagar": planejamento por mês, gastos fixos e dívidas. O arquivo e o
+// endereço continuam "dividas" (/dividas) porque a aba nasceu como Dívidas; só o
+// nome mudou.
 //
-// Fluxo: a tela abre, busca /api/gastos-fixos/ e /api/dividas/ e mostra as duas
-// seções. Em cada gasto fixo, "Marcar pago" ou "Desmarcar" muda o pagamento do
-// mês e relê a lista; tocar no gasto abre a folha para editar ou apagar. Tocar
-// num cartão de dívida abre a folha da dívida (parcelas, marcar como paga,
-// apagar); nela, "Editar dívida" fecha essa folha e abre a do cadastro com os
-// campos preenchidos. Depois de qualquer mudança, a lista é lida de novo. Embaixo
-// do título de cada seção, uma linha soma o que falta pagar (calculada na renderização).
+// Fluxo: a tela abre, busca /api/gastos-fixos/, /api/dividas/ e /api/a-pagar/ e
+// mostra o cartão "Por mês" e as duas seções. Tocar na renda do cartão abre a
+// folha da renda mensal. Em cada gasto fixo, "Marcar pago" ou "Desmarcar" muda o
+// pagamento do mês e relê tudo; tocar no gasto abre a folha para editar ou
+// apagar. Tocar num cartão de dívida abre a folha da dívida (parcelas, marcar
+// como paga, apagar); nela, "Editar dívida" fecha essa folha e abre a do cadastro
+// com os campos preenchidos. Depois de qualquer mudança, tudo é lido de novo.
+// Embaixo do título de cada seção, uma linha soma os valores (calculada na
+// renderização).
 export default function DividasScreen() {
   const { estado, recarregar, atualizar, atualizando, falhouAoAtualizar } =
     useCarga(buscarAPagar);
@@ -58,6 +65,8 @@ export default function DividasScreen() {
   // true enquanto o pedido de marcar ou desmarcar um pagamento está em andamento
   const [marcando, setMarcando] = useState(false);
   const [erroDoPagamento, setErroDoPagamento] = useState<string | null>(null);
+  // true enquanto a folha da renda mensal está aberta
+  const [rendaAberta, setRendaAberta] = useState(false);
 
   // A borda de baixo fica com a barra de abas, que já cuida da área segura
   if (estado.tipo === 'carregando') {
@@ -76,20 +85,15 @@ export default function DividasScreen() {
     );
   }
 
-  const [gastosFixos, dividas] = estado.dados;
+  const [gastosFixos, dividas, porMes] = estado.dados;
   // Calculado durante a renderização, sem estado extra: quantas parcelas atrasadas
   const atrasadas = dividas.reduce(
     (soma, divida) => soma + divida.parcelas.filter((parcela) => parcela.atrasada).length,
     0,
   );
-  // Totais das seções, também calculados aqui. Fixo que ainda não começou fica
-  // fora das duas somas.
-  const fixosQueJaComecaram = gastosFixos.filter(
-    (gasto) => gasto.este_mes.situacao !== 'nao_comecou',
-  );
-  const fixosAPagar = fixosQueJaComecaram.filter((gasto) => gasto.este_mes.situacao === 'a_pagar');
-  const totalDosFixos = somarReais(fixosQueJaComecaram.map((gasto) => gasto.valor));
-  const faltaDosFixos = somarReais(fixosAPagar.map((gasto) => gasto.valor));
+  // Totais das seções, também calculados aqui. Os fixos somam todos, inclusive
+  // os que ainda não começaram.
+  const totalDosFixos = somarReais(gastosFixos.map((gasto) => gasto.valor));
   const totalDasDividas = somarReais(dividas.map((divida) => divida.valor_total));
   const faltaDasDividas = somarReais(dividas.map((divida) => divida.valor_restante));
 
@@ -153,6 +157,12 @@ export default function DividasScreen() {
     atualizar();
   }
 
+  // A renda foi salva: fecha a folha e relê tudo (as porcentagens mudam)
+  function aoSalvarRenda() {
+    setRendaAberta(false);
+    atualizar();
+  }
+
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.tela}>
       <ScrollView
@@ -199,12 +209,16 @@ export default function DividasScreen() {
           </View>
         )}
 
+        <Animated.View entering={entradaEmCascata(0)}>
+          <CartaoPorMes dados={porMes} aoEditarRenda={() => setRendaAberta(true)} />
+        </Animated.View>
+
         <Text accessibilityRole="header" style={[textos.subtitulo, styles.secao]}>
           Gastos fixos
         </Text>
         {gastosFixos.length > 0 && (
           <Text style={[textos.corpo, styles.resumo]}>
-            {`Falta pagar este mês: ${formatarReais(faltaDosFixos)} (de ${formatarReais(totalDosFixos)} por mês)`}
+            {`Total: ${formatarReais(totalDosFixos)} por mês`}
           </Text>
         )}
         <Botao
@@ -213,7 +227,7 @@ export default function DividasScreen() {
           aoTocar={() => setNovoFixoAberto(true)}
         />
 
-        <Animated.View entering={entradaEmCascata(0)} style={styles.cartaoDosFixos}>
+        <Animated.View entering={entradaEmCascata(1)} style={styles.cartaoDosFixos}>
           {gastosFixos.length === 0 ? (
             <EstadoVazio icone="repeat" texto="Nenhum gasto fixo cadastrado." />
           ) : (
@@ -240,7 +254,7 @@ export default function DividasScreen() {
         </Text>
         {dividas.length > 0 && (
           <Text style={[textos.corpo, styles.resumo]}>
-            {`Falta pagar: ${formatarReais(faltaDasDividas)} (de ${formatarReais(totalDasDividas)})`}
+            {`Falta ${formatarReais(faltaDasDividas)} no total (de ${formatarReais(totalDasDividas)})`}
           </Text>
         )}
         <Botao titulo="Nova dívida" tipo="secundario" aoTocar={() => setNovaAberta(true)} />
@@ -254,12 +268,20 @@ export default function DividasScreen() {
           // ScrollView não é recomendado
           // Cada cartão entra em cascata (seção 10 do guia), só na primeira carga
           dividas.map((divida, indice) => (
-            <Animated.View key={divida.id} entering={entradaEmCascata(indice + 1)}>
+            <Animated.View key={divida.id} entering={entradaEmCascata(indice + 2)}>
               <CartaoDeDivida divida={divida} aoTocar={() => setAberta(divida)} />
             </Animated.View>
           ))
         )}
       </ScrollView>
+
+      {rendaAberta && (
+        <FolhaDeEdicao
+          campo="rendaMensal"
+          aoCancelar={() => setRendaAberta(false)}
+          aoSalvar={aoSalvarRenda}
+        />
+      )}
 
       {(novaAberta || editando !== null) && (
         <FolhaDoCadastroDeDivida
