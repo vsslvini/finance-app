@@ -68,7 +68,7 @@ curl -X POST -H "Authorization: Token $TOKEN" -H "Content-Type: application/json
   atrasadas (singular e plural), botão "Nova dívida", um cartão por dívida
   (`CartaoDeDivida`: falta quanto, barra por parcelas pagas, próxima parcela ou "Atrasada: ..." ou
   "Tudo pago"), vazio "Nenhuma dívida cadastrada." e puxar para baixo.
-- **Folha "Nova dívida"** (`FolhaDeNovaDivida`): cinco campos, validações no app na ordem do
+- **Folha "Nova dívida"** (`FolhaDeNovaDivida`, que no Módulo 15 virou `FolhaDoCadastroDeDivida` e também edita): cinco campos, validações no app na ordem do
   contrato (só a primeira aparece, sem chamar o servidor), prévia "3x de R$ 333,33 (a última de
   R$ 333,34)" calculada em **centavos inteiros** (mesma regra do backend, sem erro de ponto
   flutuante) e o `POST`.

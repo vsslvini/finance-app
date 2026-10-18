@@ -50,6 +50,7 @@ aos pré-requisitos dele.
 | 26 | [`modulos/dividas.md`](modulos/dividas.md) | Módulo 12: dívidas e parcelas, não contar duas vezes, `transaction.atomic`, `bulk_create`, `@property` | itens 17 e 23 |
 | 27 | [`modulos/embelezamento.md`](modulos/embelezamento.md) | Módulo 13: Reanimated (`useSharedValue`, `withTiming`, animações de entrada), reduzir movimento, Reanimated no Jest | itens 21 e 26 |
 | 28 | [`modulos/gasto-previsto-e-fixos.md`](modulos/gasto-previsto-e-fixos.md) | Módulo 14: gastos fixos com pago automático, gasto previsto, `UniqueConstraint`, `useFocusEffect` | itens 26 e 27 |
+| 29 | [`modulos/editar-divida.md`](modulos/editar-divida.md) | Módulo 15: editar dívida, gerar parcelas de novo, exceção própria, serializer que herda de outro, `partial=True` | itens 26 e 28 |
 
 ## Documentos de consulta (fora desta pasta)
 
