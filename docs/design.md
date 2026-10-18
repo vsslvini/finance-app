@@ -282,7 +282,7 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 |---|---|
 | Carregando | indicador na cor `acento` + texto em `textoSecundario` |
 | Erro | texto em `texto`, botão secundário "Tentar de novo" |
-| Vazio | texto em `textoSecundario`, centralizado no bloco |
+| Vazio | ícone Lucide de 40 em `textoTerciario` e, embaixo, o texto em `textoSecundario`, centralizados no bloco |
 | Atualizando (puxar para baixo) | indicador nativo na cor `acento` |
 | Hora da atualização | linha em `detalhe` logo abaixo do título do mês: "Atualizado hoje às 14:32", "Atualizado ontem às 09:10", "Atualizado em 15/10 às 09:10" ou "Ainda não atualizado" |
 | Falha ao atualizar | logo abaixo da hora, "Não foi possível atualizar agora." em `detalhe` com cor `aviso`; os valores de antes continuam na tela |
@@ -296,14 +296,44 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 | Ícones de categoria | ícone Lucide de 16 dentro do círculo colorido: `shopping-cart` (Mercado), `utensils` (Restaurantes), `car` (Transporte), `ellipsis` (Outras) |
 | Ícones dos cartões | 16, cor `textoSecundario`, ao lado do rótulo: `wallet` (Saldo), `credit-card` (Fatura aberta), `arrow-down-left` (Entrou, cor `positivo`), `arrow-up-right` (Saiu, cor `negativo`), `piggy-bank` (Guardado), `scale` (Saldo do mês, no Relatório); aviso com `triangle-alert` (18, cor `aviso`) |
 | Ícone de selecionado | `check` (20, cor `acento`), na categoria atual da folha "Categoria" |
-| Ilustrações | nenhuma |
+| Ilustrações | nenhuma imagem; os estados vazios usam um ícone Lucide de 40 em `textoTerciario`, acima do texto, escondido do leitor de tela (componente `EstadoVazio`) |
+| Ícones dos estados vazios | `receipt` (sem gastos, no Início e no Relatório), `credit-card` (sem cartão), `landmark` (sem conta), `hand-coins` (sem dívida), `arrow-left-right` (sem transação no mês) |
 
 ## 10. Movimento
 
-| Campo | Valor |
+O movimento ajuda a entender o que mudou; nunca enfeita à toa. Entrou no app em 2026-10-18
+(Módulo 13). A parte com a `react-native-reanimated` (4.5.1, já instalada) chega nas entregas 2 e 3
+do `docs/planos/modulo-13-embelezamento.md`; a tabela abaixo já vale como regra para elas.
+
+### Princípios
+
+| Princípio | Regra |
 |---|---|
-| Animações | mínimas: só a folha de edição subindo |
-| Respeitar "reduzir movimento" do celular | sim |
+| Duração | de 150 a 500 ms; nada passa de 500 ms |
+| Curva | `Easing.out(Easing.cubic)` ao entrar, `Easing.in(Easing.cubic)` ao sair; sem mola com quique |
+| Toque | resposta instantânea, sem animação (ver a tabela de toque) |
+| Reduzir movimento | sempre respeitado: `ReduceMotion.System` (padrão no Reanimated 4); no `Modal`, `useReducedMotion()` troca `slide` por `fade` |
+| Acessibilidade | o conteúdo animado já está acessível desde o primeiro quadro (rótulos e valores reais, mesmo no meio da animação) |
+
+### O que anima e o que não anima
+
+| Onde | Movimento | Entrega |
+|---|---|---|
+| Toque em cartão tocável e no `Botao` | opacidade 0,85 e escala 0,98, troca imediata | 1 |
+| Toque em botão de ícone (setas, Voltar) e em linha de lista | só opacidade 0,7, troca imediata | 1 |
+| Folhas (as 5) | fundo com `fade`; a folha sobe com `SlideInDown` de 250 ms; fechar continua instantâneo | 2 |
+| Barra de progresso | enche de 0 ao valor em 500 ms com `scaleX` (origem à esquerda), só ao aparecer | 2 |
+| Entrada em cascata (Início e cartões de Cartões, Contas e Dívidas) | `FadeInDown` de 200 ms, subida de 8, atraso de 40 ms por bloco, no máximo 6 blocos, só na primeira carga | 3 |
+| Troca de mês (Transações e Relatório) | `FadeIn` de 150 ms no conteúdo | 3 |
+| Carregamento do Início | esqueleto com blocos `superficie` e pulso de opacidade de 0,5 a 1 em 900 ms (parado com "reduzir movimento"); a frase "Carregando o resumo..." continua visível | 3 |
+
+Não animam: valores em dinheiro (o "posso gastar" aparece pronto), puxar para baixo, troca de aba,
+itens de listas longas, régua de dias, erros e avisos.
+
+### Toque (entrega 1)
+
+O estilo vive num lugar só, em `mobile/src/tema.ts` (`toque.apertado` e `toque.apertadoIcone`).
+Nenhuma tela escreve opacidade ou escala de toque por conta própria.
 
 ## 11. Acessibilidade
 
