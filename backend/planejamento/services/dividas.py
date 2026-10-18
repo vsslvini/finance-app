@@ -54,6 +54,46 @@ def criar_divida(credor, motivo, valor_total, parcelas, mes_inicio):
     return divida
 
 
+class DividaComParcelaPaga(Exception):
+    # Valor, parcelas ou mês não mudam depois que alguma parcela foi paga: gerar
+    # de novo trocaria o valor de uma parcela que já saiu da conta
+    pass
+
+
+@transaction.atomic
+def editar_divida(divida, **dados):
+    # "dados" tem só o que o PATCH mandou. Credor e motivo mudam sempre; valor
+    # total, parcelas e mês regeram as parcelas, e só se forem diferentes do que
+    # está salvo (o app manda o formulário inteiro, com os valores de antes)
+    novos = {
+        "valor_total": dados.get("valor_total", divida.valor_total),
+        "total_parcelas": dados.get("parcelas", divida.total_parcelas),
+        "mes_inicio": dados.get("mes_inicio", divida.mes_inicio),
+    }
+    regerar = any(getattr(divida, campo) != valor for campo, valor in novos.items())
+    # Confere antes de mexer em qualquer campo, para o erro não deixar nada mudado
+    if regerar and divida.parcelas.filter(paga=True).exists():
+        raise DividaComParcelaPaga
+
+    if "credor" in dados:
+        divida.credor = dados["credor"]
+    if "motivo" in dados:
+        divida.motivo = dados["motivo"]
+    if regerar:
+        divida.valor_total = novos["valor_total"]
+        divida.total_parcelas = novos["total_parcelas"]
+        divida.mes_inicio = novos["mes_inicio"]
+        divida.parcelas.all().delete()
+        ParcelaDaDivida.objects.bulk_create(
+            ParcelaDaDivida(divida=divida, **parcela)
+            for parcela in gerar_parcelas(
+                divida.valor_total, divida.total_parcelas, divida.mes_inicio
+            )
+        )
+    divida.save()
+    return divida
+
+
 def somar_nao_pagas(**filtro):
     # Sum de nenhuma linha dá None; aqui vira 0.00, como no resumo
     parcelas = ParcelaDaDivida.objects.filter(paga=False, **filtro)

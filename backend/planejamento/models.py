@@ -56,8 +56,8 @@ class PlanoDeGuardar(models.Model):
 
 class Divida(models.Model):
     # RF21: uma dívida com alguém, dividida em parcelas mensais. Ao cadastrar,
-    # o services/dividas.py gera as ParcelaDaDivida; depois só credor e motivo
-    # mudam (para mudar valor ou parcelas, apaga e cadastra de novo)
+    # o services/dividas.py gera as ParcelaDaDivida; ao editar valor, parcelas
+    # ou mês, elas são geradas de novo (só se nenhuma estiver paga)
     credor = models.CharField("para quem", max_length=100)
     motivo = models.CharField(max_length=200, blank=True)
     valor_total = models.DecimalField("valor total", max_digits=12, decimal_places=2)

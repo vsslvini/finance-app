@@ -10,6 +10,7 @@ SEM_CREDOR = "Informe para quem é a dívida."
 VALOR_INVALIDO = "O valor precisa ser maior que zero."
 PARCELAS_INVALIDAS = "As parcelas precisam ficar entre 1 e 120."
 MES_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-11."
+COM_PARCELA_PAGA = "Com parcela paga, só dá para mudar para quem e o motivo."
 
 JOIA = {
     "credor": "Tia Ana",
@@ -69,6 +70,7 @@ def test_post_cria_a_divida_e_as_parcelas(cliente_com_token, hoje_10_de_outubro)
         "motivo": "Joia",
         "valor_total": "1000.00",
         "total_parcelas": 3,
+        "mes_inicio": "2026-11",
         "parcelas_pagas": 0,
         "valor_pago": "0.00",
         "valor_restante": "1000.00",
@@ -257,16 +259,17 @@ def test_patch_da_parcela_marca_e_desmarca(cliente_com_token, monkeypatch):
     assert parcela.paga_em is None
 
 
-def test_patch_da_divida_muda_credor_e_motivo(cliente_com_token):
-    # Caso 5: o PATCH muda só "para quem" e o motivo; o valor mandado junto é
-    # ignorado (para mudar o valor, apaga e cadastra de novo)
-    divida_id = criar(cliente_com_token).json()["id"]
+def editar(cliente, divida_id, **campos):
+    return cliente.patch(f"/api/dividas/{divida_id}/", campos, format="json")
 
-    resposta = cliente_com_token.patch(
-        f"/api/dividas/{divida_id}/",
-        {"credor": "Tia Maria", "motivo": "Anel", "valor_total": "5.00"},
-        format="json",
-    )
+
+def test_patch_da_divida_muda_credor_e_motivo(cliente_com_token):
+    # Caso 15a-1: mudando só "para quem" e o motivo, as parcelas ficam como
+    # estão (os mesmos ids; não foram apagadas e recriadas)
+    divida_id = criar(cliente_com_token).json()["id"]
+    ids_antes = list(ParcelaDaDivida.objects.order_by("numero").values_list("id"))
+
+    resposta = editar(cliente_com_token, divida_id, credor="Tia Maria", motivo="Anel")
 
     assert resposta.status_code == 200
     assert resposta.json()["credor"] == "Tia Maria"
@@ -275,6 +278,121 @@ def test_patch_da_divida_muda_credor_e_motivo(cliente_com_token):
     divida = Divida.objects.get()
     assert divida.credor == "Tia Maria"
     assert divida.motivo == "Anel"
+    ids_depois = list(ParcelaDaDivida.objects.order_by("numero").values_list("id"))
+    assert ids_depois == ids_antes
+
+
+def test_patch_com_valor_e_parcelas_novos_regera_as_parcelas(cliente_com_token):
+    # Caso 15a-2: 1200 em 4x (antes 1000 em 3x) apaga as 3 parcelas e gera 4 de
+    # 300; o valor_total e o total_parcelas da dívida mudam
+    divida_id = criar(cliente_com_token).json()["id"]
+
+    resposta = editar(cliente_com_token, divida_id, valor_total="1200.00", parcelas=4)
+
+    assert resposta.status_code == 200
+    corpo = resposta.json()
+    assert corpo["valor_total"] == "1200.00"
+    assert corpo["total_parcelas"] == 4
+    assert [(p["numero"], p["mes"], p["valor"]) for p in corpo["parcelas"]] == [
+        (1, "2026-11", "300.00"),
+        (2, "2026-12", "300.00"),
+        (3, "2027-01", "300.00"),
+        (4, "2027-02", "300.00"),
+    ]
+    divida = Divida.objects.get()
+    assert divida.valor_total == 1200
+    assert divida.total_parcelas == 4
+    assert ParcelaDaDivida.objects.count() == 4
+
+
+def test_patch_com_mes_novo_regera_os_meses(cliente_com_token):
+    # Caso 15a-3: trocar a primeira parcela de novembro para março de 2027 muda
+    # os meses das 3 parcelas (os valores continuam os mesmos)
+    divida_id = criar(cliente_com_token).json()["id"]
+
+    resposta = editar(cliente_com_token, divida_id, mes_inicio="2027-03")
+
+    assert resposta.status_code == 200
+    corpo = resposta.json()
+    assert corpo["mes_inicio"] == "2027-03"
+    assert [p["mes"] for p in corpo["parcelas"]] == ["2027-03", "2027-04", "2027-05"]
+    assert Divida.objects.get().mes_inicio == date(2027, 3, 1)
+
+
+def test_patch_com_parcela_paga_recusa_mudar_o_valor(cliente_com_token):
+    # Caso 15a-4: com a 1ª parcela paga, mudar o valor responde 400 com a
+    # mensagem e nada muda (nem o credor mandado junto, nem as parcelas)
+    divida_id = criar(cliente_com_token).json()["id"]
+    primeira = ParcelaDaDivida.objects.get(numero=1)
+    marcar(cliente_com_token, primeira.id, True)
+    ids_antes = list(ParcelaDaDivida.objects.order_by("numero").values_list("id"))
+
+    resposta = editar(
+        cliente_com_token, divida_id, credor="Tia Maria", valor_total="2000.00"
+    )
+
+    assert resposta.status_code == 400
+    assert resposta.json() == {"detail": [COM_PARCELA_PAGA]}
+    divida = Divida.objects.get()
+    assert divida.credor == "Tia Ana"
+    assert divida.valor_total == 1000
+    ids_depois = list(ParcelaDaDivida.objects.order_by("numero").values_list("id"))
+    assert ids_depois == ids_antes
+    primeira.refresh_from_db()
+    assert primeira.paga is True
+
+
+def test_patch_com_parcela_paga_aceita_o_formulario_com_os_mesmos_valores(
+    cliente_com_token,
+):
+    # Caso 15a-5: o app manda o formulário inteiro. Com valor, parcelas e mês
+    # iguais aos de antes (não é mudança), só o credor muda e a parcela paga
+    # continua paga, com o mesmo id
+    divida_id = criar(cliente_com_token).json()["id"]
+    primeira = ParcelaDaDivida.objects.get(numero=1)
+    marcar(cliente_com_token, primeira.id, True)
+
+    resposta = editar(cliente_com_token, divida_id, **{**JOIA, "credor": "Tia Maria"})
+
+    assert resposta.status_code == 200
+    assert resposta.json()["credor"] == "Tia Maria"
+    assert resposta.json()["parcelas_pagas"] == 1
+    primeira.refresh_from_db()
+    assert primeira.paga is True
+
+
+def test_patch_da_divida_recusa_dados_invalidos(cliente_com_token):
+    # Caso 15a-6: as mesmas mensagens do cadastro, e nada muda na dívida
+    divida_id = criar(cliente_com_token).json()["id"]
+    casos = [
+        ({"credor": ""}, {"credor": [SEM_CREDOR]}),
+        ({"valor_total": "0.00"}, {"valor_total": [VALOR_INVALIDO]}),
+        ({"parcelas": 0}, {"parcelas": [PARCELAS_INVALIDAS]}),
+        ({"parcelas": 121}, {"parcelas": [PARCELAS_INVALIDAS]}),
+        ({"mes_inicio": "13/2026"}, {"mes_inicio": [MES_INVALIDO]}),
+    ]
+    for campos, erro in casos:
+        resposta = editar(cliente_com_token, divida_id, **campos)
+
+        assert resposta.status_code == 400
+        assert resposta.json() == erro
+    divida = Divida.objects.get()
+    assert divida.credor == "Tia Ana"
+    assert divida.valor_total == 1000
+    assert divida.total_parcelas == 3
+    assert ParcelaDaDivida.objects.count() == 3
+
+
+def test_resposta_da_divida_traz_mes_inicio(cliente_com_token):
+    # Caso 15a-7: GET e PATCH trazem mes_inicio como "AAAA-MM", para o app
+    # preencher o campo da edição
+    divida_id = criar(cliente_com_token).json()["id"]
+
+    lista = cliente_com_token.get("/api/dividas/").json()
+    editada = editar(cliente_com_token, divida_id, motivo="Anel").json()
+
+    assert lista[0]["mes_inicio"] == "2026-11"
+    assert editada["mes_inicio"] == "2026-11"
 
 
 def test_patch_da_divida_recusa_credor_vazio(cliente_com_token):

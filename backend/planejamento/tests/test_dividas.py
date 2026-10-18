@@ -1,9 +1,13 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from planejamento.models import Divida, ParcelaDaDivida
 from planejamento.services.dividas import (
+    DividaComParcelaPaga,
     criar_divida,
+    editar_divida,
     gerar_parcelas,
     total_atrasadas,
     total_do_mes,
@@ -62,6 +66,49 @@ def test_criar_divida_salva_a_divida_e_as_parcelas(db):
         (2, date(2026, 12, 1), Decimal("333.33"), False),
         (3, date(2027, 1, 1), Decimal("333.34"), False),
     ]
+
+
+def divida_da_joia():
+    return criar_divida(
+        credor="Tia Ana",
+        motivo="Joia",
+        valor_total=Decimal("1000.00"),
+        parcelas=3,
+        mes_inicio=NOVEMBRO,
+    )
+
+
+def test_editar_divida_com_valores_iguais_nao_regera_as_parcelas(db):
+    # Caso 15a: valor, parcelas e mês iguais aos atuais não são mudança; só o
+    # credor muda, e as parcelas (mesmos ids) ficam como estão
+    divida = divida_da_joia()
+    ids_antes = list(divida.parcelas.values_list("id", flat=True))
+
+    editar_divida(
+        divida,
+        credor="Tia Maria",
+        valor_total=Decimal(1000),
+        parcelas=3,
+        mes_inicio=NOVEMBRO,
+    )
+
+    divida.refresh_from_db()
+    assert divida.credor == "Tia Maria"
+    assert list(divida.parcelas.values_list("id", flat=True)) == ids_antes
+
+
+def test_editar_divida_com_parcela_paga_levanta_o_erro_e_nada_muda(db):
+    # Caso 15a: valor diferente com uma parcela paga levanta a exceção própria;
+    # como o service confere antes de mexer, o credor também não muda
+    divida = divida_da_joia()
+    divida.parcelas.filter(numero=1).update(paga=True)
+
+    with pytest.raises(DividaComParcelaPaga):
+        editar_divida(divida, credor="Tia Maria", valor_total=Decimal("2000.00"))
+
+    divida.refresh_from_db()
+    assert divida.credor == "Tia Ana"
+    assert divida.valor_total == Decimal("1000.00")
 
 
 def criar_divida_vazia(mes_inicio):

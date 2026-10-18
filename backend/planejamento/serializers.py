@@ -7,7 +7,11 @@ from planejamento.models import (
     ParcelaDaDivida,
     PlanoDeGuardar,
 )
-from planejamento.services.dividas import criar_divida
+from planejamento.services.dividas import (
+    DividaComParcelaPaga,
+    criar_divida,
+    editar_divida,
+)
 
 DIAS_INVALIDOS = "Os dias antes do mês precisam ficar entre 0 e 10."
 LIMITE_NEGATIVO = "O limite da fatura não pode ser negativo."
@@ -19,6 +23,7 @@ SEM_CREDOR = "Informe para quem é a dívida."
 VALOR_INVALIDO = "O valor precisa ser maior que zero."
 PARCELAS_INVALIDAS = "As parcelas precisam ficar entre 1 e 120."
 MES_INICIO_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-11."
+COM_PARCELA_PAGA = "Com parcela paga, só dá para mudar para quem e o motivo."
 SEM_NOME = "Informe o nome do gasto."
 TRECHO_CURTO = "O trecho precisa ter pelo menos 3 letras."
 DIA_INVALIDO = "O dia do vencimento precisa ficar entre 1 e 31."
@@ -123,6 +128,8 @@ class DividaSerializer(serializers.ModelSerializer):
     # None (null no JSON) quando todas estão pagas
     proxima_parcela = ProximaParcelaSerializer(read_only=True, allow_null=True)
     parcelas = ParcelaSerializer(many=True, read_only=True)
+    # O mês da primeira parcela sai como "2026-11", para o app preencher a edição
+    mes_inicio = serializers.DateField(format="%Y-%m", read_only=True)
 
     class Meta:
         model = Divida
@@ -132,6 +139,7 @@ class DividaSerializer(serializers.ModelSerializer):
             "motivo",
             "valor_total",
             "total_parcelas",
+            "mes_inicio",
             "parcelas_pagas",
             "valor_pago",
             "valor_restante",
@@ -172,13 +180,16 @@ class NovaDividaSerializer(serializers.Serializer):
         return criar_divida(**dados)
 
 
-class EditarDividaSerializer(serializers.ModelSerializer):
-    # Entrada do PATCH da dívida: só "para quem" e motivo (decisão 4)
-    credor = serializers.CharField(max_length=100, error_messages=ERROS_DO_CREDOR)
-
-    class Meta:
-        model = Divida
-        fields = ("credor", "motivo")
+class EditarDividaSerializer(NovaDividaSerializer):
+    # Entrada do PATCH da dívida: os mesmos cinco campos e validações do
+    # cadastro. A view usa partial=True, então todos são opcionais
+    def update(self, divida, dados):
+        # serializer.save() chama este método porque o serializer tem instance
+        try:
+            return editar_divida(divida, **dados)
+        except DividaComParcelaPaga:
+            # "detail" é a chave que o app já lê nos outros 400 sem campo
+            raise serializers.ValidationError({"detail": [COM_PARCELA_PAGA]})
 
 
 class MarcarParcelaSerializer(serializers.Serializer):

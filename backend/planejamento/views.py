@@ -105,7 +105,8 @@ def divida(request, pk):
         escolhida.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    # partial=True: pode mandar só o credor ou só o motivo
+    # partial=True: pode mandar só alguns campos. save() chama o update() do
+    # serializer, que chama o service (o erro de parcela paga vira 400 lá)
     entrada = EditarDividaSerializer(escolhida, data=request.data, partial=True)
     entrada.is_valid(raise_exception=True)
     entrada.save()
