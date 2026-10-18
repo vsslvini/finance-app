@@ -1,15 +1,13 @@
 // Seção "Guardado" da tela Início: quanto há guardado nos investimentos, quanto
 // entrou neste mês e, se houver plano, a barra de progresso até o mês alvo.
 // A seção inteira é um botão, que abre a folha "Plano de guardar".
-import { Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Guardado } from '@/api';
+import BarraDeProgresso from '@/componentes/BarraDeProgresso';
 import RotuloDoCartao from '@/componentes/RotuloDoCartao';
 import { formatarReais, rotuloEmReais, tituloDoMes } from '@/formatacao';
 import { cantos, cores, espaco, textos } from '@/tema';
-
-// Altura da barra de progresso (docs/design.md, "Bloco de meta")
-const ALTURA_DA_BARRA = 8;
 
 // "500.00" -> "+ R$ 500,00 este mês"; "-100.00" -> "- R$ 100,00 este mês"
 function textoDoMes(esteMes: string): string {
@@ -29,10 +27,6 @@ export default function SecaoGuardado({ guardado, aoTocar }: SecaoGuardadoProps)
   // Com plano, o backend manda o mês alvo e o previsto; sem plano, os dois são null
   const mesAlvo = plano?.mes_alvo ?? null;
 
-  // A barra nunca passa da largura do cartão, mesmo com progresso acima de 100
-  const porcentagem = Math.max(0, Math.min(progresso ?? 0, 100));
-  const largura: DimensionValue = `${porcentagem}%`;
-
   return (
     <Pressable
       accessibilityRole="button"
@@ -50,16 +44,9 @@ export default function SecaoGuardado({ guardado, aoTocar }: SecaoGuardadoProps)
 
       {previsto !== null && mesAlvo !== null ? (
         <View style={styles.meta}>
-          {/* Trilho cinza com a parte roxa por cima, do tamanho do progresso */}
-          <View
-            accessible
-            accessibilityRole="progressbar"
-            accessibilityLabel="Progresso do plano de guardar"
-            accessibilityValue={{ min: 0, max: 100, now: progresso ?? 0 }}
-            style={styles.trilho}
-          >
-            <View style={[styles.preenchido, { width: largura }]} />
-          </View>
+          {/* Trilho cinza com a parte roxa por cima, do tamanho do progresso
+              (a barra nunca passa da largura do cartão, mesmo acima de 100) */}
+          <BarraDeProgresso porcentagem={progresso ?? 0} rotulo="Progresso do plano de guardar" />
           <Text style={textos.rotulo}>
             {`${formatarReais(total)} de ${formatarReais(previsto)} previstos em ${tituloDoMes(mesAlvo).toLowerCase()}`}
           </Text>
@@ -91,17 +78,6 @@ const styles = StyleSheet.create({
   meta: {
     gap: espaco.pequeno,
     marginTop: espaco.pequeno,
-  },
-  trilho: {
-    height: ALTURA_DA_BARRA,
-    borderRadius: ALTURA_DA_BARRA / 2,
-    backgroundColor: cores.diaFuturo,
-    // Corta a parte roxa nos cantos arredondados do trilho
-    overflow: 'hidden',
-  },
-  preenchido: {
-    height: ALTURA_DA_BARRA,
-    backgroundColor: cores.acento,
   },
   convite: {
     // Roxo do acento, como um link: mostra que o cartão é tocável

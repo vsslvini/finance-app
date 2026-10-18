@@ -1,8 +1,10 @@
 // Uma linha da lista da tela Transações: ícone da categoria, descrição, duas
-// linhas de detalhe e o valor com sinal à direita. A linha inteira é um botão:
-// tocar nela abre a folha "Categoria" (quem abre a folha é a ListaDeTransacoes).
+// linhas de detalhe e o valor com sinal à direita. Com "aoTocar", a linha
+// inteira é um botão: tocar nela abre a folha "Categoria" (quem abre a folha é
+// a ListaDeTransacoes). Sem "aoTocar" (os maiores gastos do Relatório), a linha
+// é só leitura: o mesmo visual, mas sem papel de botão.
 import { Lucide } from '@react-native-vector-icons/lucide';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import type { Transacao } from '@/api';
 import { iconeDaCategoria } from '@/categorias';
@@ -16,7 +18,7 @@ type ItemDeTransacaoProps = {
   // A primeira e a última linha arredondam os cantos do cartão da lista
   primeira: boolean;
   ultima: boolean;
-  aoTocar: () => void; // abre a folha de trocar a categoria
+  aoTocar?: () => void; // abre a folha de trocar a categoria; sem ele, não é botão
 };
 
 export default function ItemDeTransacao({
@@ -51,21 +53,17 @@ export default function ItemDeTransacao({
     `${transacao.nome_banco} ${transacao.nome_conta}, categoria ${transacao.categoria}` +
     (parcela !== null ? `, ${parcela.toLowerCase()}` : '');
 
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={rotulo}
-      // O "hint" é lido depois do rótulo e conta o que o toque faz
-      accessibilityHint="Toque para trocar a categoria"
-      onPress={aoTocar}
-      style={({ pressed }) => [
-        styles.item,
-        comDivisoria && styles.divisoria,
-        primeira && styles.cantosDeCima,
-        ultima && styles.cantosDeBaixo,
-        pressed && styles.apertado,
-      ]}
-    >
+  // Estilos da linha, iguais com ou sem toque
+  const estiloDaLinha: StyleProp<ViewStyle> = [
+    styles.item,
+    comDivisoria && styles.divisoria,
+    primeira && styles.cantosDeCima,
+    ultima && styles.cantosDeBaixo,
+  ];
+
+  // O que vai dentro da linha (ícone, textos e valor), igual nos dois casos
+  const conteudo = (
+    <>
       {/* Círculo da categoria: só desenho, escondido do leitor de tela. O
           testID (o mesmo da tela Início) deixa os testes conferirem o ícone */}
       <View
@@ -86,6 +84,29 @@ export default function ItemDeTransacao({
         </Text>
       </View>
       <Text style={[textos.valor, saida ? styles.negativo : styles.positivo]}>{valorNaTela}</Text>
+    </>
+  );
+
+  // Só leitura: "accessible" junta tudo num item só para o leitor de tela,
+  // que lê o mesmo rótulo, mas sem dizer "botão" e sem a dica de toque
+  if (aoTocar === undefined) {
+    return (
+      <View accessible accessibilityLabel={rotulo} style={estiloDaLinha}>
+        {conteudo}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={rotulo}
+      // O "hint" é lido depois do rótulo e conta o que o toque faz
+      accessibilityHint="Toque para trocar a categoria"
+      onPress={aoTocar}
+      style={({ pressed }) => [estiloDaLinha, pressed && styles.apertado]}
+    >
+      {conteudo}
     </Pressable>
   );
 }

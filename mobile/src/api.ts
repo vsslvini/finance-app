@@ -100,6 +100,26 @@ export type FaturasFuturas = {
   meses: MesFuturo[];
 };
 
+// Uma categoria do relatório do mês (o total dos gastos dessa categoria)
+export type CategoriaDoMes = {
+  categoria: string; // o nome em português: "Transferência - PIX" (ou "Sem categoria")
+  categoria_original: string; // o nome em inglês, para o ícone: "Transfer - PIX"
+  total: string; // sempre positivo: "1079.17"
+  porcentagem: number; // inteiro, de 0 a 100, arredondado para baixo pelo backend
+};
+
+// Resposta de GET /api/relatorio/. Entradas, saídas e saldo do mês são os
+// mesmos números do resumo; o total de gastos inclui as compras do cartão
+export type Relatorio = {
+  mes: string; // "2026-10"
+  entradas: string; // "3205.10"
+  saidas: string; // "2812.06"
+  saldo_do_mes: string; // entradas menos saídas; pode ser negativo: "-290.00"
+  total_gastos: string; // "2849.58" ("0.00" sem gastos)
+  gastos_por_categoria: CategoriaDoMes[]; // do maior para o menor
+  maiores_gastos: Transacao[]; // até 5, do maior para o menor
+};
+
 // Resposta de GET e PATCH /api/configuracoes/
 export type Configuracoes = {
   dias_antes_do_mes: number;
@@ -232,6 +252,14 @@ export async function buscarFaturasFuturas(): Promise<FaturasFuturas> {
 // O backend já aplica o "mês começando dias antes", então o app só manda o mês.
 export async function buscarTransacoes(mes: string): Promise<Transacao[]> {
   return pedirApi<Transacao[]>(`/api/transacoes/?mes=${mes}`);
+}
+
+// O relatório de um mês do app. Sem "mes", o backend usa o mês atual do app
+// (já com o "mês começando dias antes") e devolve qual é ele no campo "mes".
+// A tela Relatório faz o primeiro pedido assim, e as setas mandam o mês.
+export async function buscarRelatorio(mes?: string): Promise<Relatorio> {
+  const caminho = mes === undefined ? '/api/relatorio/' : `/api/relatorio/?mes=${mes}`;
+  return pedirApi<Relatorio>(caminho);
 }
 
 // As categorias que podem ser escolhidas, já em ordem alfabética do "nome"

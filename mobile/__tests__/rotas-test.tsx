@@ -4,19 +4,29 @@
 // Router, como o toHavePathname. O fireEvent (tocar, digitar) vem direto da
 // Testing Library: o expo-router o repassa por dentro, mas não publica o tipo
 // dele para o TypeScript.
-import { fireEvent } from '@testing-library/react-native';
+import { fireEvent, waitFor } from '@testing-library/react-native';
 import { renderRouter, screen } from 'expo-router/testing-library';
 
-// Os arquivos de rota reais, pelo atalho @/ (que aponta para src/). Desde o
-// módulo 6, as quatro telas ficam no grupo (abas): os parênteses no nome da
-// pasta dizem ao Expo Router que ela organiza arquivos, mas não entra no
-// endereço. Por isso a tela Início continua em "/" e não em "/abas".
+// Os tipos do resumo e do relatório, para os dados falsos do caso 1 do 9b.
+// Depois, os arquivos de rota reais, pelo atalho @/ (que aponta para src/).
+// Desde o módulo 6, as quatro telas ficam no grupo (abas): os parênteses no
+// nome da pasta dizem ao Expo Router que ela organiza arquivos, mas não entra
+// no endereço. Por isso a tela Início continua em "/" e não em "/abas".
+import type { Relatorio, Resumo } from '@/api';
 import AbasLayout from '@/app/(abas)/_layout';
 import CartoesScreen from '@/app/(abas)/cartoes';
 import ContasScreen from '@/app/(abas)/contas';
 import InicioScreen from '@/app/(abas)/index';
 import TransacoesScreen from '@/app/(abas)/transacoes';
 import RootLayout from '@/app/_layout';
+// Módulo 9b: o relatório fica FORA do grupo (abas), direto em src/app/. Assim
+// ele entra na pilha (Stack) do layout raiz e abre por cima das abas, como
+// uma tela nova empilhada, em vez de virar uma quinta aba.
+import RelatorioScreen from '@/app/relatorio';
+
+// respostaFalsa monta uma resposta falsa do servidor (explicada em
+// testes/ajudantes.ts). Só o caso 1 do 9b usa.
+import { respostaFalsa } from '../testes/ajudantes';
 
 // O layout raiz espera a fonte Manrope carregar (useFonts) e, enquanto isso,
 // não desenha nada. No Jest não existe celular para carregar a fonte: o
@@ -71,7 +81,8 @@ afterEach(() => {
 // O "mapa de arquivos" em memória que o renderRouter monta. Cada chave é o
 // caminho do arquivo dentro de src/app, sem a barra inicial e sem a
 // extensão; cada valor é o componente daquele arquivo. É o mesmo desenho das
-// pastas do app: o layout raiz, o layout das abas e as quatro telas.
+// pastas do app: o layout raiz, o layout das abas, as quatro telas e (desde o
+// 9b) o relatório, fora das abas.
 const ARQUIVOS_DO_APP = {
   _layout: RootLayout,
   '(abas)/_layout': AbasLayout,
@@ -79,6 +90,49 @@ const ARQUIVOS_DO_APP = {
   '(abas)/transacoes': TransacoesScreen,
   '(abas)/cartoes': CartoesScreen,
   '(abas)/contas': ContasScreen,
+  relatorio: RelatorioScreen,
+};
+
+// ---------------------------------------------------------------------------
+// Dados falsos do caso 1 do 9b
+//
+// O botão "Ver relatório do mês" só aparece depois que a tela Início recebe o
+// resumo (antes disso ela mostra "Carregando o resumo..."). Por isso, nesse
+// teste, o fetch falso precisa responder o resumo. E a tela Relatório recebe
+// um relatório simples (sem gastos), para ela sair do "carregando" e
+// desenhar o topo com o botão "Voltar".
+// ---------------------------------------------------------------------------
+const RESUMO_DE_OUTUBRO: Resumo = {
+  mes: '2026-10',
+  saldo_total: '1250.50',
+  fatura_aberta: '499.90',
+  entradas: '3205.10',
+  saidas: '2812.06',
+  posso_gastar_por_dia: '31.31',
+  dia_do_mes: 17,
+  dias_no_mes: 31,
+  limite_fatura: null,
+  fatura_acima_do_limite: false,
+  ultimos_gastos: [],
+  guardado: {
+    total: '0.00',
+    este_mes: '0.00',
+    plano: null,
+    previsto: null,
+    progresso: null,
+    falta_guardar_no_mes: '0.00',
+  },
+  ultima_atualizacao: null,
+};
+
+const RELATORIO_SEM_GASTOS: Relatorio = {
+  mes: '2026-10',
+  entradas: '3205.10',
+  saidas: '2812.06',
+  saldo_do_mes: '393.04',
+  total_gastos: '0.00',
+  gastos_por_categoria: [],
+  maiores_gastos: [],
 };
 
 // ---------------------------------------------------------------------------
@@ -179,5 +233,48 @@ describe('Rotas e abas do app', () => {
     expect(await screen.findByText('Carregando as contas...')).toBeOnTheScreen();
     // @ts-expect-error (mesmo motivo do caso 2)
     expect(app).toHavePathname('/contas');
+  });
+
+  it('"Ver relatório do mês" no Início leva a "/relatorio", e "Voltar" volta para "/" (9b, caso 1)', async () => {
+    // Prepara: neste teste o fetch falso responde, em vez de ficar parado.
+    // O resumo faz o Início sair do "carregando" e desenhar o botão; o
+    // relatório faz a tela Relatório desenhar o topo. Qualquer outro pedido
+    // continua sem resposta, como nos outros testes deste arquivo. Este
+    // fetch troca o do beforeEach só aqui; o afterEach devolve o de verdade.
+    globalThis.fetch = jest.fn((endereco: RequestInfo | URL) => {
+      const url = String(endereco);
+      if (url.includes('/api/resumo/')) {
+        return Promise.resolve(respostaFalsa(200, RESUMO_DE_OUTUBRO));
+      }
+      if (url.includes('/api/relatorio/')) {
+        return Promise.resolve(respostaFalsa(200, RELATORIO_SEM_GASTOS));
+      }
+      return new Promise<Response>(() => {});
+    });
+
+    const app = renderRouter(ARQUIVOS_DO_APP, { initialUrl: '/' });
+    await app;
+
+    // Faz: espera o botão aparecer no Início (findByRole espera o resumo
+    // chegar) e toca nele.
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ver relatório do mês' }));
+
+    // Verifica: a tela Relatório apareceu (o título dela é um cabeçalho)...
+    expect(await screen.findByRole('header', { name: 'Relatório' })).toBeOnTheScreen();
+    // ...e o endereço mudou para "/relatorio".
+    // @ts-expect-error (mesmo motivo do caso 2)
+    expect(app).toHavePathname('/relatorio');
+
+    // Faz: toca em "Voltar", achado pelo papel de botão e pelo rótulo que o
+    // leitor de tela fala (o botão só tem o ícone da seta, sem texto).
+    await fireEvent.press(await screen.findByRole('button', { name: 'Voltar' }));
+
+    // Verifica: o endereço voltou para "/". O waitFor repete a conferência
+    // até passar (por até 1 s), caso a pilha leve um instante para tirar a
+    // tela do topo.
+    await waitFor(() => {
+      // @ts-expect-error (mesmo motivo do caso 2)
+      expect(app).toHavePathname('/');
+    });
   });
 });

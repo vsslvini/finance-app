@@ -177,6 +177,21 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 - Todos os meses zerados: no lugar das linhas, "Nenhuma parcela futura encontrada." em
   `textoSecundario`, centralizado.
 
+### Tela Relatório (`/relatorio`, desde 2026-10-17, Módulo 9b)
+- Aberta pelo botão secundário "Ver relatório do mês" do Início (logo depois de Entrou e Saiu).
+  Fica por cima das abas (sem a barra de abas).
+- Topo: botão "Voltar" (`chevron-left`, 24, área de toque 44x44) e o título "Relatório" em
+  `titulo`. Embaixo, as setas de mês da tela Transações, com o nome do mês em `titulo`.
+- Cartões de par "Entrou" (`+`, `positivo`) e "Saiu" (`-`, `negativo`) e, embaixo, o cartão
+  "Saldo do mês" (ícone `scale`), com sinal e cor do valor (`positivo` ou `negativo`).
+- "Gastos por categoria" em `subtitulo`, a frase "Inclui as compras do cartão; por isso pode ser
+  diferente do Saiu." em `detalhe` e "Total de gastos: R$ X" em `corpo`. Um cartão com uma linha
+  por categoria: ícone de categoria, nome em `corpo`, valor em `valor` e a porcentagem em
+  `rotulo` à direita; embaixo, a barra do bloco de meta (altura 8, `acento` sobre `diaFuturo`);
+  divisória de 1 em `borda` entre as linhas.
+- "Maiores gastos" em `subtitulo`, com os itens da lista de gastos, mas sem toque.
+- Mês sem gastos: no lugar das duas seções, "Nenhum gasto neste mês." em `textoSecundario`.
+
 ### Lista de gastos
 - Item: ícone de categoria (30x30, canto 15) à esquerda; descrição e detalhe no meio; valor à direita.
 - Divisória de 1 em `borda` entre itens.
@@ -242,7 +257,7 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 | Conjunto de ícones | Lucide (`@react-native-vector-icons/lucide`, aprovado em 2026-10-10; o Expo deixou de recomendar o `@expo/vector-icons`) |
 | Estilo | contorno (linha), traço fino |
 | Ícones de categoria | ícone Lucide de 16 dentro do círculo colorido: `shopping-cart` (Mercado), `utensils` (Restaurantes), `car` (Transporte), `ellipsis` (Outras) |
-| Ícones dos cartões | 16, cor `textoSecundario`, ao lado do rótulo: `wallet` (Saldo), `credit-card` (Fatura aberta), `arrow-down-left` (Entrou, cor `positivo`), `arrow-up-right` (Saiu, cor `negativo`), `piggy-bank` (Guardado); aviso com `triangle-alert` (18, cor `aviso`) |
+| Ícones dos cartões | 16, cor `textoSecundario`, ao lado do rótulo: `wallet` (Saldo), `credit-card` (Fatura aberta), `arrow-down-left` (Entrou, cor `positivo`), `arrow-up-right` (Saiu, cor `negativo`), `piggy-bank` (Guardado), `scale` (Saldo do mês, no Relatório); aviso com `triangle-alert` (18, cor `aviso`) |
 | Ícone de selecionado | `check` (20, cor `acento`), na categoria atual da folha "Categoria" |
 | Ilustrações | nenhuma |
 

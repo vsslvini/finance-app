@@ -12,9 +12,12 @@ import { StatusBar } from 'expo-status-bar';
 import { cores } from '@/tema';
 
 // Layout raiz: todas as telas de src/app/ ficam dentro desta pilha (Stack).
-// Hoje a pilha tem só o grupo (abas), cujo layout desenha a barra de abas
-// (ver (abas)/_layout.tsx). O cabeçalho fica escondido; cada tela mostra o
-// próprio título no corpo.
+// A pilha tem o grupo (abas), cujo layout desenha a barra de abas (ver
+// (abas)/_layout.tsx), e a tela relatorio.tsx, que abre por cima das abas.
+// Não é preciso declarar as telas aqui com Stack.Screen: o Expo Router junta
+// sozinho todo arquivo de src/app/ à pilha (conferido na fonte do expo-router
+// 57, getSortedChildren em build/useScreens.js). O cabeçalho fica escondido;
+// cada tela mostra o próprio título no corpo.
 export default function RootLayout() {
   // Carrega os pesos da Manrope usados no app (nomes iguais aos de fontes, em tema.ts)
   const [carregadas, erro] = useFonts({

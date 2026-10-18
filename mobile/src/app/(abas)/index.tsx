@@ -1,4 +1,5 @@
 import { Lucide } from '@react-native-vector-icons/lucide';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -262,6 +263,15 @@ export default function InicioScreen() {
             </Text>
           </View>
         </View>
+
+        {/* 6b. Abre a tela Relatório por cima das abas (ela mora na pilha da
+            raiz, fora do grupo (abas)); o push empilha, e o "Voltar" de lá
+            desempilha e volta para cá */}
+        <Botao
+          titulo="Ver relatório do mês"
+          tipo="secundario"
+          aoTocar={() => router.push('/relatorio')}
+        />
 
         {/* 7. Guardado: investimentos e plano (tocável, abre a folha do plano) */}
         <SecaoGuardado guardado={resumo.guardado} aoTocar={() => setPlanoAberto(true)} />
