@@ -51,9 +51,10 @@ def a_pagar(request):
     configuracao = Configuracao.atual()
     meses = meses_a_pagar(timezone.localdate(), configuracao.dias_antes_do_mes)
     for mes in meses:
-        mes["percentual_da_renda"] = percentual_da_renda(
-            mes["total"], configuracao.renda_mensal
-        )
+        renda = configuracao.renda_mensal
+        mes["percentual_da_renda"] = percentual_da_renda(mes["total"], renda)
+        mes["percentual_fixos"] = percentual_da_renda(mes["fixos"], renda)
+        mes["percentual_dividas"] = percentual_da_renda(mes["dividas"], renda)
     # O serializer devolve o dinheiro como texto; Decimal solto viraria float
     dados = {"renda_mensal": configuracao.renda_mensal, "meses": meses}
     return Response(APagarSerializer(dados).data)

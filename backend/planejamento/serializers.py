@@ -242,6 +242,13 @@ class MesAPagarSerializer(serializers.Serializer):
     percentual_da_renda = serializers.DecimalField(
         max_digits=12, decimal_places=1, allow_null=True
     )
+    # Mesma regra, só dos fixos e só das dívidas (Módulo 18)
+    percentual_fixos = serializers.DecimalField(
+        max_digits=12, decimal_places=1, allow_null=True
+    )
+    percentual_dividas = serializers.DecimalField(
+        max_digits=12, decimal_places=1, allow_null=True
+    )
 
 
 class APagarSerializer(serializers.Serializer):

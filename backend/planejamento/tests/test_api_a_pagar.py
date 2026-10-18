@@ -30,7 +30,8 @@ def test_a_pagar_sem_token_responde_401():
 
 def test_sem_nada_cadastrado_devolve_6_meses_em_texto(cliente_com_token):
     # Caso 1: o formato da resposta: mês "AAAA-MM", dinheiro como texto com 2
-    # casas (não número) e percentual nulo, porque não há renda
+    # casas (não número) e percentuais nulos, porque não há renda. Caso 3
+    # (18a): o JSON exato inclui percentual_fixos e percentual_dividas
     resposta = cliente_com_token.get("/api/a-pagar/")
 
     assert resposta.status_code == 200
@@ -51,6 +52,8 @@ def test_sem_nada_cadastrado_devolve_6_meses_em_texto(cliente_com_token):
         "total": "0.00",
         "falta": "0.00",
         "percentual_da_renda": None,
+        "percentual_fixos": None,
+        "percentual_dividas": None,
     }
 
 
@@ -76,7 +79,42 @@ def test_com_renda_devolve_o_percentual_com_uma_casa(cliente_com_token):
         "total": "1933.73",
         "falta": "1933.73",
         "percentual_da_renda": "38.7",
+        "percentual_fixos": "32.0",
+        "percentual_dividas": "6.7",
     }
+
+
+def test_percentuais_de_fixos_e_dividas_separados(cliente_com_token):
+    # Caso 1 (18a): renda 5000, fixos 1200 e dívidas 333.33 no mês: os fixos
+    # tiram 24.0%, as dívidas 6.7% (6,67 arredondado) e o total 30.7%
+    Configuracao.objects.update_or_create(
+        pk=1, defaults={"renda_mensal": Decimal("5000.00")}
+    )
+    GastoFixo.objects.create(
+        nome="Aluguel", valor=Decimal("1200.00"), mes_inicio=OUTUBRO
+    )
+    criar_divida("Fulano", "", Decimal("1000.00"), 3, OUTUBRO)
+
+    mes = cliente_com_token.get("/api/a-pagar/").json()["meses"][0]
+
+    assert mes["percentual_fixos"] == "24.0"
+    assert mes["percentual_dividas"] == "6.7"
+    assert mes["percentual_da_renda"] == "30.7"
+
+
+def test_sem_renda_os_tres_percentuais_sao_nulos(cliente_com_token):
+    # Caso 2 (18a): sem renda não dá para dividir; os três saem null, mesmo
+    # com valores a pagar no mês
+    GastoFixo.objects.create(
+        nome="Aluguel", valor=Decimal("1200.00"), mes_inicio=OUTUBRO
+    )
+    criar_divida("Fulano", "", Decimal("1000.00"), 3, OUTUBRO)
+
+    mes = cliente_com_token.get("/api/a-pagar/").json()["meses"][0]
+
+    assert mes["percentual_fixos"] is None
+    assert mes["percentual_dividas"] is None
+    assert mes["percentual_da_renda"] is None
 
 
 def test_dias_antes_do_mes_mudam_o_primeiro_mes(cliente_com_token, monkeypatch):
