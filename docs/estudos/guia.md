@@ -51,6 +51,7 @@ aos pré-requisitos dele.
 | 27 | [`modulos/embelezamento.md`](modulos/embelezamento.md) | Módulo 13: Reanimated (`useSharedValue`, `withTiming`, animações de entrada), reduzir movimento, Reanimated no Jest | itens 21 e 26 |
 | 28 | [`modulos/gasto-previsto-e-fixos.md`](modulos/gasto-previsto-e-fixos.md) | Módulo 14: gastos fixos com pago automático, gasto previsto, `UniqueConstraint`, `useFocusEffect` | itens 26 e 27 |
 | 29 | [`modulos/editar-divida.md`](modulos/editar-divida.md) | Módulo 15: editar dívida, gerar parcelas de novo, exceção própria, serializer que herda de outro, `partial=True` | itens 26 e 28 |
+| 30 | [`modulos/totais-a-pagar.md`](modulos/totais-a-pagar.md) | Módulo 16: totais da aba "A pagar", somar dinheiro em centavos inteiros, calcular na tela ou no backend | item 29 |
 
 ## Documentos de consulta (fora desta pasta)
 
