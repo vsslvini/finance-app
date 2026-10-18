@@ -189,10 +189,20 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 - Texto digitado em `corpo` com cor `texto`; dica (placeholder) em `textoTerciario`.
 - Em foco: borda 2 em `acento`. Com erro: borda 2 em `erro` e mensagem embaixo em `detalhe` com cor `erro`.
 
-### Abas (quando existirem)
+### Abas
 - Barra fixa embaixo, fundo `superficie`, divisória de 1 em `borda` no topo, altura 64 (mais a área segura do celular).
 - Cada aba tem ícone de contorno (24) e texto curto em `rotulo` embaixo.
 - Aba ativa em `acento`; abas inativas em `textoSecundario`.
+- Abas, nesta ordem (desde 2026-10-17, Módulo 6):
+
+| Aba | Ícone Lucide | Endereço |
+|---|---|---|
+| Início | `house` | `/` |
+| Transações | `arrow-left-right` | `/transacoes` |
+| Cartões | `credit-card` | `/cartoes` |
+| Contas | `landmark` | `/contas` |
+
+- Na tela Transações, as setas de trocar de mês usam `chevron-left` e `chevron-right` (24, área de toque 44x44); a seta desativada fica em `textoTerciario`.
 
 ## 8. Estados da tela
 
@@ -266,7 +276,7 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 - Categorias: o print 1 mostra uma barra de gastos com verde, amarelo, laranja e azul, sem dizer qual cor é de qual categoria. Escolhi amarelo para Mercado, laranja para Restaurantes e azul para Transporte, deixando a cor das entradas fora das categorias. Trocar se preferir outra ligação.
 - Ícone de categoria: os prints usam círculos (canto 15 em ícone de 30x30), então mudei do canto 10 anterior. Se preferir o quadrado arredondado do estilo C, voltar para 10.
 - Abas: o print 1 mostra só ícones, sem texto. Coloquei ícone com texto curto por clareza (e leitores de tela). Se quiser só ícones, as abas precisam de `accessibilityLabel` de qualquer forma.
-- Falta decidir quais abas existirão e quais ícones representam cada uma.
+- ~~Falta decidir quais abas existirão e quais ícones representam cada uma.~~ Resolvido em 2026-10-17 (Módulo 6): Início, Transações, Cartões e Contas, com os ícones da seção 7, "Abas".
 - Os prints mostram um campo de busca no topo da tela. O app não tem busca por enquanto, então não coloquei esse componente; o estilo do campo da seção 7 serve se ela entrar depois.
 - Nome do app, conjunto de ícones e tema claro continuam `a definir`, como no arquivo original.
 - Token que pode faltar no código: um tom para a barra de resumo de gastos com várias cores (print 1). Não criei token; hoje as cores de categoria já cobrem esse caso se a barra for usada.

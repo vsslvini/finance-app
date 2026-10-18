@@ -14,6 +14,25 @@ export type GastoResumo = {
   total_parcelas: number | null;
 };
 
+// Uma transação da tela Transações. O backend usa o mesmo TransacaoSerializer
+// nos "últimos gastos" do resumo e em /api/transacoes/, então o tipo é o mesmo.
+export type Transacao = GastoResumo;
+
+// Uma conta de GET /api/contas/ (mesmos campos do ContaSerializer)
+export type Conta = {
+  id: number;
+  nome: string; // "Conta Corrente", "Mastercard Black"
+  nome_banco: string; // "Nubank"
+  tipo: 'corrente' | 'cartao';
+  saldo: string; // no cartão, é o valor da fatura aberta: "845.10"
+  // Os quatro abaixo só existem no cartão (null na conta corrente, e às vezes
+  // a Pluggy não manda no cartão também)
+  limite_total: string | null; // "5000.00"
+  limite_disponivel: string | null; // "4154.90"
+  data_fechamento: string | null; // "2026-10-28"
+  data_vencimento: string | null; // "2026-11-05"
+};
+
 // Resposta de GET e PATCH /api/plano/. Os dois null = sem plano.
 export type PlanoDeGuardar = {
   valor_mensal: string | null; // "500.00"
@@ -163,6 +182,18 @@ async function pedirApi<T>(caminho: string, metodo: Metodo = 'GET', corpo?: obje
 
 export async function buscarResumo(): Promise<Resumo> {
   return pedirApi<Resumo>('/api/resumo/');
+}
+
+// Todas as contas (correntes e cartões), já ordenadas pelo backend por banco e
+// nome. As telas Cartões e Contas usam a mesma rota e escolhem o que mostrar.
+export async function buscarContas(): Promise<Conta[]> {
+  return pedirApi<Conta[]>('/api/contas/');
+}
+
+// As transações de um mês do app ("2026-10"), da mais nova para a mais antiga.
+// O backend já aplica o "mês começando dias antes", então o app só manda o mês.
+export async function buscarTransacoes(mes: string): Promise<Transacao[]> {
+  return pedirApi<Transacao[]>(`/api/transacoes/?mes=${mes}`);
 }
 
 export async function buscarConfiguracoes(): Promise<Configuracoes> {

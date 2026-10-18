@@ -12,7 +12,9 @@ import { StatusBar } from 'expo-status-bar';
 import { cores } from '@/tema';
 
 // Layout raiz: todas as telas de src/app/ ficam dentro desta pilha (Stack).
-// O cabeçalho fica escondido; cada tela mostra o próprio título no corpo.
+// Hoje a pilha tem só o grupo (abas), cujo layout desenha a barra de abas
+// (ver (abas)/_layout.tsx). O cabeçalho fica escondido; cada tela mostra o
+// próprio título no corpo.
 export default function RootLayout() {
   // Carrega os pesos da Manrope usados no app (nomes iguais aos de fontes, em tema.ts)
   const [carregadas, erro] = useFonts({

@@ -8,6 +8,7 @@ import {
   hojeNoCelular,
   lerMes,
   lerReais,
+  mesVizinho,
   nomeDoMes,
   textoDaAtualizacao,
 } from '@/formatacao';
@@ -119,6 +120,26 @@ describe('lerMes', () => {
 describe('formatarMes', () => {
   it('"2027-07" vira "07/2027"', () => {
     expect(formatarMes('2027-07')).toBe('07/2027');
+  });
+});
+
+// mesVizinho anda a partir de um mês "AAAA-MM": passo -1 é o mês anterior e
+// passo 1 é o próximo. É o que as setas da tela Transações usam (módulo 6,
+// caso 9). Como o formatarData, trabalha só com o texto, sem Date, para o
+// fuso do celular nunca mudar o resultado. As armadilhas são as viradas de
+// ano: antes de janeiro vem dezembro do ano anterior, e depois de dezembro
+// vem janeiro do ano seguinte.
+describe('mesVizinho', () => {
+  it('"2026-10" com passo -1 vira "2026-09"', () => {
+    expect(mesVizinho('2026-10', -1)).toBe('2026-09');
+  });
+
+  it('"2026-01" com passo -1 vira "2025-12" (volta um ano)', () => {
+    expect(mesVizinho('2026-01', -1)).toBe('2025-12');
+  });
+
+  it('"2026-12" com passo 1 vira "2027-01" (avança um ano)', () => {
+    expect(mesVizinho('2026-12', 1)).toBe('2027-01');
   });
 });
 

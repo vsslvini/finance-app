@@ -112,6 +112,22 @@ export function tituloDoMes(mes: string): string {
   return nomeDoMes(ano, numeroDoMes);
 }
 
+// O mês "passo" meses antes (negativo) ou depois (positivo), no formato da API.
+// ("2026-10", -1) -> "2026-09"; ("2026-01", -1) -> "2025-12"; ("2026-12", 1) -> "2027-01".
+// Só com texto e contas inteiras, sem Date, para o fuso do celular nunca entrar.
+export function mesVizinho(mes: string, passo: number): string {
+  const ano = Number(mes.slice(0, 4));
+  const numeroDoMes = Number(mes.slice(5, 7));
+  // Conta quantos meses se passaram desde o "mês zero" (janeiro do ano 0).
+  // Assim a virada de ano sai sozinha da divisão por 12, sem if para dezembro
+  // e janeiro. O "- 1" faz janeiro valer 0 e dezembro valer 11.
+  const totalDeMeses = ano * 12 + (numeroDoMes - 1) + passo;
+  const novoAno = Math.floor(totalDeMeses / 12);
+  // O resto da divisão volta para 0 a 11; o "+ 1" devolve para 1 a 12
+  const novoMes = (totalDeMeses % 12) + 1;
+  return `${novoAno}-${String(novoMes).padStart(2, '0')}`;
+}
+
 // Texto para o leitor de tela, que lê "1.250,50 reais" melhor do que "R$ 1.250,50".
 // "Saldo: 1.250,50 reais" ou "Posso gastar por dia: menos 10,00 reais"
 export function rotuloEmReais(nome: string, valor: string): string {

@@ -8,7 +8,8 @@ import type { ReactElement } from 'react';
 import type { RefreshControlProps } from 'react-native';
 
 import { buscarResumo, type Guardado, type PlanoDeGuardar, type Resumo } from '@/api';
-import InicioScreen from '@/app/index';
+// Desde o módulo 6, a tela Início mora no grupo das abas: (abas)/index.tsx.
+import InicioScreen from '@/app/(abas)/index';
 
 // Dublê do pacote de ícones (a ideia do jest.mock está no rotas-test.tsx).
 // O ícone de verdade é um Text que só desenha depois de carregar a fonte
