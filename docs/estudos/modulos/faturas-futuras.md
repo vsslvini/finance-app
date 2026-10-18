@@ -5,7 +5,7 @@ Escrito em 2026-10-17. Atende RF13. Plano em
 estude** [`guardado-backend.md`](guardado-backend.md) (funções puras e services) e
 [`resumo-do-mes.md`](resumo-do-mes.md) (somas com `Decimal`).
 
-Este documento cobre o **7a (backend)**. A seção da tela entra no 7b.
+Este documento cobre o **7a (backend)** e o **7b (a seção na aba Cartões)**, na seção 10.
 
 ## 1. O que o módulo entrega
 
@@ -107,3 +107,36 @@ curl -H "Authorization: Token $TOKEN" http://127.0.0.1:8000/api/faturas-futuras/
 - Compras que a Pluggy ainda não mandou não entram.
 - Duas compras iguais no mesmo cartão (mesma descrição, valor e parcelas) viram uma série só.
 - Um sufixo sem espaço antes ("LOJA2/6") não é reconhecido.
+
+## 10. 7b: a seção "Próximas faturas" na aba Cartões
+
+Embaixo dos cartões: o título "Próximas faturas", a frase "Estimativa pelas compras parceladas que
+a Pluggy enviou." e um cartão com os 6 meses ("Novembro de 2026" à esquerda, "R$ 231,26" à
+direita). Num mês com mais de um cartão, aparece uma linha por cartão ("Inter: R$ 77,07"). Se
+todos os meses vierem zerados: "Nenhuma parcela futura encontrada.". Sem nenhum cartão, a seção
+não aparece.
+
+- `src/api.ts`: tipos `CartaoFuturo`, `MesFuturo` e `FaturasFuturas`, e `buscarFaturasFuturas()`.
+- `src/componentes/ProximasFaturas.tsx` (novo): desenha a seção a partir da lista de meses.
+- `src/app/(abas)/cartoes.tsx`: `buscarDadosDosCartoes` busca as contas e as faturas juntas com
+  **`Promise.all`**, que espera as duas promessas e falha se qualquer uma falhar. É essa função
+  (fora do componente, para ser sempre a mesma) que o `useCarga` usa; assim "Tentar de novo" e
+  puxar para baixo já buscam as duas.
+- Acessibilidade: cada mês é um bloco lido como "Novembro de 2026: 231,26 reais"; as linhas por
+  cartão ficam fora desse bloco (senão o leitor de tela pularia), cada uma com o rótulo
+  "Inter: 77,07 reais".
+
+Testes (`__tests__/cartoes-test.tsx`, 8 novos; o app passa a ter 111): o servidor falso responde
+também `/api/faturas-futuras/` (por padrão, 6 meses zerados, para os testes antigos não mudarem).
+
+- Caso 1: título, explicação, "Novembro de 2026", "R$ 231,26" e o rótulo do mês.
+- Caso 2 (dois testes): novembro mostra "Inter: R$ 77,07" e "PicPay: R$ 154,19"; dezembro, com
+  um cartão só, não mostra o detalhe.
+- Caso 3: tudo zerado mostra "Nenhuma parcela futura encontrada." e nenhum mês.
+- Caso 4 (dois testes): a tela pede a rota; com 500 nas faturas, aparece o erro, e "Tentar de
+  novo" busca as duas rotas de novo.
+- Caso 5: puxar para baixo busca as duas rotas e mostra "R$ 300,00".
+- Caso 6: sem cartão, a seção não aparece.
+
+Limite do 7b: com dois cartões do mesmo banco no mesmo mês, as linhas por cartão mostram o mesmo
+nome de banco.

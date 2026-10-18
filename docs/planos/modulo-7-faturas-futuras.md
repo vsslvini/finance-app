@@ -81,3 +81,33 @@ Seção "Próximas faturas" embaixo dos cartões na aba Cartões: título (`subt
 explicação curta em `detalhe` ("Estimativa pelas compras parceladas que a Pluggy enviou."), uma
 linha por mês ("Novembro de 2026" à esquerda, "R$ 245,30" à direita) e, embaixo de cada mês com
 mais de um cartão, o detalhe por cartão em `detalhe`. Casos de teste definidos junto com o 7b.
+
+## 7b: contrato da tela (decidido em 2026-10-17)
+
+- `src/api.ts`: tipos `CartaoFuturo = { conta: number; nome_banco: string; nome_conta: string;
+  total: string }`, `MesFuturo = { mes: string; total: string; cartoes: CartaoFuturo[] }`,
+  `FaturasFuturas = { meses: MesFuturo[] }` e `buscarFaturasFuturas()`
+  (`GET /api/faturas-futuras/`).
+- A aba Cartões busca as contas e as faturas futuras juntas, numa função só fora do componente
+  (ex.: `buscarDadosDosCartoes`, com `Promise.all`), usada pelo `useCarga`. Se qualquer uma
+  falhar, a tela mostra o erro de sempre, e "Tentar de novo" (ou puxar para baixo) busca as duas.
+- Seção embaixo dos cartões (só quando há pelo menos um cartão): título "Próximas faturas"
+  (`subtitulo`, header), explicação "Estimativa pelas compras parceladas que a Pluggy enviou."
+  (`detalhe`) e um cartão `superficie` com uma linha por mês dos 6: à esquerda
+  `tituloDoMes(mes)` ("Novembro de 2026", `corpo`), à direita `formatarReais(total)` (`valor`).
+  Cada linha é um bloco acessível com `rotuloEmReais(tituloDoMes(mes), total)`
+  ("Novembro de 2026: 231,26 reais"). Embaixo de um mês com **mais de um** cartão, uma linha
+  `detalhe` por cartão: "Inter: R$ 77,07".
+- Se todos os meses vierem com total "0.00": no lugar das linhas, "Nenhuma parcela futura
+  encontrada." (`textoSecundario`).
+
+Casos de teste (7b):
+
+1. A seção mostra "Próximas faturas", a explicação e "Novembro de 2026" com "R$ 231,26".
+2. Mês com dois cartões mostra "Inter: R$ 77,07" e "PicPay: R$ 154,19"; mês com um cartão só não
+   mostra o detalhe.
+3. Todos os meses zerados: "Nenhuma parcela futura encontrada." e nenhuma linha de mês.
+4. A tela pede `GET /api/faturas-futuras/`; se ele der 500, aparece o erro da tela e "Tentar de
+   novo" busca as contas e as faturas de novo.
+5. Puxar para baixo busca as duas rotas de novo e mostra o valor novo.
+6. Sem nenhum cartão, a seção não aparece (só "Nenhum cartão encontrado.").
