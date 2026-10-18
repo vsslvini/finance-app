@@ -16,6 +16,10 @@ class Configuracao(models.Model):
     limite_fatura = models.DecimalField(
         "limite da fatura", max_digits=12, decimal_places=2, null=True, blank=True
     )
+    # Vazio (NULL) = sem renda informada; usada na % da renda da aba "A pagar"
+    renda_mensal = models.DecimalField(
+        "renda mensal", max_digits=12, decimal_places=2, null=True, blank=True
+    )
 
     class Meta:
         verbose_name = "configuração"

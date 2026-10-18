@@ -12,7 +12,7 @@ from .models import (
 
 @admin.register(Configuracao)
 class ConfiguracaoAdmin(admin.ModelAdmin):
-    list_display = ("__str__", "dias_antes_do_mes", "limite_fatura")
+    list_display = ("__str__", "dias_antes_do_mes", "limite_fatura", "renda_mensal")
 
     def has_add_permission(self, request):
         # Linha única: quem cria é o Configuracao.atual() (na primeira chamada

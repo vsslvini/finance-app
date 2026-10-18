@@ -7,6 +7,7 @@ from planejamento.models import Configuracao
 
 DIAS_INVALIDOS = "Os dias antes do mês precisam ficar entre 0 e 10."
 LIMITE_NEGATIVO = "O limite da fatura não pode ser negativo."
+RENDA_NEGATIVA = "A renda não pode ser negativa."
 
 
 def salvar_configuracao(**campos):
@@ -32,16 +33,28 @@ def test_get_sem_nada_salvo_devolve_os_padroes(cliente_com_token):
     resposta = cliente_com_token.get("/api/configuracoes/")
 
     assert resposta.status_code == 200
-    assert resposta.json() == {"dias_antes_do_mes": 0, "limite_fatura": None}
+    assert resposta.json() == {
+        "dias_antes_do_mes": 0,
+        "limite_fatura": None,
+        "renda_mensal": None,
+    }
 
 
 def test_get_devolve_os_valores_salvos(cliente_com_token):
     # Caso: devolve o que está salvo, com o dinheiro como texto
-    salvar_configuracao(dias_antes_do_mes=2, limite_fatura=Decimal("1500.00"))
+    salvar_configuracao(
+        dias_antes_do_mes=2,
+        limite_fatura=Decimal("1500.00"),
+        renda_mensal=Decimal("5000.00"),
+    )
 
     resposta = cliente_com_token.get("/api/configuracoes/")
 
-    assert resposta.json() == {"dias_antes_do_mes": 2, "limite_fatura": "1500.00"}
+    assert resposta.json() == {
+        "dias_antes_do_mes": 2,
+        "limite_fatura": "1500.00",
+        "renda_mensal": "5000.00",
+    }
 
 
 def test_patch_muda_os_dias_antes_e_o_limite(cliente_com_token):
@@ -53,7 +66,11 @@ def test_patch_muda_os_dias_antes_e_o_limite(cliente_com_token):
     )
 
     assert resposta.status_code == 200
-    assert resposta.json() == {"dias_antes_do_mes": 2, "limite_fatura": "1500.00"}
+    assert resposta.json() == {
+        "dias_antes_do_mes": 2,
+        "limite_fatura": "1500.00",
+        "renda_mensal": None,
+    }
     configuracao = Configuracao.atual()
     assert configuracao.dias_antes_do_mes == 2
     assert configuracao.limite_fatura == Decimal("1500.00")
@@ -68,7 +85,11 @@ def test_patch_aceita_limite_null(cliente_com_token):
     )
 
     assert resposta.status_code == 200
-    assert resposta.json() == {"dias_antes_do_mes": 3, "limite_fatura": None}
+    assert resposta.json() == {
+        "dias_antes_do_mes": 3,
+        "limite_fatura": None,
+        "renda_mensal": None,
+    }
     assert Configuracao.atual().limite_fatura is None
 
 
@@ -104,5 +125,48 @@ def test_patch_aceita_limite_zero(cliente_com_token):
     )
 
     assert resposta.status_code == 200
-    assert resposta.json() == {"dias_antes_do_mes": 0, "limite_fatura": "0.00"}
+    assert resposta.json() == {
+        "dias_antes_do_mes": 0,
+        "limite_fatura": "0.00",
+        "renda_mensal": None,
+    }
     assert Configuracao.atual().limite_fatura == Decimal("0.00")
+
+
+def test_patch_grava_a_renda_mensal(cliente_com_token):
+    # Caso 10: a renda enviada é gravada e volta como texto com 2 casas; os
+    # outros campos ficam como estavam
+    resposta = cliente_com_token.patch(
+        "/api/configuracoes/", {"renda_mensal": "5000.00"}, format="json"
+    )
+
+    assert resposta.status_code == 200
+    assert resposta.json()["renda_mensal"] == "5000.00"
+    assert Configuracao.atual().renda_mensal == Decimal("5000.00")
+
+
+def test_patch_recusa_renda_negativa(cliente_com_token):
+    # Caso 10: renda negativa não faz sentido; 400 com a mensagem, e a renda
+    # salva não muda
+    salvar_configuracao(renda_mensal=Decimal("5000.00"))
+
+    resposta = cliente_com_token.patch(
+        "/api/configuracoes/", {"renda_mensal": "-1.00"}, format="json"
+    )
+
+    assert resposta.status_code == 400
+    assert resposta.json() == {"renda_mensal": [RENDA_NEGATIVA]}
+    assert Configuracao.atual().renda_mensal == Decimal("5000.00")
+
+
+def test_patch_renda_null_limpa_a_renda(cliente_com_token):
+    # Caso 10: null tira a renda (sem renda, o app não mostra a %)
+    salvar_configuracao(renda_mensal=Decimal("5000.00"))
+
+    resposta = cliente_com_token.patch(
+        "/api/configuracoes/", {"renda_mensal": None}, format="json"
+    )
+
+    assert resposta.status_code == 200
+    assert resposta.json()["renda_mensal"] is None
+    assert Configuracao.atual().renda_mensal is None

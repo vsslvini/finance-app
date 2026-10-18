@@ -18,6 +18,7 @@ from planejamento.models import (
 )
 from planejamento.serializers import (
     MES_INICIO_INVALIDO,
+    APagarSerializer,
     ConfiguracaoSerializer,
     DividaSerializer,
     EditarDividaSerializer,
@@ -27,6 +28,7 @@ from planejamento.serializers import (
     NovaDividaSerializer,
     PlanoDeGuardarSerializer,
 )
+from planejamento.services.a_pagar import meses_a_pagar, percentual_da_renda
 from planejamento.services.gastos_fixos import situacoes_do_mes
 
 
@@ -42,6 +44,19 @@ def configuracoes(request):
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response(serializer.data)
+
+
+@api_view(["GET"])
+def a_pagar(request):
+    configuracao = Configuracao.atual()
+    meses = meses_a_pagar(timezone.localdate(), configuracao.dias_antes_do_mes)
+    for mes in meses:
+        mes["percentual_da_renda"] = percentual_da_renda(
+            mes["total"], configuracao.renda_mensal
+        )
+    # O serializer devolve o dinheiro como texto; Decimal solto viraria float
+    dados = {"renda_mensal": configuracao.renda_mensal, "meses": meses}
+    return Response(APagarSerializer(dados).data)
 
 
 @api_view(["GET", "PATCH"])

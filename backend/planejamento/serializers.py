@@ -15,6 +15,7 @@ from planejamento.services.dividas import (
 
 DIAS_INVALIDOS = "Os dias antes do mês precisam ficar entre 0 e 10."
 LIMITE_NEGATIVO = "O limite da fatura não pode ser negativo."
+RENDA_NEGATIVA = "A renda não pode ser negativa."
 VALOR_NEGATIVO = "O valor por mês não pode ser negativo."
 MES_ALVO_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2027-07."
 MES_ALVO_NO_PASSADO = "O mês alvo não pode ser antes do mês atual."
@@ -47,13 +48,19 @@ class ConfiguracaoSerializer(serializers.ModelSerializer):
         model = Configuracao
         # limite_fatura sai como texto ("1500.00") ou null, como o dinheiro do
         # resumo; o ModelSerializer já aceita null porque o model tem null=True
-        fields = ("dias_antes_do_mes", "limite_fatura")
+        fields = ("dias_antes_do_mes", "limite_fatura", "renda_mensal")
 
     def validate_limite_fatura(self, valor):
         # O DRF chama validate_<campo> depois de converter o texto em Decimal.
         # Também chega None (sem limite), que continua valendo
         if valor is not None and valor < 0:
             raise serializers.ValidationError(LIMITE_NEGATIVO)
+        return valor
+
+    def validate_renda_mensal(self, valor):
+        # Mesma regra do limite: None (sem renda) vale, negativo não
+        if valor is not None and valor < 0:
+            raise serializers.ValidationError(RENDA_NEGATIVA)
         return valor
 
 
@@ -221,6 +228,27 @@ class GastoFixoSerializer(serializers.ModelSerializer):
         mes = self.context["mes_atual"]
         situacao = self.context["situacoes"][gasto.id]
         return {"mes": mes.strftime("%Y-%m"), "situacao": situacao}
+
+
+class MesAPagarSerializer(serializers.Serializer):
+    # Só a saída da rota /api/a-pagar/. Recebe dicts (não models); o
+    # DecimalField faz o dinheiro sair como texto ("1600.40"), não float
+    mes = serializers.DateField(format="%Y-%m")
+    fixos = serializers.DecimalField(max_digits=12, decimal_places=2)
+    dividas = serializers.DecimalField(max_digits=12, decimal_places=2)
+    total = serializers.DecimalField(max_digits=12, decimal_places=2)
+    falta = serializers.DecimalField(max_digits=12, decimal_places=2)
+    # Uma casa ("38.7"); None (null no JSON) quando não há renda
+    percentual_da_renda = serializers.DecimalField(
+        max_digits=12, decimal_places=1, allow_null=True
+    )
+
+
+class APagarSerializer(serializers.Serializer):
+    renda_mensal = serializers.DecimalField(
+        max_digits=12, decimal_places=2, allow_null=True
+    )
+    meses = MesAPagarSerializer(many=True)
 
 
 class EntradaGastoFixoSerializer(serializers.ModelSerializer):
