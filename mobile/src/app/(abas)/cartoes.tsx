@@ -1,21 +1,39 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { buscarContas } from '@/api';
+import { buscarContas, buscarFaturasFuturas, type Conta, type FaturasFuturas } from '@/api';
 import BlocoDoCartao from '@/componentes/BlocoDoCartao';
 import Carregando from '@/componentes/Carregando';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
+import ProximasFaturas from '@/componentes/ProximasFaturas';
 import { cantos, cores, espaco, textos } from '@/tema';
 import { useCarga } from '@/useCarga';
 
-// Tela Cartões: um bloco por cartão de crédito, com fatura, limite e datas.
+// Tudo o que a aba Cartões precisa, vindo de duas rotas
+type DadosDosCartoes = {
+  contas: Conta[];
+  faturasFuturas: FaturasFuturas;
+};
+
+// Busca as contas e as faturas futuras ao mesmo tempo (Promise.all dispara os
+// dois pedidos juntos e espera os dois). Se qualquer um falhar, o Promise.all
+// falha também, e a tela mostra o erro de sempre; "Tentar de novo" e o puxar
+// para baixo chamam esta função de novo, então buscam as duas rotas.
+// Fica fora do componente para ser sempre a mesma função (o useCarga pede isso).
+async function buscarDadosDosCartoes(): Promise<DadosDosCartoes> {
+  const [contas, faturasFuturas] = await Promise.all([buscarContas(), buscarFaturasFuturas()]);
+  return { contas, faturasFuturas };
+}
+
+// Tela Cartões: um bloco por cartão de crédito, com fatura, limite e datas, e
+// embaixo a estimativa das próximas faturas.
 //
-// Fluxo: a tela abre, busca todas as contas em /api/contas/ e mostra só as de
-// tipo "cartao", na ordem que a API mandou (por banco e nome).
+// Fluxo: a tela abre, busca /api/contas/ e /api/faturas-futuras/ juntas, mostra
+// só as contas de tipo "cartao" (na ordem da API, por banco e nome) e, se houver
+// algum cartão, a seção "Próximas faturas".
 export default function CartoesScreen() {
-  // buscarContas é uma função da api.ts, então é sempre a mesma (o useCarga pede isso)
   const { estado, recarregar, atualizar, atualizando, falhouAoAtualizar } =
-    useCarga(buscarContas);
+    useCarga(buscarDadosDosCartoes);
 
   // A borda de baixo fica com a barra de abas, que já cuida da área segura
   if (estado.tipo === 'carregando') {
@@ -36,7 +54,7 @@ export default function CartoesScreen() {
 
   // Calculado durante a renderização: a lista de cartões sai das contas, sem
   // precisar guardar uma cópia no estado
-  const cartoes = estado.dados.filter((conta) => conta.tipo === 'cartao');
+  const cartoes = estado.dados.contas.filter((conta) => conta.tipo === 'cartao');
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.tela}>
@@ -44,8 +62,8 @@ export default function CartoesScreen() {
         testID="rolagem-cartoes"
         style={styles.tela}
         contentContainerStyle={styles.conteudo}
-        // Puxar para baixo só relê as contas (sem sincronizar com a Pluggy;
-        // isso continua só no Início). As cores são as mesmas do Início
+        // Puxar para baixo relê as contas e as faturas futuras (sem sincronizar
+        // com a Pluggy; isso continua só no Início). As cores são as do Início
         refreshControl={
           <RefreshControl
             refreshing={atualizando}
@@ -70,13 +88,19 @@ export default function CartoesScreen() {
         </View>
 
         {cartoes.length === 0 ? (
+          // Sem cartão, não há fatura futura para mostrar: a seção some
           <View style={styles.vazio}>
             <Text style={[textos.corpo, styles.textoVazio]}>Nenhum cartão encontrado.</Text>
           </View>
         ) : (
-          // Poucos cartões, então um map simples basta; FlatList dentro de
-          // ScrollView não é recomendado
-          cartoes.map((cartao) => <BlocoDoCartao key={cartao.id} cartao={cartao} />)
+          <>
+            {/* Poucos cartões, então um map simples basta; FlatList dentro de
+                ScrollView não é recomendado */}
+            {cartoes.map((cartao) => (
+              <BlocoDoCartao key={cartao.id} cartao={cartao} />
+            ))}
+            <ProximasFaturas meses={estado.dados.faturasFuturas.meses} />
+          </>
         )}
       </ScrollView>
     </SafeAreaView>

@@ -166,6 +166,17 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 - Com desconto do plano, o destaque "posso gastar" ganha uma linha em `detalhe` logo abaixo do
   número: "já separando R$ 200,00 para guardar".
 
+### Seção Próximas faturas (aba Cartões, embaixo dos cartões)
+- Só aparece quando há pelo menos um cartão.
+- Título "Próximas faturas" em `subtitulo` (header) e, embaixo, a explicação "Estimativa pelas
+  compras parceladas que a Pluggy enviou." em `detalhe`.
+- Um cartão só, `superficie`, canto 16, com uma linha por mês (os 6 próximos): nome do mês em
+  `corpo` à esquerda ("Novembro de 2026") e total em `valor` à direita ("R$ 245,30"); divisória
+  de 1 em `borda` entre os meses.
+- Mês com mais de um cartão: embaixo da linha, uma linha por cartão em `detalhe` ("Inter: R$ 77,07").
+- Todos os meses zerados: no lugar das linhas, "Nenhuma parcela futura encontrada." em
+  `textoSecundario`, centralizado.
+
 ### Lista de gastos
 - Item: ícone de categoria (30x30, canto 15) à esquerda; descrição e detalhe no meio; valor à direita.
 - Divisória de 1 em `borda` entre itens.

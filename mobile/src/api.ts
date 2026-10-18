@@ -68,6 +68,27 @@ export type Resumo = {
   ultima_atualizacao: string | null;
 };
 
+// Um cartão dentro de um mês de GET /api/faturas-futuras/
+export type CartaoFuturo = {
+  conta: number; // id da conta do cartão
+  nome_banco: string; // "Nubank"
+  nome_conta: string; // "gold"
+  total: string; // soma das parcelas deste cartão no mês: "245.30"
+};
+
+// Um mês de GET /api/faturas-futuras/. "cartoes" só traz os cartões com total
+// maior que zero (vazio num mês sem parcelas), na ordem da API de contas.
+export type MesFuturo = {
+  mes: string; // "2026-11"
+  total: string; // soma de todos os cartões no mês: "245.30" ou "0.00"
+  cartoes: CartaoFuturo[];
+};
+
+// Resposta de GET /api/faturas-futuras/: sempre os 6 meses depois do mês atual do app
+export type FaturasFuturas = {
+  meses: MesFuturo[];
+};
+
 // Resposta de GET e PATCH /api/configuracoes/
 export type Configuracoes = {
   dias_antes_do_mes: number;
@@ -188,6 +209,12 @@ export async function buscarResumo(): Promise<Resumo> {
 // nome. As telas Cartões e Contas usam a mesma rota e escolhem o que mostrar.
 export async function buscarContas(): Promise<Conta[]> {
   return pedirApi<Conta[]>('/api/contas/');
+}
+
+// A estimativa das próximas faturas, feita pelo backend a partir das compras
+// parceladas do cartão. O app só mostra; a conta toda fica no backend.
+export async function buscarFaturasFuturas(): Promise<FaturasFuturas> {
+  return pedirApi<FaturasFuturas>('/api/faturas-futuras/');
 }
 
 // As transações de um mês do app ("2026-10"), da mais nova para a mais antiga.

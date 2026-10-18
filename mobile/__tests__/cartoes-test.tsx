@@ -3,15 +3,20 @@
 // GET /api/contas/ (que traz contas correntes e cartões juntos) e mostra só
 // as contas com tipo "cartao".
 //
+// Módulo 7b: embaixo dos cartões, a seção "Próximas faturas", com a
+// estimativa dos próximos 6 meses que vem de GET /api/faturas-futuras/. A
+// tela pede as duas rotas juntas.
+//
 // As peças repetidas (fetch falso, respostas falsas, mensagens, puxar para
 // baixo) estão em mobile/testes/ajudantes.ts.
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
-import type { Conta } from '@/api';
+import type { Conta, FaturasFuturas } from '@/api';
 import CartoesScreen from '@/app/(abas)/cartoes';
 
 import {
   AVISO_ATUALIZACAO,
+  ENDERECO_BASE,
   MENSAGEM_SERVIDOR,
   enderecosPedidos,
   fetchFalso,
@@ -80,22 +85,67 @@ const INTER_GOLD: Conta = {
 
 const TODAS_AS_CONTAS = [NUBANK_CORRENTE, MASTERCARD_BLACK, INTER_GOLD];
 
+// Faturas futuras falsas no formato do GET /api/faturas-futuras/ (módulo 7a):
+// sempre 6 meses, cada um com o total e os cartões que têm parcela nele.
+// A tela não cruza esta lista com a das contas: o nome do banco que aparece
+// no detalhe ("Inter: R$ 77,07") vem daqui mesmo.
+const SEIS_MESES = ['2026-11', '2026-12', '2027-01', '2027-02', '2027-03', '2027-04'];
+
+// Os 6 meses zerados: nenhuma parcela futura. É a resposta padrão, para os
+// testes do módulo 6 (acima do 7b) continuarem como eram. O map cria um mês
+// zerado para cada texto da lista SEIS_MESES.
+const FATURAS_ZERADAS: FaturasFuturas = {
+  meses: SEIS_MESES.map((mes) => ({ mes, total: '0.00', cartoes: [] })),
+};
+
+// Como os dados reais: novembro com dois cartões (Inter e PicPay), dezembro
+// só com o Inter e os outros 4 meses zerados. O slice(2) pega os meses
+// zerados a partir do terceiro (janeiro a abril de 2027), e o "..." coloca
+// cada um deles dentro desta lista, depois de dezembro.
+const FATURAS_COM_PARCELAS: FaturasFuturas = {
+  meses: [
+    {
+      mes: '2026-11',
+      total: '231.26',
+      cartoes: [
+        { conta: 3, nome_banco: 'Inter', nome_conta: 'Inter Gold', total: '77.07' },
+        { conta: 4, nome_banco: 'PicPay', nome_conta: 'PicPay Card', total: '154.19' },
+      ],
+    },
+    {
+      mes: '2026-12',
+      total: '38.27',
+      cartoes: [{ conta: 3, nome_banco: 'Inter', nome_conta: 'Inter Gold', total: '38.27' }],
+    },
+    ...FATURAS_ZERADAS.meses.slice(2),
+  ],
+};
+
 // ---------------------------------------------------------------------------
 // O servidor falso desta tela
 //
-// Só responde GET /api/contas/, com o que respostaDasContas devolver. Ela
-// começa, em cada teste, com as três contas acima (veja o beforeEach); um
-// teste pode trocá-la, para fingir outros dados ou um erro. Qualquer outro
-// pedido dá erro alto.
+// Responde duas rotas:
+// - GET /api/contas/, com o que respostaDasContas devolver (começa com as
+//   três contas acima);
+// - GET /api/faturas-futuras/, com o que respostaDasFaturas devolver (começa
+//   com os 6 meses zerados).
+// As duas voltam ao padrão antes de cada teste (veja o beforeEach); um teste
+// pode trocá-las, para fingir outros dados ou um erro. Qualquer outro pedido
+// dá erro alto.
 // ---------------------------------------------------------------------------
 let respostaDasContas: () => Promise<Response>;
+let respostaDasFaturas: () => Promise<Response>;
 
 beforeEach(() => {
   respostaDasContas = async () => respostaFalsa(200, TODAS_AS_CONTAS);
+  respostaDasFaturas = async () => respostaFalsa(200, FATURAS_ZERADAS);
   fetchFalso.mockImplementation(async (endereco, opcoes) => {
     const url = String(endereco);
     if (url.includes('/api/contas/')) {
       return respostaDasContas();
+    }
+    if (url.includes('/api/faturas-futuras/')) {
+      return respostaDasFaturas();
     }
     throw new Error(`Pedido inesperado no teste: ${opcoes?.method ?? 'GET'} ${url}`);
   });
@@ -230,5 +280,139 @@ describe('Tela Cartões', () => {
     expect(await screen.findByText(AVISO_ATUALIZACAO)).toBeOnTheScreen();
     expect(screen.getByText('R$ 845,10')).toBeOnTheScreen();
     expect(screen.queryByText(MENSAGEM_SERVIDOR)).toBeNull();
+  });
+});
+
+// Os casos do módulo 7b. Os números "(caso N)" são os da seção "7b: contrato
+// da tela" em docs/planos/modulo-7-faturas-futuras.md.
+describe('Tela Cartões: Próximas faturas', () => {
+  it('mostra "Próximas faturas", a explicação e "Novembro de 2026" com "R$ 231,26" (caso 1)', async () => {
+    // Prepara: o servidor manda as faturas com parcelas.
+    respostaDasFaturas = async () => respostaFalsa(200, FATURAS_COM_PARCELAS);
+
+    await render(<CartoesScreen />);
+
+    // Verifica: o título da seção é um cabeçalho (o leitor de tela anuncia
+    // "cabeçalho"), por isso buscamos pelo papel "header" e pelo nome.
+    expect(await screen.findByRole('header', { name: 'Próximas faturas' })).toBeOnTheScreen();
+    expect(
+      screen.getByText('Estimativa pelas compras parceladas que a Pluggy enviou.'),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('Novembro de 2026')).toBeOnTheScreen();
+    expect(screen.getByText('R$ 231,26')).toBeOnTheScreen();
+    // A linha inteira é lida de uma vez pelo leitor de tela. Esse rótulo
+    // também garante que o valor está na linha de novembro, e não em outra.
+    expect(screen.getByLabelText('Novembro de 2026: 231,26 reais')).toBeOnTheScreen();
+  });
+
+  it('mês com dois cartões mostra "Inter: R$ 77,07" e "PicPay: R$ 154,19" (caso 2)', async () => {
+    respostaDasFaturas = async () => respostaFalsa(200, FATURAS_COM_PARCELAS);
+
+    await render(<CartoesScreen />);
+
+    // Novembro tem dois cartões: aparece uma linha de detalhe para cada um.
+    expect(await screen.findByText('Inter: R$ 77,07')).toBeOnTheScreen();
+    expect(screen.getByText('PicPay: R$ 154,19')).toBeOnTheScreen();
+  });
+
+  it('mês com um cartão só não mostra o detalhe por cartão (caso 2)', async () => {
+    respostaDasFaturas = async () => respostaFalsa(200, FATURAS_COM_PARCELAS);
+
+    await render(<CartoesScreen />);
+
+    // Dezembro aparece com o total...
+    expect(await screen.findByText('Dezembro de 2026')).toBeOnTheScreen();
+    expect(screen.getByText('R$ 38,27')).toBeOnTheScreen();
+    // ...mas sem a linha "Inter: R$ 38,27", que só repetiria o mesmo valor.
+    expect(screen.queryByText('Inter: R$ 38,27')).toBeNull();
+  });
+
+  it('com todos os meses zerados, avisa "Nenhuma parcela futura encontrada." e não mostra meses (caso 3)', async () => {
+    // A resposta padrão do servidor falso já é a dos 6 meses zerados.
+    await render(<CartoesScreen />);
+
+    expect(await screen.findByText('Nenhuma parcela futura encontrada.')).toBeOnTheScreen();
+    // Nenhuma linha de mês: nenhum texto que termine em "de 2026" ou
+    // "de 2027". Na expressão regular, [67] aceita o 6 ou o 7, e o $ quer
+    // dizer "termina aqui".
+    expect(screen.queryByText(/de 202[67]$/)).toBeNull();
+  });
+
+  it('pede GET /api/faturas-futuras/ ao abrir (caso 4)', async () => {
+    await render(<CartoesScreen />);
+    // Espera a tela terminar de carregar antes de olhar os pedidos.
+    await screen.findByText('Mastercard Black');
+
+    // Verifica: um pedido só, exatamente para este endereço (sem nada a mais).
+    expect(enderecosPedidos('/api/faturas-futuras/')).toEqual([
+      `${ENDERECO_BASE}/api/faturas-futuras/`,
+    ]);
+  });
+
+  it('com erro 500 nas faturas, avisa e "Tentar de novo" busca as contas e as faturas de novo (caso 4)', async () => {
+    // Prepara: as contas respondem bem, mas as faturas dão 500.
+    respostaDasFaturas = async () => respostaFalsa(500);
+
+    await render(<CartoesScreen />);
+
+    // Verifica: a tela inteira mostra o erro, mesmo com as contas certas.
+    expect(await screen.findByText(MENSAGEM_SERVIDOR)).toBeOnTheScreen();
+
+    // Prepara: o servidor se recupera e manda as faturas com parcelas.
+    respostaDasFaturas = async () => respostaFalsa(200, FATURAS_COM_PARCELAS);
+
+    // Faz: toca em "Tentar de novo".
+    await fireEvent.press(screen.getByRole('button', { name: 'Tentar de novo' }));
+
+    // Verifica: a seção apareceu e as duas rotas foram pedidas duas vezes.
+    expect(await screen.findByText('R$ 231,26')).toBeOnTheScreen();
+    expect(enderecosPedidos('/api/contas/')).toHaveLength(2);
+    expect(enderecosPedidos('/api/faturas-futuras/')).toHaveLength(2);
+  });
+
+  it('puxar para baixo busca as contas e as faturas de novo e mostra o valor novo (caso 5)', async () => {
+    respostaDasFaturas = async () => respostaFalsa(200, FATURAS_COM_PARCELAS);
+
+    await render(<CartoesScreen />);
+    await screen.findByText('R$ 231,26');
+
+    // Prepara: na próxima vez, novembro sobe para 300,00 (o Inter passou de
+    // 77,07 para 145,81; 145,81 + 154,19 = 300,00). Os outros 5 meses ficam
+    // iguais: o slice(1) pega a lista a partir do segundo mês.
+    const novembroNovo = {
+      mes: '2026-11',
+      total: '300.00',
+      cartoes: [
+        { conta: 3, nome_banco: 'Inter', nome_conta: 'Inter Gold', total: '145.81' },
+        { conta: 4, nome_banco: 'PicPay', nome_conta: 'PicPay Card', total: '154.19' },
+      ],
+    };
+    const faturasNovas: FaturasFuturas = {
+      meses: [novembroNovo, ...FATURAS_COM_PARCELAS.meses.slice(1)],
+    };
+    respostaDasFaturas = async () => respostaFalsa(200, faturasNovas);
+
+    // Faz: puxa a tela para baixo.
+    await puxarParaBaixo('rolagem-cartoes');
+
+    // Verifica: o valor novo tomou o lugar do antigo, e as duas rotas foram
+    // pedidas de novo.
+    expect(await screen.findByText('R$ 300,00')).toBeOnTheScreen();
+    expect(screen.queryByText('R$ 231,26')).toBeNull();
+    expect(enderecosPedidos('/api/contas/')).toHaveLength(2);
+    expect(enderecosPedidos('/api/faturas-futuras/')).toHaveLength(2);
+  });
+
+  it('sem nenhum cartão, a seção "Próximas faturas" não aparece (caso 6)', async () => {
+    // Prepara: só a conta corrente. As faturas vêm com parcelas de propósito:
+    // mesmo com dados, sem cartão na tela a seção não deve aparecer.
+    respostaDasContas = async () => respostaFalsa(200, [NUBANK_CORRENTE]);
+    respostaDasFaturas = async () => respostaFalsa(200, FATURAS_COM_PARCELAS);
+
+    await render(<CartoesScreen />);
+
+    expect(await screen.findByText('Nenhum cartão encontrado.')).toBeOnTheScreen();
+    expect(screen.queryByText('Próximas faturas')).toBeNull();
+    expect(screen.queryByText('Novembro de 2026')).toBeNull();
   });
 });
