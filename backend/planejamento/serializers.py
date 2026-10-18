@@ -1,6 +1,12 @@
 from rest_framework import serializers
 
-from planejamento.models import Configuracao, Divida, ParcelaDaDivida, PlanoDeGuardar
+from planejamento.models import (
+    Configuracao,
+    Divida,
+    GastoFixo,
+    ParcelaDaDivida,
+    PlanoDeGuardar,
+)
 from planejamento.services.dividas import criar_divida
 
 DIAS_INVALIDOS = "Os dias antes do mês precisam ficar entre 0 e 10."
@@ -13,10 +19,14 @@ SEM_CREDOR = "Informe para quem é a dívida."
 VALOR_INVALIDO = "O valor precisa ser maior que zero."
 PARCELAS_INVALIDAS = "As parcelas precisam ficar entre 1 e 120."
 MES_INICIO_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-11."
+SEM_NOME = "Informe o nome do gasto."
+TRECHO_CURTO = "O trecho precisa ter pelo menos 3 letras."
+DIA_INVALIDO = "O dia do vencimento precisa ficar entre 1 e 31."
 
 # O mesmo texto para o campo que falta, que vem vazio ou só com espaços (o
 # CharField do DRF tira os espaços das pontas antes de conferir)
 ERROS_DO_CREDOR = {"required": SEM_CREDOR, "blank": SEM_CREDOR, "null": SEM_CREDOR}
+ERROS_DO_NOME = {"required": SEM_NOME, "blank": SEM_NOME, "null": SEM_NOME}
 
 
 class ConfiguracaoSerializer(serializers.ModelSerializer):
@@ -174,3 +184,70 @@ class EditarDividaSerializer(serializers.ModelSerializer):
 class MarcarParcelaSerializer(serializers.Serializer):
     # Entrada do PATCH da parcela: {"paga": true} ou {"paga": false}
     paga = serializers.BooleanField()
+
+
+class GastoFixoSerializer(serializers.ModelSerializer):
+    # Só a saída (GET e as respostas); a entrada é do EntradaGastoFixoSerializer.
+    # O mês sai como "2026-11", igual ao das dívidas
+    mes_inicio = serializers.DateField(format="%Y-%m")
+    este_mes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GastoFixo
+        fields = (
+            "id",
+            "nome",
+            "valor",
+            "dia_vencimento",
+            "mes_inicio",
+            "trecho_descricao",
+            "este_mes",
+        )
+
+    def get_este_mes(self, gasto):
+        # A view manda no context o mês atual do app (dia 1) e a situação de
+        # cada gasto ({id: situacao}), já calculadas numa vez só
+        mes = self.context["mes_atual"]
+        situacao = self.context["situacoes"][gasto.id]
+        return {"mes": mes.strftime("%Y-%m"), "situacao": situacao}
+
+
+class EntradaGastoFixoSerializer(serializers.ModelSerializer):
+    # Entrada do POST e do PATCH. Os campos são declarados aqui para trocar as
+    # mensagens padrão do DRF pelas nossas
+    nome = serializers.CharField(max_length=100, error_messages=ERROS_DO_NOME)
+    valor = serializers.DecimalField(max_digits=12, decimal_places=2)
+    dia_vencimento = serializers.IntegerField(
+        min_value=1,
+        max_value=31,
+        allow_null=True,
+        required=False,
+        error_messages={"min_value": DIA_INVALIDO, "max_value": DIA_INVALIDO},
+    )
+    mes_inicio = serializers.DateField(
+        input_formats=["%Y-%m"],
+        error_messages={
+            "invalid": MES_INICIO_INVALIDO,
+            "required": MES_INICIO_INVALIDO,
+        },
+    )
+    trecho_descricao = serializers.CharField(
+        max_length=100, allow_blank=True, required=False
+    )
+
+    class Meta:
+        model = GastoFixo
+        fields = ("nome", "valor", "dia_vencimento", "mes_inicio", "trecho_descricao")
+
+    def validate_valor(self, valor):
+        if valor <= 0:
+            raise serializers.ValidationError(VALOR_INVALIDO)
+        return valor
+
+    def validate_trecho_descricao(self, trecho):
+        # O CharField do DRF já tirou os espaços das pontas, então "  ab " chega
+        # como "ab" e é guardado assim. Vazio vale (pago só à mão); um trecho
+        # curto casaria com saídas demais e marcaria o fixo como pago por engano
+        if trecho and len(trecho) < 3:
+            raise serializers.ValidationError(TRECHO_CURTO)
+        return trecho

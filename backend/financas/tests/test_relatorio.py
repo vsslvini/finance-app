@@ -275,6 +275,45 @@ def test_dividas_do_mes_viram_a_categoria_dividas(corrente):
     assert relatorio["maiores_gastos"] == [padaria]
 
 
+def test_fixos_a_pagar_viram_a_categoria_gastos_fixos(corrente):
+    # Caso 8 do Módulo 14: 300 de fixos a pagar viram a categoria "Gastos
+    # fixos", entram no total (100 + 300 = 400) e nas saidas, que continuam
+    # iguais às do resumo. Não entram nos maiores gastos
+    padaria = criar_transacao(corrente, descricao="Padaria", valor=Decimal("-100.00"))
+    fixos = Decimal("300.00")
+
+    relatorio = relatorio_do_mes(OUTUBRO, fixos_do_mes=fixos)
+    resumo = resumo_do_mes(OUTUBRO, HOJE, fixos_do_mes=fixos)
+
+    assert relatorio["saidas"] == resumo["saidas"] == Decimal("400.00")
+    assert relatorio["total_gastos"] == Decimal("400.00")
+    assert relatorio["gastos_por_categoria"] == [
+        {
+            "categoria": "Gastos fixos",
+            "categoria_original": "",
+            "total": Decimal("300.00"),
+            "porcentagem": 75,
+        },
+        {
+            "categoria": "Sem categoria",
+            "categoria_original": "",
+            "total": Decimal("100.00"),
+            "porcentagem": 25,
+        },
+    ]
+    assert relatorio["maiores_gastos"] == [padaria]
+
+
+def test_sem_fixos_no_mes_nao_aparece_a_categoria(corrente):
+    # Caso 8 do Módulo 14: sem fixos a pagar, não aparece uma linha zerada
+    criar_transacao(corrente, valor=Decimal("-100.00"))
+
+    relatorio = relatorio_do_mes(OUTUBRO)
+
+    nomes = [grupo["categoria"] for grupo in relatorio["gastos_por_categoria"]]
+    assert nomes == ["Sem categoria"]
+
+
 def test_sem_dividas_no_mes_nao_aparece_a_categoria(corrente):
     # Caso 8 do Módulo 12: sem parcelas no mês (0.00), não aparece uma linha
     # "Dívidas" zerada

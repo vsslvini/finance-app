@@ -639,6 +639,31 @@ def test_posso_gastar_desconta_guardar_dividas_do_mes_e_atrasadas(conexao):
     assert resumo["posso_gastar_por_dia"] == Decimal("35.00")
 
 
+def test_fixos_a_pagar_entram_nas_saidas_e_descontam_do_posso_gastar(conexao):
+    # Caso 5 do Módulo 14: 240 de gastos fixos a pagar em outubro entram nas
+    # saidas (10 da padaria + 240 = 250) e saem do "posso gastar":
+    # (1200 - 240) / 24 dias (08 a 31/10) = 40.00
+    corrente = criar_conta(conexao, saldo=Decimal("1200.00"))
+    criar_transacao(corrente, descricao="Padaria", valor=Decimal("-10.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE, fixos_do_mes=Decimal("240.00"))
+
+    assert resumo["fixos_do_mes"] == Decimal("240.00")
+    assert resumo["saidas"] == Decimal("250.00")
+    assert resumo["posso_gastar_por_dia"] == Decimal("40.00")
+
+
+def test_sem_fixos_o_campo_e_zero_e_o_previsto_repassa_o_que_recebe(db):
+    # Caso 5/6 do Módulo 14: sem fixos o campo vem 0.00; o resumo só repassa o
+    # bloco "previsto" que a view calculou (None quando ninguém manda)
+    sem_nada = resumo_do_mes(OUTUBRO, HOJE)
+    com_bloco = resumo_do_mes(OUTUBRO, HOJE, previsto={"mes_atual": {}})
+
+    assert sem_nada["fixos_do_mes"] == Decimal("0.00")
+    assert sem_nada["previsto"] is None
+    assert com_bloco["previsto"] == {"mes_atual": {}}
+
+
 def test_outro_mes_conta_a_divida_do_mes_mas_nao_as_atrasadas(db):
     # Casos 6 e 7 do Módulo 12: olhando setembro com hoje em outubro, a parcela
     # de setembro entra nas saidas de setembro, e as atrasadas vêm 0.00 (só

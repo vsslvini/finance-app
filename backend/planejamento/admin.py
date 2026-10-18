@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Configuracao, Divida, ParcelaDaDivida, PlanoDeGuardar
+from .models import (
+    Configuracao,
+    Divida,
+    GastoFixo,
+    PagamentoDeGastoFixo,
+    ParcelaDaDivida,
+    PlanoDeGuardar,
+)
 
 
 @admin.register(Configuracao)
@@ -37,3 +44,21 @@ class DividaAdmin(admin.ModelAdmin):
         # Quem cria é a API (POST /api/dividas/), que gera as parcelas; uma
         # dívida criada aqui ficaria sem parcelas
         return False
+
+
+class PagamentoDeGastoFixoInline(admin.TabularInline):
+    # Os meses marcados como pagos à mão aparecem dentro da página do gasto
+    model = PagamentoDeGastoFixo
+    extra = 0
+
+
+@admin.register(GastoFixo)
+class GastoFixoAdmin(admin.ModelAdmin):
+    list_display = (
+        "nome",
+        "valor",
+        "dia_vencimento",
+        "mes_inicio",
+        "trecho_descricao",
+    )
+    inlines = (PagamentoDeGastoFixoInline,)

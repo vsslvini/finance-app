@@ -129,3 +129,58 @@ class ParcelaDaDivida(models.Model):
 
     def __str__(self):
         return f"Parcela {self.numero} de {self.divida}"
+
+
+class GastoFixo(models.Model):
+    # RF32: um gasto que se repete todo mês (apartamento, internet), cadastrado
+    # uma vez. Fica ativo até ser apagado. A situação de cada mês (paga ou a
+    # pagar) não é guardada aqui: vem do services/gastos_fixos.py
+    nome = models.CharField(max_length=100)
+    valor = models.DecimalField("valor por mês", max_digits=12, decimal_places=2)
+    # Só para mostrar no app; vazio (NULL) = sem dia combinado
+    dia_vencimento = models.PositiveSmallIntegerField(
+        "dia do vencimento",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(31)],
+    )
+    # Sempre o dia 1 do primeiro mês em que o gasto vale
+    mes_inicio = models.DateField("mês de início")
+    # Se uma saída do mês tiver este texto na descrição (sem diferenciar
+    # maiúsculas), o gasto conta como pago sozinho. Vazio = só pago à mão
+    trecho_descricao = models.CharField(
+        "trecho da descrição", max_length=100, blank=True
+    )
+    criado_em = models.DateTimeField("criado em", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "gasto fixo"
+        verbose_name_plural = "gastos fixos"
+
+    def __str__(self):
+        return f"{self.nome} ({self.valor})"
+
+
+class PagamentoDeGastoFixo(models.Model):
+    # Existir uma linha = o gasto foi marcado como pago à mão naquele mês.
+    # CASCADE: apagar o gasto apaga as marcações (não têm sentido sozinhas)
+    gasto = models.ForeignKey(
+        GastoFixo, on_delete=models.CASCADE, related_name="pagamentos"
+    )
+    # Dia 1 do mês pago
+    mes = models.DateField("mês")
+    pago_em = models.DateField("pago em", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "pagamento de gasto fixo"
+        verbose_name_plural = "pagamentos de gastos fixos"
+        # Um gasto só pode estar marcado uma vez por mês (marcar de novo não
+        # duplica)
+        constraints = (
+            models.UniqueConstraint(
+                fields=("gasto", "mes"), name="pagamento_unico_por_gasto_e_mes"
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.gasto.nome} pago em {self.mes:%Y-%m}"

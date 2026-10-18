@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from financas.models import Categoria, Conexao, Conta, Transacao
-from planejamento.models import Configuracao, Divida, ParcelaDaDivida
+from planejamento.models import Configuracao, Divida, GastoFixo, ParcelaDaDivida
 
 MES_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-10."
 
@@ -168,6 +168,31 @@ def test_relatorio_le_as_parcelas_das_dividas(cliente_com_token):
         }
     ]
     assert dados["maiores_gastos"] == []
+
+
+def test_relatorio_le_os_gastos_fixos(cliente_com_token):
+    # Caso 8 do Módulo 14, pela API: o fixo a pagar de outubro (200) vira a
+    # categoria "Gastos fixos" e entra nas saidas; o que só começa em
+    # novembro não conta
+    GastoFixo.objects.create(
+        nome="Aluguel", valor=Decimal("200.00"), mes_inicio=date(2026, 10, 1)
+    )
+    GastoFixo.objects.create(
+        nome="Água", valor=Decimal("70.00"), mes_inicio=date(2026, 11, 1)
+    )
+
+    dados = cliente_com_token.get("/api/relatorio/?mes=2026-10").json()
+
+    assert dados["saidas"] == "200.00"
+    assert dados["total_gastos"] == "200.00"
+    assert dados["gastos_por_categoria"] == [
+        {
+            "categoria": "Gastos fixos",
+            "categoria_original": "",
+            "total": "200.00",
+            "porcentagem": 100,
+        }
+    ]
 
 
 def test_relatorio_mes_invalido_responde_400_com_mensagem(cliente_com_token):

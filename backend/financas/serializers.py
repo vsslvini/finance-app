@@ -105,6 +105,33 @@ class GuardadoSerializer(serializers.Serializer):
     falta_guardar_no_mes = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 
+class FaturaPrevistaSerializer(serializers.Serializer):
+    # Uma fatura de cartão dentro do bloco "previsto" do resumo
+    conta = serializers.IntegerField()
+    nome_banco = serializers.CharField()
+    nome_conta = serializers.CharField()
+    valor = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class PrevistoProximoMesSerializer(serializers.Serializer):
+    # Um dos dois meses do "previsto" (um dict, como o resumo). O mês que vem
+    # não tem "atrasadas": só o mês atual tem
+    mes = serializers.CharField()
+    total = serializers.DecimalField(max_digits=12, decimal_places=2)
+    faturas = FaturaPrevistaSerializer(many=True)
+    fixos = serializers.DecimalField(max_digits=12, decimal_places=2)
+    dividas = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class PrevistoMesAtualSerializer(PrevistoProximoMesSerializer):
+    atrasadas = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class PrevistoSerializer(serializers.Serializer):
+    mes_atual = PrevistoMesAtualSerializer()
+    proximo_mes = PrevistoProximoMesSerializer()
+
+
 class ResumoSerializer(serializers.Serializer):
     # Serializer comum (não ModelSerializer): o resumo é um dict, não um model.
     # Sem ele, o Response transformaria Decimal em float (ex.: 1000.0); o
@@ -134,6 +161,10 @@ class ResumoSerializer(serializers.Serializer):
     # e atrasadas de meses anteriores ("0.00" fora do mês atual)
     dividas_do_mes = serializers.DecimalField(max_digits=12, decimal_places=2)
     dividas_atrasadas = serializers.DecimalField(max_digits=12, decimal_places=2)
+    # Gastos fixos a pagar do mês do resumo (já somados em saidas)
+    fixos_do_mes = serializers.DecimalField(max_digits=12, decimal_places=2)
+    # O gasto previsto: sempre do mês atual do app e do que vem, mesmo com ?mes=
+    previsto = PrevistoSerializer(allow_null=True)
     # Sai no fuso do projeto (TIME_ZONE), ex.: "2026-10-17T14:32:05-04:00", então o
     # app só recorta o texto, sem converter fuso; null se nunca sincronizou
     ultima_atualizacao = serializers.DateTimeField(allow_null=True)

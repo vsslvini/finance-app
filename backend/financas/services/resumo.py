@@ -79,6 +79,8 @@ def resumo_do_mes(
     mes_alvo=None,
     dividas_do_mes=ZERO,
     dividas_atrasadas=ZERO,
+    fixos_do_mes=ZERO,
+    previsto=None,
 ):
     # "hoje" vem de fora para os testes fixarem o dia sem trocar o relógio.
     # dias_antes e limite também vêm de fora (a view lê da Configuracao), para
@@ -86,7 +88,9 @@ def resumo_do_mes(
     # valor_mensal e mes_alvo (o plano de guardar) vêm de fora, None sem plano,
     # e também as dívidas (Módulo 12): dividas_do_mes é a soma das parcelas não
     # pagas deste mês, e dividas_atrasadas, a das não pagas de meses antes do
-    # mês atual do app
+    # mês atual do app. Módulo 14: fixos_do_mes é a soma dos gastos fixos a pagar
+    # deste mês, e previsto, o bloco do gasto previsto (já pronto, sempre do mês
+    # atual do app), que o resumo só repassa
     inicio, fim = periodo_do_mes(mes.year, mes.month, dias_antes)
     transacoes_do_mes = transacoes_do_periodo(inicio, fim)
     gastos = transacoes_do_mes.filter(valor__lt=0).exclude(NAO_E_GASTO)
@@ -110,6 +114,9 @@ def resumo_do_mes(
     # A parcela não paga é uma saída do mês dela; quando for paga de verdade (um
     # PIX), ela deixa de contar aqui, e o PIX já entra pelas transações
     saidas += dividas_do_mes
+    # Gasto fixo a pagar conta igual: quando é pago de verdade, o pagamento já
+    # entra pelas transações e o fixo deixa de contar aqui
+    saidas += fixos_do_mes
 
     e_o_mes_atual = (mes.year, mes.month) == mes_atual(hoje, dias_antes)
     # Atrasadas só fazem sentido olhando o mês atual
@@ -138,6 +145,7 @@ def resumo_do_mes(
             - guardado["falta_guardar_no_mes"]
             - dividas_do_mes
             - dividas_atrasadas
+            - fixos_do_mes
         )
         posso_gastar_por_dia = (disponivel / dias_restantes).quantize(
             Decimal("0.01"), rounding=ROUND_FLOOR
@@ -168,6 +176,10 @@ def resumo_do_mes(
         "dividas_do_mes": dividas_do_mes,
         # 0.00 quando o resumo não é do mês atual
         "dividas_atrasadas": dividas_atrasadas,
+        "fixos_do_mes": fixos_do_mes,
+        # None só quando o service é chamado sem o bloco (testes); a API sempre
+        # manda
+        "previsto": previsto,
         # Quando o nosso backend leu a Pluggy pela última vez (a conexão mais
         # recente); None se nunca sincronizou. O app mostra "Atualizado ..."
         "ultima_atualizacao": Conexao.objects.aggregate(

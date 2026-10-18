@@ -36,6 +36,8 @@ App Django `financas` para os dados dos bancos. Configurações, plano de guarda
 | `PlanoDeGuardar` (app `planejamento`) | o plano de guardar, uma linha só | valor por mês e mês alvo (os dois vazios = sem plano) |
 | `Divida` (app `planejamento`, desde 2026-10-18) | uma dívida com alguém (RF21) | para quem (`credor`), motivo, valor total, número de parcelas (`total_parcelas`, 1 a 120), mês da primeira parcela (dia 1), criada em |
 | `ParcelaDaDivida` (app `planejamento`, desde 2026-10-18) | cada parcela mensal de uma dívida, gerada ao cadastrar | dívida (`CASCADE`: apagar a dívida apaga as parcelas), número, mês (dia 1), valor, paga, paga em |
+| `GastoFixo` (app `planejamento`, desde 2026-10-18) | um gasto que se repete todo mês (RF32) | nome, valor por mês, dia do vencimento (opcional, 1 a 31), mês de início (dia 1), trecho da descrição (opcional, mínimo 3 letras; casa com as saídas do mês para marcar como pago), criado em |
+| `PagamentoDeGastoFixo` (app `planejamento`, desde 2026-10-18) | marca de "pago à mão" de um gasto fixo num mês | gasto (`CASCADE`), mês (dia 1), pago em; único por gasto e mês |
 
 - Os ids das conexões (copiados do painel da Pluggy) são cadastrados pelo admin do Django.
 - Valores em dinheiro usam `DecimalField`, exato até o centavo (RNF04).
@@ -70,8 +72,8 @@ Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pl
 
 | Rota | Requisitos |
 |---|---|
-| `GET /api/resumo/?mes=2026-10` | saldo total, entradas, saídas, posso gastar por dia, últimos gastos (RF15 a RF18), o bloco `guardado` (RF04, RF28, RF29) e, desde 2026-10-18, `dividas_do_mes` (parcelas não pagas do mês, somadas em `saidas`) e `dividas_atrasadas` (não pagas de meses antes do mês atual do app, `"0.00"` fora dele); o "posso gastar" desconta as duas (RF21) |
-| `GET /api/relatorio/?mes=2026-10` | relatório do mês: entradas, saídas e saldo do mês (iguais aos do resumo), total de gastos (corrente e cartão, sem pagamento de fatura), gastos por categoria (traduzida, com porcentagem) e os 5 maiores gastos no formato da lista de transações (RF27, desde 2026-10-17); desde 2026-10-18 as parcelas não pagas do mês entram como a categoria "Dívidas" (fora dos maiores gastos) |
+| `GET /api/resumo/?mes=2026-10` | saldo total, entradas, saídas, posso gastar por dia, últimos gastos (RF15 a RF18), o bloco `guardado` (RF04, RF28, RF29) e, desde 2026-10-18, `dividas_do_mes` (parcelas não pagas do mês, somadas em `saidas`) e `dividas_atrasadas` (não pagas de meses antes do mês atual do app, `"0.00"` fora dele); o "posso gastar" desconta as duas (RF21); também desde 2026-10-18, `fixos_do_mes` (gastos fixos a pagar do mês, somados em `saidas` e descontados do "posso gastar") e o bloco `previsto` (RF32, RF33) com `mes_atual` (mês, total, faturas, fixos, dívidas, atrasadas) e `proximo_mes` (mês, total, faturas, fixos, dívidas), sempre a partir do mês atual do app |
+| `GET /api/relatorio/?mes=2026-10` | relatório do mês: entradas, saídas e saldo do mês (iguais aos do resumo), total de gastos (corrente e cartão, sem pagamento de fatura), gastos por categoria (traduzida, com porcentagem) e os 5 maiores gastos no formato da lista de transações (RF27, desde 2026-10-17); desde 2026-10-18 as parcelas não pagas do mês entram como a categoria "Dívidas" (fora dos maiores gastos), e os gastos fixos a pagar do mês, como "Gastos fixos" (RF32) |
 | `GET /api/contas/` | lista de contas com o nome do banco (o app agrupa), com dados do cartão (RF01 a RF03, RF11, RF12, RF14) |
 | `GET /api/transacoes/?mes=...` | transações do mês, com filtros opcionais (RF05 a RF07, RF09); cada uma traz `categoria` (em português, para mostrar) e `categoria_original` (o nome em inglês da Pluggy) |
 | `PATCH /api/transacoes/<id>/` | trocar a categoria com `{"categoria_manual": "Groceries"}` (o nome em inglês de uma categoria da lista; `""` volta para a da Pluggy) e receber a transação no formato da lista (RF08, desde 2026-10-17) |
@@ -84,6 +86,9 @@ Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pl
 | `GET` e `POST /api/dividas/` | lista das dívidas (mais recente primeiro) com pago, restante, próxima parcela e parcelas (cada uma com `atrasada`); o `POST` com `{credor, motivo, valor_total, parcelas, mes_inicio: "AAAA-MM"}` cria a dívida e gera as parcelas (RF21, desde 2026-10-18) |
 | `PATCH` e `DELETE /api/dividas/<id>/` | muda só `credor` e `motivo`; o `DELETE` apaga a dívida e as parcelas (204) (RF21, desde 2026-10-18) |
 | `PATCH /api/parcelas/<id>/` | marca ou desmarca a parcela com `{"paga": true\|false}` e responde a dívida inteira (RF21, desde 2026-10-18) |
+| `GET` e `POST /api/gastos-fixos/` | lista dos gastos fixos (por nome) com `este_mes` (`{mes, situacao}`: `pago_automatico`, `pago_manual`, `a_pagar` ou `nao_comecou`); o `POST` com `{nome, valor, dia_vencimento, mes_inicio: "AAAA-MM", trecho_descricao}` cria (RF32, desde 2026-10-18) |
+| `PATCH` e `DELETE /api/gastos-fixos/<id>/` | muda os mesmos campos (parcial) ou apaga o gasto e as marcações (204) (RF32) |
+| `PUT` e `DELETE /api/gastos-fixos/<id>/pagamentos/<AAAA-MM>/` | marca ou desmarca o "pago à mão" daquele mês (idempotentes) e respondem o gasto fixo (RF32) |
 
 Os cálculos ficam no backend, não no app: uma fonte só da verdade, testada com pytest.
 

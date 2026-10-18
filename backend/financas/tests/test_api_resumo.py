@@ -9,6 +9,8 @@ from financas.models import Categoria, Conexao, Conta, Investimento, Transacao
 from planejamento.models import (
     Configuracao,
     Divida,
+    GastoFixo,
+    PagamentoDeGastoFixo,
     ParcelaDaDivida,
     PlanoDeGuardar,
 )
@@ -77,6 +79,8 @@ def test_resumo_traz_as_chaves_e_dinheiro_como_texto(cliente_com_token):
         "ultima_atualizacao",
         "dividas_do_mes",
         "dividas_atrasadas",
+        "fixos_do_mes",
+        "previsto",
     }
     assert dados["saldo_total"] == "1000.00"
     assert dados["fatura_aberta"] == "0.00"
@@ -331,3 +335,98 @@ def test_resumo_le_as_parcelas_das_dividas(cliente_com_token, monkeypatch):
     assert setembro["dividas_do_mes"] == "100.00"
     assert setembro["saidas"] == "100.00"
     assert setembro["dividas_atrasadas"] == "0.00"
+
+
+def test_resumo_conta_so_os_gastos_fixos_a_pagar(cliente_com_token, monkeypatch):
+    # Caso 5 do Módulo 14, pela API: hoje 08/10/2026, saldo 1200. Aluguel (300)
+    # a pagar; Internet (200) pago sozinho por um PIX de 50 com o trecho (o PIX
+    # entra nas saidas, o fixo não); Luz (100) pago à mão; Água (70) só começa
+    # em novembro. Saidas = 50 + 300 = 350; (1200 - 300) / 24 dias = 37.50
+    fixar_hoje(monkeypatch, date(2026, 10, 8))
+    conexao = Conexao.objects.create(id_pluggy="item-nubank", nome_banco="Nubank")
+    conta = Conta.objects.create(
+        conexao=conexao, tipo="corrente", nome="Conta Nubank", saldo=Decimal(1200)
+    )
+    Transacao.objects.create(
+        conta=conta,
+        data=date(2026, 10, 5),
+        descricao="PIX Internet casa",
+        valor=Decimal("-50.00"),
+    )
+    outubro = date(2026, 10, 1)
+    GastoFixo.objects.create(
+        nome="Aluguel", valor=Decimal("300.00"), mes_inicio=outubro
+    )
+    GastoFixo.objects.create(
+        nome="Internet",
+        valor=Decimal("200.00"),
+        mes_inicio=outubro,
+        trecho_descricao="internet",
+    )
+    luz = GastoFixo.objects.create(
+        nome="Luz", valor=Decimal("100.00"), mes_inicio=outubro
+    )
+    PagamentoDeGastoFixo.objects.create(gasto=luz, mes=outubro)
+    GastoFixo.objects.create(
+        nome="Água", valor=Decimal("70.00"), mes_inicio=date(2026, 11, 1)
+    )
+
+    dados = cliente_com_token.get("/api/resumo/").json()
+
+    assert dados["fixos_do_mes"] == "300.00"
+    assert dados["saidas"] == "350.00"
+    assert dados["posso_gastar_por_dia"] == "37.50"
+
+
+def test_resumo_traz_o_bloco_previsto_sempre_do_mes_atual(
+    cliente_com_token, monkeypatch
+):
+    # Casos 6 e 7 do Módulo 14, pela API: hoje 18/10/2026. Fixo de 500 a pagar,
+    # dívida de 300 em novembro e um cartão de 358.32 sem data de vencimento
+    # (vai para novembro). Com ?mes=2026-09 o bloco é o mesmo
+    fixar_hoje(monkeypatch, date(2026, 10, 18))
+    conexao = Conexao.objects.create(id_pluggy="item-nubank", nome_banco="Nubank")
+    cartao = Conta.objects.create(
+        conexao=conexao, tipo="cartao", nome="gold", saldo=Decimal("358.32")
+    )
+    GastoFixo.objects.create(
+        nome="Apartamento", valor=Decimal("500.00"), mes_inicio=date(2026, 10, 1)
+    )
+    divida = Divida.objects.create(
+        credor="Tia Ana",
+        valor_total=Decimal("300.00"),
+        total_parcelas=1,
+        mes_inicio=date(2026, 11, 1),
+    )
+    ParcelaDaDivida.objects.create(
+        divida=divida, numero=1, mes=date(2026, 11, 1), valor=Decimal("300.00")
+    )
+
+    atual = cliente_com_token.get("/api/resumo/").json()
+    setembro = cliente_com_token.get("/api/resumo/?mes=2026-09").json()
+
+    assert atual["previsto"] == {
+        "mes_atual": {
+            "mes": "2026-10",
+            "total": "500.00",
+            "faturas": [],
+            "fixos": "500.00",
+            "dividas": "0.00",
+            "atrasadas": "0.00",
+        },
+        "proximo_mes": {
+            "mes": "2026-11",
+            "total": "1158.32",
+            "faturas": [
+                {
+                    "conta": cartao.id,
+                    "nome_banco": "Nubank",
+                    "nome_conta": "gold",
+                    "valor": "358.32",
+                }
+            ],
+            "fixos": "500.00",
+            "dividas": "300.00",
+        },
+    }
+    assert setembro["previsto"] == atual["previsto"]
