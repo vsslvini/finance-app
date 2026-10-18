@@ -3,22 +3,14 @@
 // tem e a troca pela resposta do backend a cada parcela marcada.
 import { Lucide, type LucideIconName } from '@react-native-vector-icons/lucide';
 import { useState } from 'react';
-import {
-  FlatList,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type ColorValue,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlatList, Pressable, StyleSheet, Text, View, type ColorValue } from 'react-native';
 
 import { apagarDivida, marcarParcela, type Divida, type ParcelaDaDivida } from '@/api';
 import Botao from '@/componentes/Botao';
+import Folha from '@/componentes/Folha';
 import { formatarNumero, formatarReais, mesPorExtenso, tituloDoMes } from '@/formatacao';
 import { mensagemDoErro } from '@/mensagens';
-import { cantos, cores, espaco, fundoEscurecido, textos, toque } from '@/tema';
+import { cores, espaco, textos, toque } from '@/tema';
 
 type FolhaDaDividaProps = {
   divida: Divida;
@@ -86,56 +78,53 @@ export default function FolhaDaDivida({
       : `As ${divida.total_parcelas} parcelas também serão apagadas.`;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={() => aoFechar(mudou)}>
-      <View style={styles.fundo}>
-        <SafeAreaView edges={['bottom']} style={styles.folha}>
-          <Text accessibilityRole="header" style={textos.subtitulo}>
-            {divida.credor}
-          </Text>
-          {motivo !== '' && <Text style={textos.detalhe}>{motivo}</Text>}
-          <Text style={textos.rotulo}>
-            {`${formatarReais(divida.valor_total)} em ${divida.total_parcelas}x · falta ${formatarReais(divida.valor_restante)}`}
-          </Text>
+    // A folha não passa de 85% da altura da tela; o que sobrar da lista rola
+    <Folha aoFechar={() => aoFechar(mudou)} alturaMaxima="85%">
+      <Text accessibilityRole="header" style={textos.subtitulo}>
+        {divida.credor}
+      </Text>
+      {motivo !== '' && <Text style={textos.detalhe}>{motivo}</Text>}
+      <Text style={textos.rotulo}>
+        {`${formatarReais(divida.valor_total)} em ${divida.total_parcelas}x · falta ${formatarReais(divida.valor_restante)}`}
+      </Text>
 
-          {/* extraData: a lista precisa redesenhar as linhas quando "salvando" muda */}
-          <FlatList
-            data={divida.parcelas}
-            extraData={salvando}
-            keyExtractor={(parcela) => String(parcela.id)}
-            style={styles.lista}
-            renderItem={({ item }) => (
-              <LinhaDeParcela
-                parcela={item}
-                total={divida.total_parcelas}
-                salvando={salvando}
-                aoTocar={() => alternar(item)}
-              />
-            )}
+      {/* extraData: a lista precisa redesenhar as linhas quando "salvando" muda */}
+      <FlatList
+        data={divida.parcelas}
+        extraData={salvando}
+        keyExtractor={(parcela) => String(parcela.id)}
+        style={styles.lista}
+        renderItem={({ item }) => (
+          <LinhaDeParcela
+            parcela={item}
+            total={divida.total_parcelas}
+            salvando={salvando}
+            aoTocar={() => alternar(item)}
           />
+        )}
+      />
 
-          {erro !== null && (
-            <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.mensagemErro]}>
-              {erro}
-            </Text>
-          )}
-          {confirmando && <Text style={[textos.detalhe, styles.mensagemErro]}>{avisoDeApagar}</Text>}
+      {erro !== null && (
+        <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.mensagemErro]}>
+          {erro}
+        </Text>
+      )}
+      {confirmando && <Text style={[textos.detalhe, styles.mensagemErro]}>{avisoDeApagar}</Text>}
 
-          <View style={styles.botoes}>
-            <View style={styles.botaoMetade}>
-              <Botao titulo="Fechar" tipo="secundario" aoTocar={() => aoFechar(mudou)} />
-            </View>
-            <View style={styles.botaoMetade}>
-              <Botao
-                titulo={confirmando ? 'Toque de novo para apagar' : 'Apagar dívida'}
-                tipo="principal"
-                aoTocar={apagar}
-                desativado={salvando}
-              />
-            </View>
-          </View>
-        </SafeAreaView>
+      <View style={styles.botoes}>
+        <View style={styles.botaoMetade}>
+          <Botao titulo="Fechar" tipo="secundario" aoTocar={() => aoFechar(mudou)} />
+        </View>
+        <View style={styles.botaoMetade}>
+          <Botao
+            titulo={confirmando ? 'Toque de novo para apagar' : 'Apagar dívida'}
+            tipo="principal"
+            aoTocar={apagar}
+            desativado={salvando}
+          />
+        </View>
       </View>
-    </Modal>
+    </Folha>
   );
 }
 
@@ -203,20 +192,6 @@ function LinhaDeParcela({ parcela, total, salvando, aoTocar }: LinhaDeParcelaPro
 }
 
 const styles = StyleSheet.create({
-  fundo: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: fundoEscurecido,
-  },
-  folha: {
-    // A folha não passa de 85% da altura da tela; o que sobrar da lista rola
-    maxHeight: '85%',
-    backgroundColor: cores.superficieElevada,
-    borderTopLeftRadius: cantos.folha,
-    borderTopRightRadius: cantos.folha,
-    padding: espaco.grande,
-    gap: espaco.medio,
-  },
   lista: {
     // flexShrink: com muitas parcelas, a lista encolhe e rola, deixando os
     // botões sempre à vista

@@ -321,14 +321,26 @@ do `docs/planos/modulo-13-embelezamento.md`; a tabela abaixo já vale como regra
 |---|---|---|
 | Toque em cartão tocável e no `Botao` | opacidade 0,85 e escala 0,98, troca imediata | 1 |
 | Toque em botão de ícone (setas, Voltar) e em linha de lista | só opacidade 0,7, troca imediata | 1 |
-| Folhas (as 5) | fundo com `fade`; a folha sobe com `SlideInDown` de 250 ms; fechar continua instantâneo | 2 |
-| Barra de progresso | enche de 0 ao valor em 500 ms com `scaleX` (origem à esquerda), só ao aparecer | 2 |
+| Folhas (as 5) | fundo com `fade`; a folha sobe com `SlideInDown` de 250 ms; fechar continua instantâneo | 2 (feita) |
+| Barra de progresso | enche de 0 ao valor em 500 ms com `scaleX` (origem à esquerda), só ao aparecer | 2 (feita) |
 | Entrada em cascata (Início e cartões de Cartões, Contas e Dívidas) | `FadeInDown` de 200 ms, subida de 8, atraso de 40 ms por bloco, no máximo 6 blocos, só na primeira carga | 3 |
 | Troca de mês (Transações e Relatório) | `FadeIn` de 150 ms no conteúdo | 3 |
 | Carregamento do Início | esqueleto com blocos `superficie` e pulso de opacidade de 0,5 a 1 em 900 ms (parado com "reduzir movimento"); a frase "Carregando o resumo..." continua visível | 3 |
 
 Não animam: valores em dinheiro (o "posso gastar" aparece pronto), puxar para baixo, troca de aba,
 itens de listas longas, régua de dias, erros e avisos.
+
+### Folhas e barra (entrega 2)
+
+- As 5 folhas usam o componente `Folha` (`mobile/src/componentes/Folha.tsx`): `Modal` com
+  `animationType="fade"` (o fundo escurece no lugar) e a folha entra com
+  `SlideInDown.duration(250).easing(Easing.out(Easing.cubic))`. Sem `.reduceMotion()`, vale o
+  padrão `ReduceMotion.System` (conferido na fonte do Reanimated 4.5.1), então a entrada é pulada
+  com "reduzir movimento". Folhas com lista ou campos que rolam passam `alturaMaxima="85%"`.
+- `BarraDeProgresso` anima um `scaleX` de 0 até `porcentagem / 100` com `withTiming` (500 ms,
+  `Easing.out(Easing.cubic)`), com `transformOrigin: 'left center'` (aceito pelo RN 0.86 e pelo
+  Reanimated 4.5.1). Mudanças de valor partem do ponto atual. O `accessibilityValue` usa o número
+  real desde o primeiro quadro.
 
 ### Toque (entrega 1)
 

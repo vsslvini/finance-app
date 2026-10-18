@@ -3,23 +3,15 @@
 // A tela Início só mostra esta folha quando há um campo aberto; ao aparecer,
 // ela busca as configurações atuais no backend e preenche o campo.
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { buscarConfiguracoes, salvarConfiguracoes, type Configuracoes } from '@/api';
 import Botao from '@/componentes/Botao';
 import CampoDeTexto from '@/componentes/CampoDeTexto';
+import Folha from '@/componentes/Folha';
 import { formatarNumero, lerReais } from '@/formatacao';
 import { mensagemDoErro } from '@/mensagens';
-import { cantos, cores, espaco, fundoEscurecido, textos } from '@/tema';
+import { cores, espaco, textos } from '@/tema';
 
 export type CampoEditavel = 'inicioDoMes' | 'limiteDaFatura';
 
@@ -145,76 +137,53 @@ export default function FolhaDeEdicao({ campo, aoCancelar, aoSalvar }: FolhaDeEd
   }
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={aoCancelar}>
-      {/* Sobe a folha junto com o teclado no iPhone; no Android o sistema já faz isso */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.fundo}
-      >
-        <SafeAreaView edges={['bottom']} style={styles.folha}>
-          <Text accessibilityRole="header" style={textos.subtitulo}>
-            {textosDaFolha.titulo}
-          </Text>
-          <Text style={[textos.corpo, styles.explicacao]}>{textosDaFolha.explicacao}</Text>
+    <Folha aoFechar={aoCancelar}>
+      <Text accessibilityRole="header" style={textos.subtitulo}>
+        {textosDaFolha.titulo}
+      </Text>
+      <Text style={[textos.corpo, styles.explicacao]}>{textosDaFolha.explicacao}</Text>
 
-          {carga.tipo === 'carregando' && <ActivityIndicator color={cores.acento} />}
+      {carga.tipo === 'carregando' && <ActivityIndicator color={cores.acento} />}
 
-          {carga.tipo === 'erro' && (
-            <Text style={[textos.detalhe, styles.mensagemErro]}>{carga.mensagem}</Text>
+      {carga.tipo === 'erro' && (
+        <Text style={[textos.detalhe, styles.mensagemErro]}>{carga.mensagem}</Text>
+      )}
+
+      {carga.tipo === 'pronta' && (
+        <View style={styles.blocoCampo}>
+          <CampoDeTexto
+            rotulo={textosDaFolha.rotuloDoCampo}
+            teclado={textosDaFolha.teclado}
+            valor={texto}
+            aoDigitar={aoDigitar}
+            comErro={erro !== null}
+          />
+          {erro !== null && (
+            <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.mensagemErro]}>
+              {erro}
+            </Text>
           )}
+        </View>
+      )}
 
-          {carga.tipo === 'pronta' && (
-            <View style={styles.blocoCampo}>
-              <CampoDeTexto
-                rotulo={textosDaFolha.rotuloDoCampo}
-                teclado={textosDaFolha.teclado}
-                valor={texto}
-                aoDigitar={aoDigitar}
-                comErro={erro !== null}
-              />
-              {erro !== null && (
-                <Text
-                  accessibilityLiveRegion="polite"
-                  style={[textos.detalhe, styles.mensagemErro]}
-                >
-                  {erro}
-                </Text>
-              )}
-            </View>
-          )}
-
-          <View style={styles.botoes}>
-            <View style={styles.botaoMetade}>
-              <Botao titulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} />
-            </View>
-            <View style={styles.botaoMetade}>
-              <Botao
-                titulo="Salvar"
-                tipo="principal"
-                aoTocar={salvar}
-                desativado={carga.tipo !== 'pronta' || salvando}
-              />
-            </View>
-          </View>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
+      <View style={styles.botoes}>
+        <View style={styles.botaoMetade}>
+          <Botao titulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} />
+        </View>
+        <View style={styles.botaoMetade}>
+          <Botao
+            titulo="Salvar"
+            tipo="principal"
+            aoTocar={salvar}
+            desativado={carga.tipo !== 'pronta' || salvando}
+          />
+        </View>
+      </View>
+    </Folha>
   );
 }
 
 const styles = StyleSheet.create({
-  fundo: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: fundoEscurecido,
-  },
-  folha: {
-    backgroundColor: cores.superficieElevada,
-    borderTopLeftRadius: cantos.folha,
-    borderTopRightRadius: cantos.folha,
-    padding: espaco.grande,
-    gap: espaco.medio,
-  },
   explicacao: {
     color: cores.textoSecundario,
   },

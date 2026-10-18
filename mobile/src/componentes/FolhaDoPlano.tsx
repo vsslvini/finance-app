@@ -3,23 +3,15 @@
 // quando ela está aberta; ao aparecer, a folha busca o plano atual no backend
 // e preenche os dois campos. Ao salvar, confere o texto antes de chamar a API.
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { buscarPlano, salvarPlano, type PlanoDeGuardar } from '@/api';
 import Botao from '@/componentes/Botao';
 import CampoDeTexto from '@/componentes/CampoDeTexto';
+import Folha from '@/componentes/Folha';
 import { formatarMes, formatarNumero, lerMes, lerReais } from '@/formatacao';
 import { mensagemDoErro } from '@/mensagens';
-import { cantos, cores, espaco, fundoEscurecido, textos } from '@/tema';
+import { cores, espaco, textos } from '@/tema';
 
 const VALOR_INVALIDO = 'Digite um valor, ex.: 500,00.';
 const MES_INVALIDO = 'Digite o mês como MM/AAAA.';
@@ -124,109 +116,78 @@ export default function FolhaDoPlano({ aoCancelar, aoSalvar }: FolhaDoPlanoProps
   }
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={aoCancelar}>
-      {/* Sobe a folha junto com o teclado no iPhone; no Android o sistema já faz isso */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.fundo}
-      >
-        <SafeAreaView edges={['bottom']} style={styles.folha}>
-          <Text accessibilityRole="header" style={textos.subtitulo}>
-            Plano de guardar
-          </Text>
-          <Text style={[textos.corpo, styles.explicacao]}>
-            Quanto guardar por mês e até quando. Deixe os dois vazios para não ter plano.
-          </Text>
+    <Folha aoFechar={aoCancelar}>
+      <Text accessibilityRole="header" style={textos.subtitulo}>
+        Plano de guardar
+      </Text>
+      <Text style={[textos.corpo, styles.explicacao]}>
+        Quanto guardar por mês e até quando. Deixe os dois vazios para não ter plano.
+      </Text>
 
-          {carga.tipo === 'carregando' && <ActivityIndicator color={cores.acento} />}
+      {carga.tipo === 'carregando' && <ActivityIndicator color={cores.acento} />}
 
-          {carga.tipo === 'erro' && (
-            <Text style={[textos.detalhe, styles.mensagemErro]}>{carga.mensagem}</Text>
-          )}
+      {carga.tipo === 'erro' && (
+        <Text style={[textos.detalhe, styles.mensagemErro]}>{carga.mensagem}</Text>
+      )}
 
-          {carga.tipo === 'pronta' && (
-            <View style={styles.campos}>
-              {/* Os nomes visíveis ficam escondidos do leitor de tela, porque o
-                  próprio campo já é lido com o mesmo nome (accessibilityLabel) */}
-              <View style={styles.blocoCampo}>
-                <Text
-                  accessibilityElementsHidden
-                  importantForAccessibility="no"
-                  style={textos.rotulo}
-                >
-                  Quanto por mês
-                </Text>
-                <CampoDeTexto
-                  rotulo="Quanto por mês"
-                  teclado="decimal-pad"
-                  valor={textoValor}
-                  aoDigitar={aoDigitarValor}
-                  comErro={erro?.campo === 'valor'}
-                />
-              </View>
-
-              <View style={styles.blocoCampo}>
-                <Text
-                  accessibilityElementsHidden
-                  importantForAccessibility="no"
-                  style={textos.rotulo}
-                >
-                  Até quando (MM/AAAA)
-                </Text>
-                {/* Teclado com números e barra; no Android vira o teclado comum */}
-                <CampoDeTexto
-                  rotulo="Até quando (MM/AAAA)"
-                  teclado="numbers-and-punctuation"
-                  valor={textoMes}
-                  aoDigitar={aoDigitarMes}
-                  comErro={erro?.campo === 'mes'}
-                />
-              </View>
-
-              {/* Uma mensagem só, embaixo dos dois campos */}
-              {erro !== null && (
-                <Text
-                  accessibilityLiveRegion="polite"
-                  style={[textos.detalhe, styles.mensagemErro]}
-                >
-                  {erro.mensagem}
-                </Text>
-              )}
-            </View>
-          )}
-
-          <View style={styles.botoes}>
-            <View style={styles.botaoMetade}>
-              <Botao titulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} />
-            </View>
-            <View style={styles.botaoMetade}>
-              <Botao
-                titulo="Salvar"
-                tipo="principal"
-                aoTocar={salvar}
-                desativado={carga.tipo !== 'pronta' || salvando}
-              />
-            </View>
+      {carga.tipo === 'pronta' && (
+        <View style={styles.campos}>
+          {/* Os nomes visíveis ficam escondidos do leitor de tela, porque o
+              próprio campo já é lido com o mesmo nome (accessibilityLabel) */}
+          <View style={styles.blocoCampo}>
+            <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
+              Quanto por mês
+            </Text>
+            <CampoDeTexto
+              rotulo="Quanto por mês"
+              teclado="decimal-pad"
+              valor={textoValor}
+              aoDigitar={aoDigitarValor}
+              comErro={erro?.campo === 'valor'}
+            />
           </View>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
+
+          <View style={styles.blocoCampo}>
+            <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
+              Até quando (MM/AAAA)
+            </Text>
+            {/* Teclado com números e barra; no Android vira o teclado comum */}
+            <CampoDeTexto
+              rotulo="Até quando (MM/AAAA)"
+              teclado="numbers-and-punctuation"
+              valor={textoMes}
+              aoDigitar={aoDigitarMes}
+              comErro={erro?.campo === 'mes'}
+            />
+          </View>
+
+          {/* Uma mensagem só, embaixo dos dois campos */}
+          {erro !== null && (
+            <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.mensagemErro]}>
+              {erro.mensagem}
+            </Text>
+          )}
+        </View>
+      )}
+
+      <View style={styles.botoes}>
+        <View style={styles.botaoMetade}>
+          <Botao titulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} />
+        </View>
+        <View style={styles.botaoMetade}>
+          <Botao
+            titulo="Salvar"
+            tipo="principal"
+            aoTocar={salvar}
+            desativado={carga.tipo !== 'pronta' || salvando}
+          />
+        </View>
+      </View>
+    </Folha>
   );
 }
 
 const styles = StyleSheet.create({
-  fundo: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: fundoEscurecido,
-  },
-  folha: {
-    backgroundColor: cores.superficieElevada,
-    borderTopLeftRadius: cantos.folha,
-    borderTopRightRadius: cantos.folha,
-    padding: espaco.grande,
-    gap: espaco.medio,
-  },
   explicacao: {
     color: cores.textoSecundario,
   },

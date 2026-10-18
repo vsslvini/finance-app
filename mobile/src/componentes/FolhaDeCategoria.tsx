@@ -5,24 +5,14 @@
 // tocar numa categoria manda o PATCH na hora (não há botão "Salvar").
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { buscarCategorias, trocarCategoria, type Categoria, type Transacao } from '@/api';
 import Botao from '@/componentes/Botao';
 import CampoDeTexto from '@/componentes/CampoDeTexto';
+import Folha from '@/componentes/Folha';
 import { mensagemDoErro } from '@/mensagens';
-import { cantos, cores, espaco, fundoEscurecido, textos, toque } from '@/tema';
+import { cores, espaco, textos, toque } from '@/tema';
 
 // "Saúde" -> "saude". O normalize('NFD') separa a letra do acento ("u" + "´"),
 // e o replace apaga os acentos soltos (a faixa ̀-ͯ do Unicode).
@@ -110,99 +100,87 @@ export default function FolhaDeCategoria({
       : [];
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={aoCancelar}>
-      {/* Sobe a folha junto com o teclado no iPhone; no Android o sistema já faz isso */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.fundo}
-      >
-        <SafeAreaView edges={['bottom']} style={styles.folha}>
-          <Text accessibilityRole="header" style={textos.subtitulo}>
-            Categoria
-          </Text>
-          <Text style={textos.detalhe}>{transacao.descricao}</Text>
+    // A folha não passa de 85% da altura da tela; o que sobrar da lista rola
+    <Folha aoFechar={aoCancelar} alturaMaxima="85%">
+      <Text accessibilityRole="header" style={textos.subtitulo}>
+        Categoria
+      </Text>
+      <Text style={textos.detalhe}>{transacao.descricao}</Text>
 
-          {carga.tipo === 'carregando' && (
-            <View style={styles.carregando}>
-              <ActivityIndicator color={cores.acento} />
-              <Text style={[textos.corpo, styles.textoSecundario]}>Carregando as categorias...</Text>
-            </View>
+      {carga.tipo === 'carregando' && (
+        <View style={styles.carregando}>
+          <ActivityIndicator color={cores.acento} />
+          <Text style={[textos.corpo, styles.textoSecundario]}>Carregando as categorias...</Text>
+        </View>
+      )}
+
+      {carga.tipo === 'erro' && (
+        <Text style={[textos.detalhe, styles.mensagemErro]}>{carga.mensagem}</Text>
+      )}
+
+      {carga.tipo === 'pronta' && (
+        <>
+          <CampoDeTexto
+            rotulo="Buscar categoria"
+            teclado="default"
+            valor={busca}
+            aoDigitar={setBusca}
+            comErro={false}
+          />
+
+          {erro !== null && (
+            <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.mensagemErro]}>
+              {erro}
+            </Text>
           )}
 
-          {carga.tipo === 'erro' && (
-            <Text style={[textos.detalhe, styles.mensagemErro]}>{carga.mensagem}</Text>
-          )}
-
-          {carga.tipo === 'pronta' && (
-            <>
-              <CampoDeTexto
-                rotulo="Buscar categoria"
-                teclado="default"
-                valor={busca}
-                aoDigitar={setBusca}
-                comErro={false}
+          {/* FlatList porque a Pluggy tem perto de cem categorias.
+              keyboardShouldPersistTaps="handled": com o teclado aberto, o
+              primeiro toque numa categoria já escolhe (sem ele, o primeiro
+              toque só fecharia o teclado) */}
+          <FlatList
+            data={filtradas}
+            keyExtractor={(categoria) => categoria.descricao}
+            keyboardShouldPersistTaps="handled"
+            style={styles.lista}
+            // O cabeçalho fica fora do filtro: a busca nunca esconde estas
+            // duas opções fixas
+            ListHeaderComponent={
+              <>
+                {/* Atalho para marcar transferência própria. Se a lista
+                    trouxer categorias "Same person transfer", elas
+                    continuam aparecendo embaixo, normalmente */}
+                <OpcaoDeCategoria
+                  nome="Transferência entre minhas contas"
+                  detalhe="Não conta como entrada nem saída."
+                  selecionada={transacao.categoria_original.startsWith(TRANSFERENCIA_PROPRIA)}
+                  aoTocar={() => escolher(TRANSFERENCIA_PROPRIA)}
+                />
+                <OpcaoDeCategoria
+                  nome="Usar a categoria do banco"
+                  selecionada={false}
+                  aoTocar={() => escolher('')}
+                />
+              </>
+            }
+            renderItem={({ item }) => (
+              <OpcaoDeCategoria
+                nome={item.nome}
+                selecionada={item.descricao === transacao.categoria_original}
+                aoTocar={() => escolher(item.descricao)}
               />
+            )}
+            ListEmptyComponent={
+              <Text style={[textos.corpo, styles.textoSecundario, styles.vazio]}>
+                Nenhuma categoria encontrada.
+              </Text>
+            }
+          />
+        </>
+      )}
 
-              {erro !== null && (
-                <Text
-                  accessibilityLiveRegion="polite"
-                  style={[textos.detalhe, styles.mensagemErro]}
-                >
-                  {erro}
-                </Text>
-              )}
-
-              {/* FlatList porque a Pluggy tem perto de cem categorias.
-                  keyboardShouldPersistTaps="handled": com o teclado aberto, o
-                  primeiro toque numa categoria já escolhe (sem ele, o primeiro
-                  toque só fecharia o teclado) */}
-              <FlatList
-                data={filtradas}
-                keyExtractor={(categoria) => categoria.descricao}
-                keyboardShouldPersistTaps="handled"
-                style={styles.lista}
-                // O cabeçalho fica fora do filtro: a busca nunca esconde estas
-                // duas opções fixas
-                ListHeaderComponent={
-                  <>
-                    {/* Atalho para marcar transferência própria. Se a lista
-                        trouxer categorias "Same person transfer", elas
-                        continuam aparecendo embaixo, normalmente */}
-                    <OpcaoDeCategoria
-                      nome="Transferência entre minhas contas"
-                      detalhe="Não conta como entrada nem saída."
-                      selecionada={transacao.categoria_original.startsWith(
-                        TRANSFERENCIA_PROPRIA,
-                      )}
-                      aoTocar={() => escolher(TRANSFERENCIA_PROPRIA)}
-                    />
-                    <OpcaoDeCategoria
-                      nome="Usar a categoria do banco"
-                      selecionada={false}
-                      aoTocar={() => escolher('')}
-                    />
-                  </>
-                }
-                renderItem={({ item }) => (
-                  <OpcaoDeCategoria
-                    nome={item.nome}
-                    selecionada={item.descricao === transacao.categoria_original}
-                    aoTocar={() => escolher(item.descricao)}
-                  />
-                )}
-                ListEmptyComponent={
-                  <Text style={[textos.corpo, styles.textoSecundario, styles.vazio]}>
-                    Nenhuma categoria encontrada.
-                  </Text>
-                }
-              />
-            </>
-          )}
-
-          <Botao titulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} />
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
+      <Botao titulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} />
+    </Folha>
   );
 }
 
@@ -246,20 +224,6 @@ function OpcaoDeCategoria({ nome, detalhe, selecionada, aoTocar }: OpcaoDeCatego
 }
 
 const styles = StyleSheet.create({
-  fundo: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: fundoEscurecido,
-  },
-  folha: {
-    // A folha não passa de 85% da altura da tela; o que sobrar da lista rola
-    maxHeight: '85%',
-    backgroundColor: cores.superficieElevada,
-    borderTopLeftRadius: cantos.folha,
-    borderTopRightRadius: cantos.folha,
-    padding: espaco.grande,
-    gap: espaco.medio,
-  },
   carregando: {
     alignItems: 'center',
     gap: espaco.pequeno,

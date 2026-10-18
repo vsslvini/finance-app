@@ -2,23 +2,15 @@
 // primeira. Confere os campos no app antes de chamar a API; ao salvar, o backend
 // gera as parcelas. A prévia mostra o valor de cada parcela enquanto a pessoa digita.
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { criarDivida, type NovaDivida } from '@/api';
 import Botao from '@/componentes/Botao';
 import CampoDeTexto from '@/componentes/CampoDeTexto';
+import Folha from '@/componentes/Folha';
 import { formatarMes, formatarReais, hojeNoCelular, lerMes, lerReais } from '@/formatacao';
 import { mensagemDoErro } from '@/mensagens';
-import { cantos, cores, espaco, fundoEscurecido, textos } from '@/tema';
+import { cores, espaco, textos } from '@/tema';
 
 const MAXIMO_DE_PARCELAS = 120;
 
@@ -168,133 +160,112 @@ export default function FolhaDeNovaDivida({ aoCancelar, aoSalvar }: FolhaDeNovaD
   }
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={aoCancelar}>
-      {/* Sobe a folha junto com o teclado no iPhone; no Android o sistema já faz isso */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.fundo}
+    // A folha não passa de 85% da altura da tela; o que sobrar dos campos rola
+    <Folha aoFechar={aoCancelar} alturaMaxima="85%">
+      <Text accessibilityRole="header" style={textos.subtitulo}>
+        Nova dívida
+      </Text>
+      <Text style={[textos.corpo, styles.explicacao]}>
+        Cada parcela conta como saída no mês dela até você marcar como paga.
+      </Text>
+
+      {/* Os campos rolam, para os botões ficarem sempre à vista */}
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        style={styles.rolagem}
+        contentContainerStyle={styles.campos}
       >
-        <SafeAreaView edges={['bottom']} style={styles.folha}>
-          <Text accessibilityRole="header" style={textos.subtitulo}>
-            Nova dívida
+        {/* Os nomes visíveis ficam escondidos do leitor de tela, porque o
+            próprio campo já é lido com o mesmo nome (accessibilityLabel) */}
+        <View style={styles.blocoCampo}>
+          <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
+            Para quem
           </Text>
-          <Text style={[textos.corpo, styles.explicacao]}>
-            Cada parcela conta como saída no mês dela até você marcar como paga.
+          <CampoDeTexto
+            rotulo="Para quem"
+            teclado="default"
+            valor={credor}
+            aoDigitar={digitar(setCredor)}
+            comErro={erro?.campo === 'credor'}
+          />
+        </View>
+
+        <View style={styles.blocoCampo}>
+          <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
+            Motivo (opcional)
           </Text>
+          <CampoDeTexto
+            rotulo="Motivo (opcional)"
+            teclado="default"
+            valor={motivo}
+            aoDigitar={digitar(setMotivo)}
+            comErro={false}
+          />
+        </View>
 
-          {/* Os campos rolam, para os botões ficarem sempre à vista */}
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            style={styles.rolagem}
-            contentContainerStyle={styles.campos}
-          >
-            {/* Os nomes visíveis ficam escondidos do leitor de tela, porque o
-                próprio campo já é lido com o mesmo nome (accessibilityLabel) */}
-            <View style={styles.blocoCampo}>
-              <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
-                Para quem
-              </Text>
-              <CampoDeTexto
-                rotulo="Para quem"
-                teclado="default"
-                valor={credor}
-                aoDigitar={digitar(setCredor)}
-                comErro={erro?.campo === 'credor'}
-              />
-            </View>
+        <View style={styles.blocoCampo}>
+          <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
+            Valor total
+          </Text>
+          <CampoDeTexto
+            rotulo="Valor total"
+            teclado="decimal-pad"
+            valor={textoValor}
+            aoDigitar={digitar(setTextoValor)}
+            comErro={erro?.campo === 'valor'}
+          />
+        </View>
 
-            <View style={styles.blocoCampo}>
-              <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
-                Motivo (opcional)
-              </Text>
-              <CampoDeTexto
-                rotulo="Motivo (opcional)"
-                teclado="default"
-                valor={motivo}
-                aoDigitar={digitar(setMotivo)}
-                comErro={false}
-              />
-            </View>
+        <View style={styles.blocoCampo}>
+          <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
+            Parcelas
+          </Text>
+          <CampoDeTexto
+            rotulo="Parcelas"
+            teclado="number-pad"
+            valor={textoParcelas}
+            aoDigitar={digitar(setTextoParcelas)}
+            comErro={erro?.campo === 'parcelas'}
+          />
+        </View>
 
-            <View style={styles.blocoCampo}>
-              <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
-                Valor total
-              </Text>
-              <CampoDeTexto
-                rotulo="Valor total"
-                teclado="decimal-pad"
-                valor={textoValor}
-                aoDigitar={digitar(setTextoValor)}
-                comErro={erro?.campo === 'valor'}
-              />
-            </View>
+        <View style={styles.blocoCampo}>
+          <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
+            Mês da primeira parcela (MM/AAAA)
+          </Text>
+          {/* Teclado com números e barra; no Android vira o teclado comum */}
+          <CampoDeTexto
+            rotulo="Mês da primeira parcela (MM/AAAA)"
+            teclado="numbers-and-punctuation"
+            valor={textoMes}
+            aoDigitar={digitar(setTextoMes)}
+            comErro={erro?.campo === 'mes'}
+          />
+        </View>
 
-            <View style={styles.blocoCampo}>
-              <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
-                Parcelas
-              </Text>
-              <CampoDeTexto
-                rotulo="Parcelas"
-                teclado="number-pad"
-                valor={textoParcelas}
-                aoDigitar={digitar(setTextoParcelas)}
-                comErro={erro?.campo === 'parcelas'}
-              />
-            </View>
+        {previa !== null && <Text style={textos.detalhe}>{previa}</Text>}
 
-            <View style={styles.blocoCampo}>
-              <Text accessibilityElementsHidden importantForAccessibility="no" style={textos.rotulo}>
-                Mês da primeira parcela (MM/AAAA)
-              </Text>
-              {/* Teclado com números e barra; no Android vira o teclado comum */}
-              <CampoDeTexto
-                rotulo="Mês da primeira parcela (MM/AAAA)"
-                teclado="numbers-and-punctuation"
-                valor={textoMes}
-                aoDigitar={digitar(setTextoMes)}
-                comErro={erro?.campo === 'mes'}
-              />
-            </View>
+        {/* Uma mensagem só, embaixo dos campos */}
+        {erro !== null && (
+          <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.mensagemErro]}>
+            {erro.mensagem}
+          </Text>
+        )}
+      </ScrollView>
 
-            {previa !== null && <Text style={textos.detalhe}>{previa}</Text>}
-
-            {/* Uma mensagem só, embaixo dos campos */}
-            {erro !== null && (
-              <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.mensagemErro]}>
-                {erro.mensagem}
-              </Text>
-            )}
-          </ScrollView>
-
-          <View style={styles.botoes}>
-            <View style={styles.botaoMetade}>
-              <Botao titulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} />
-            </View>
-            <View style={styles.botaoMetade}>
-              <Botao titulo="Salvar" tipo="principal" aoTocar={salvar} desativado={salvando} />
-            </View>
-          </View>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
+      <View style={styles.botoes}>
+        <View style={styles.botaoMetade}>
+          <Botao titulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} />
+        </View>
+        <View style={styles.botaoMetade}>
+          <Botao titulo="Salvar" tipo="principal" aoTocar={salvar} desativado={salvando} />
+        </View>
+      </View>
+    </Folha>
   );
 }
 
 const styles = StyleSheet.create({
-  fundo: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: fundoEscurecido,
-  },
-  folha: {
-    // A folha não passa de 85% da altura da tela; o que sobrar dos campos rola
-    maxHeight: '85%',
-    backgroundColor: cores.superficieElevada,
-    borderTopLeftRadius: cantos.folha,
-    borderTopRightRadius: cantos.folha,
-    padding: espaco.grande,
-    gap: espaco.medio,
-  },
   explicacao: {
     color: cores.textoSecundario,
   },
