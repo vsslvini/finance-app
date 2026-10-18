@@ -53,6 +53,7 @@ aos pré-requisitos dele.
 | 29 | [`modulos/editar-divida.md`](modulos/editar-divida.md) | Módulo 15: editar dívida, gerar parcelas de novo, exceção própria, serializer que herda de outro, `partial=True` | itens 26 e 28 |
 | 30 | [`modulos/totais-a-pagar.md`](modulos/totais-a-pagar.md) | Módulo 16: totais da aba "A pagar", somar dinheiro em centavos inteiros, calcular na tela ou no backend | item 29 |
 | 31 | [`modulos/planejamento-por-mes.md`](modulos/planejamento-por-mes.md) | Módulo 17: planejamento por mês, % da renda, reaproveitar services, nome acessível igual ao texto visível | item 30 |
+| 32 | [`modulos/por-mes-resumido.md`](modulos/por-mes-resumido.md) | Módulo 18: cartão resumido com folha de detalhes, mês em foco, teste errado e não o código | item 31 |
 
 ## Documentos de consulta (fora desta pasta)
 
