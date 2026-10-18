@@ -46,6 +46,7 @@ aos pré-requisitos dele.
 | 22 | [`modulos/categorias.md`](modulos/categorias.md) | Módulo 8: tradução sem N+1 (`context`), `SerializerMethodField`, `PATCH` com validação, folha com busca | itens 17 e 21 |
 | 23 | [`modulos/relatorio.md`](modulos/relatorio.md) | Módulo 9: relatório do mês, dois totais diferentes (Saiu e Gastos), extrair função para não copiar regra | itens 16 e 22 |
 | 24 | [`modulos/sincronizacao-automatica.md`](modulos/sincronizacao-automatica.md) | Módulo 10: comando do Django, `CommandError`, `capsys`, timer do systemd | itens 2 e 6 |
+| 25 | [`modulos/transferencias-proprias.md`](modulos/transferencias-proprias.md) | Módulo 11: categoria efetiva com `Coalesce`/`NullIf`, opção fixa fora do filtro | itens 16 e 22 |
 
 ## Documentos de consulta (fora desta pasta)
 
