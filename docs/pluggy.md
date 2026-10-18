@@ -211,5 +211,9 @@ Campos que nos interessam:
   "guardado este mês" vem das transações da conta corrente (seção 8).
 - O guia não diz de quanto em quanto tempo os investimentos são atualizados. No Meu Pluggy,
   imaginamos que valha a atualização de 24 horas da seção 2 (não conferido).
-- Ainda não vimos a resposta real do Meu Pluggy para investimentos; conferir no primeiro
-  `sincronizar()` de verdade depois do Módulo 5.
+- Conferido no primeiro `sincronizar()` de verdade (2026-10-17): só o Nubank mandou
+  investimentos (Inter e PicPay vieram sem nenhum). As caixinhas do Nubank chegam como
+  `FIXED_INCOME` / `CDB`, com o nome "CDB - NU FINANCEIRA S.A. - SOCIEDADE DE CREDITO,
+  FINANCIAMENTO E INVESTIMENTO" (o mesmo nome em todas, então o nome não diferencia uma caixinha
+  da outra). Um Tesouro Prefixado resgatado veio como `TOTAL_WITHDRAWAL` com saldo 0,00, como a
+  documentação diz. `institution` veio vazio.

@@ -143,7 +143,7 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 ### Destaque "posso gastar"
 - Sem cartão (direto no fundo), número em `numeroDestaque`.
 - Embaixo, a régua de dias do mês (um traço por dia; altura 18, canto 3, espaço 3).
-- Linha de detalhe: "dia 10 de 31 · atualizado às 08:12".
+- Linha de detalhe: "dia 10 de 31" (a hora da atualização fica embaixo do título do mês, ver seção 8).
 
 ### Cartão de par (saldo e fatura; entradas e saídas)
 - Dois cartões lado a lado, `superficie`, canto 16, espaço 12 entre eles.
@@ -202,6 +202,8 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 | Erro | texto em `texto`, botão secundário "Tentar de novo" |
 | Vazio | texto em `textoSecundario`, centralizado no bloco |
 | Atualizando (puxar para baixo) | indicador nativo na cor `acento` |
+| Hora da atualização | linha em `detalhe` logo abaixo do título do mês: "Atualizado hoje às 14:32", "Atualizado ontem às 09:10", "Atualizado em 15/10 às 09:10" ou "Ainda não atualizado" |
+| Falha ao atualizar | logo abaixo da hora, "Não foi possível atualizar agora." em `detalhe` com cor `aviso`; os valores de antes continuam na tela |
 
 ## 9. Ícones e imagens
 

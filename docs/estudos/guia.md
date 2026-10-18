@@ -40,6 +40,7 @@ aos pré-requisitos dele.
 | 16 | [`modulos/ajustes-do-mes.md`](modulos/ajustes-do-mes.md) | Módulo 4c: por que a regra de Entrou e Saiu mudou (o caso real), condições combinadas com `Q`, ícones | item 15 |
 | 17 | [`modulos/guardado-backend.md`](modulos/guardado-backend.md) | Módulo 5a: investimentos da Pluggy, plano de guardar, funções puras, `validate()` com dois campos, `context` e serializer dentro de serializer | itens 13 e 16 |
 | 18 | [`modulos/guardado-tela.md`](modulos/guardado-tela.md) | Módulo 5b: seção Guardado, barra de progresso acessível, componente reaproveitado, folha com dois campos | item 17 |
+| 19 | [`modulos/atualizar.md`](modulos/atualizar.md) | Módulo 3b-2: puxar para baixo (`RefreshControl`), hora sem converter fuso, função pura com "hoje" de fora | itens 12 e 18 |
 
 ## Documentos de consulta (fora desta pasta)
 

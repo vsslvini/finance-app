@@ -107,7 +107,7 @@ Conferido no teste real em 2026-10-07 (detalhes em `docs/pluggy.md`, seção 7):
 Ainda em aberto:
 
 1. ~~Qual a frequência de atualização do Meu Pluggy?~~ Respondida: a cada 24 horas, sem atualização manual (ver acima).
-2. As caixinhas do Nubank aparecem como investimento? Decidido: usar os valores que a Pluggy fornecer. (RF04)
+2. ~~As caixinhas do Nubank aparecem como investimento?~~ Respondida em 2026-10-17: sim, como CDB da Nu Financeira (`FIXED_INCOME` / `CDB`), todas com o mesmo nome (ver `docs/pluggy.md`, seção 9). (RF04)
 3. ~~As minhas transações vêm com categoria preenchida?~~ Respondida em 2026-10-07: sim, em inglês (ver acima). O app aceita transação sem categoria ("Sem categoria"). (RF07)
 4. Quando termina o meu período de teste na pluggy.ai? O acesso ao Meu Pluggy continua depois do teste; falta saber só se as categorias automáticas param de vir (afeta RF07 e RF08).
 5. ~~Qual a fórmula do "posso gastar por dia"?~~ Decidido em 2026-10-08: (saldo das contas correntes menos a fatura aberta dos cartões) dividido pelos dias que faltam no mês, contando hoje. (RF18) Mudou em 2026-10-10: saldo das contas correntes dividido pelos dias que faltam no mês do app (RF30), contando hoje, sem descontar a fatura aberta, porque ela é paga com o salário do mês seguinte. A fatura ganha um limite com aviso (RF31).
