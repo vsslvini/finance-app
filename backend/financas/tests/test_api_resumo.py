@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -69,6 +69,7 @@ def test_resumo_traz_as_chaves_e_dinheiro_como_texto(cliente_com_token):
         "limite_fatura",
         "fatura_acima_do_limite",
         "guardado",
+        "ultima_atualizacao",
     }
     assert dados["saldo_total"] == "1000.00"
     assert dados["fatura_aberta"] == "0.00"
@@ -225,3 +226,33 @@ def test_resumo_com_plano_traz_o_bloco_guardado(cliente_com_token, monkeypatch):
         "progresso": 20,
         "falta_guardar_no_mes": "200.00",
     }
+
+
+def test_resumo_traz_a_ultima_atualizacao_mais_recente(cliente_com_token):
+    # Caso 1 do Módulo 3b-2: com duas conexões, vale a sincronização mais
+    # recente, e a hora sai no fuso do projeto (America/Manaus, -04:00), para o
+    # app só recortar o texto
+    fuso = timezone.get_current_timezone()
+    Conexao.objects.create(
+        id_pluggy="item-nubank",
+        nome_banco="Nubank",
+        ultima_atualizacao=datetime(2026, 10, 17, 9, 10, tzinfo=fuso),
+    )
+    Conexao.objects.create(
+        id_pluggy="item-inter",
+        nome_banco="Inter",
+        ultima_atualizacao=datetime(2026, 10, 17, 14, 32, tzinfo=fuso),
+    )
+
+    resposta = cliente_com_token.get("/api/resumo/")
+
+    assert resposta.json()["ultima_atualizacao"] == "2026-10-17T14:32:00-04:00"
+
+
+def test_resumo_sem_sincronizar_traz_ultima_atualizacao_null(cliente_com_token):
+    # Caso 2 do Módulo 3b-2: conexão cadastrada, mas nunca sincronizada
+    Conexao.objects.create(id_pluggy="item-nubank", nome_banco="Nubank")
+
+    resposta = cliente_com_token.get("/api/resumo/")
+
+    assert resposta.json()["ultima_atualizacao"] is None

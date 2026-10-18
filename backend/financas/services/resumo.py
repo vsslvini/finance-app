@@ -1,8 +1,8 @@
 from decimal import ROUND_FLOOR, Decimal
 
-from django.db.models import Q, Sum
+from django.db.models import Max, Q, Sum
 
-from financas.models import Conta, Investimento, Transacao
+from financas.models import Conexao, Conta, Investimento, Transacao
 from financas.services.guardado import bloco_guardado
 from financas.services.periodo import mes_atual, periodo_do_mes
 
@@ -117,4 +117,9 @@ def resumo_do_mes(
         "limite_fatura": limite,
         "fatura_acima_do_limite": limite is not None and fatura_aberta > limite,
         "guardado": guardado,
+        # Quando o nosso backend leu a Pluggy pela última vez (a conexão mais
+        # recente); None se nunca sincronizou. O app mostra "Atualizado ..."
+        "ultima_atualizacao": Conexao.objects.aggregate(
+            ultima=Max("ultima_atualizacao")
+        )["ultima"],
     }
