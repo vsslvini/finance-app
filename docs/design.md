@@ -192,6 +192,37 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 - "Maiores gastos" em `subtitulo`, com os itens da lista de gastos, mas sem toque.
 - Mês sem gastos: no lugar das duas seções, "Nenhum gasto neste mês." em `textoSecundario`.
 
+### Aba Dívidas (`/dividas`, desde 2026-10-18, Módulo 12b)
+- Título "Dívidas" em `titulo`; se o puxar para baixo falhar, "Não foi possível atualizar agora." em
+  `detalhe` com cor `aviso`.
+- Faixa de aviso (ícone `triangle-alert`) quando há parcelas atrasadas: "1 parcela atrasada. Se já
+  pagou, marque como paga na dívida." (ou "N parcelas atrasadas. ...").
+- Botão principal "Nova dívida" e, embaixo, um cartão por dívida (`superficie`, canto 16, tocável,
+  na ordem da API): credor em `valor`; motivo em `detalhe` (só se houver); "Falta R$ X de R$ Y" em
+  `rotulo`; barra do bloco de meta (parcelas pagas ÷ total); "1 de 3 parcelas pagas" em `rotulo`; e
+  a última linha em `detalhe`: "Próxima: R$ X em novembro de 2026", "Atrasada: R$ X de outubro de
+  2026" (cor `aviso`) ou "Tudo pago".
+- Sem dívidas: "Nenhuma dívida cadastrada." em `textoSecundario`, num cartão, abaixo do botão.
+
+### Folha "Nova dívida" e folha da dívida
+- Folha "Nova dívida": título, "Cada parcela conta como saída no mês dela até você marcar como
+  paga." e cinco campos que rolam (máximo de 85% da altura): "Para quem", "Motivo (opcional)",
+  "Valor total", "Parcelas" (começa em 1) e "Mês da primeira parcela (MM/AAAA)" (começa no mês
+  atual do celular). Com valor e parcelas válidos, uma prévia em `detalhe` ("3x de R$ 333,33 (a
+  última de R$ 333,34)"). Uma mensagem de erro só, embaixo dos campos, e a borda vermelha no
+  campo com problema. Botões "Cancelar" e "Salvar".
+- Folha da dívida: credor como título, motivo em `detalhe`, "R$ 1.000,00 em 3x · falta R$ 666,67"
+  em `rotulo`, e uma lista de parcelas (altura mínima 56, divisória de 1 em `borda`). Cada linha é
+  uma caixa de marcar: "Parcela 1 de 3" e o mês à esquerda; à direita o valor e a situação com
+  ícone e texto: `circle-check` "Paga" (`acento`), `circle` "A pagar" (`textoSecundario`) ou
+  `triangle-alert` "Atrasada" (`aviso`). Embaixo, "Fechar" (secundário) e "Apagar dívida"
+  (principal); o primeiro toque em apagar troca o texto para "Toque de novo para apagar" e mostra
+  "As 3 parcelas também serão apagadas." em `detalhe` com cor `erro`.
+
+### Dívidas no Início
+- Cartão "Saiu": com dívidas no mês, uma linha em `detalhe` "inclui R$ 333,33 de dívidas".
+- Faixa de aviso depois da faixa da fatura: "Há R$ 333,33 em parcelas de dívidas atrasadas.".
+
 ### Lista de gastos
 - Item: ícone de categoria (30x30, canto 15) à esquerda; descrição e detalhe no meio; valor à direita.
 - Divisória de 1 em `borda` entre itens.
@@ -239,6 +270,9 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 | Transações | `arrow-left-right` | `/transacoes` |
 | Cartões | `credit-card` | `/cartoes` |
 | Contas | `landmark` | `/contas` |
+| Dívidas | `hand-coins` | `/dividas` |
+
+- A quinta aba, Dívidas, entrou em 2026-10-18 (Módulo 12b).
 
 - Na tela Transações, as setas de trocar de mês usam `chevron-left` e `chevron-right` (24, área de toque 44x44); a seta desativada fica em `textoTerciario`.
 

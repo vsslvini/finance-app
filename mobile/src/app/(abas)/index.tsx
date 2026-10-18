@@ -154,6 +154,13 @@ export default function InicioScreen() {
   // (null quando não há desconto, e aí a linha "já separando" não aparece)
   const falta = resumo.guardado.falta_guardar_no_mes;
   const separando = falta !== '0.00' ? falta : null;
+  // Dívidas (Módulo 12): null quando não há nada, e aí as linhas e a faixa não aparecem
+  const dividasDoMes =
+    resumo.dividas_do_mes && resumo.dividas_do_mes !== '0.00' ? resumo.dividas_do_mes : null;
+  const dividasAtrasadas =
+    resumo.dividas_atrasadas && resumo.dividas_atrasadas !== '0.00'
+      ? resumo.dividas_atrasadas
+      : null;
 
   return (
     <SafeAreaView style={styles.tela}>
@@ -238,6 +245,22 @@ export default function InicioScreen() {
           </View>
         )}
 
+        {/* 5b. Aviso de parcelas de dívidas atrasadas */}
+        {dividasAtrasadas !== null && (
+          <View style={styles.aviso}>
+            <Lucide
+              name="triangle-alert"
+              size={18}
+              color={cores.aviso}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            />
+            <Text style={[textos.corpo, styles.textoAviso]}>
+              {`Há ${formatarReais(dividasAtrasadas)} em parcelas de dívidas atrasadas.`}
+            </Text>
+          </View>
+        )}
+
         {/* 6. Entradas e saídas do mês: "Entrou" é tocável e abre a folha do início do mês */}
         <View style={styles.linha}>
           <Pressable
@@ -254,13 +277,21 @@ export default function InicioScreen() {
           </Pressable>
           <View
             accessible
-            accessibilityLabel={rotuloEmReais('Saiu no mês', resumo.saidas)}
+            accessibilityLabel={
+              rotuloEmReais('Saiu no mês', resumo.saidas) +
+              (dividasDoMes === null
+                ? ''
+                : `, inclui ${formatarNumero(dividasDoMes)} reais de dívidas`)
+            }
             style={[styles.cartao, styles.cartaoMetade]}
           >
             <RotuloDoCartao texto="Saiu" icone="arrow-up-right" corDoIcone={cores.negativo} />
             <Text style={[textos.valor, styles.negativo]}>
               {`- ${formatarReais(resumo.saidas)}`}
             </Text>
+            {dividasDoMes !== null && (
+              <Text style={textos.detalhe}>{`inclui ${formatarReais(dividasDoMes)} de dívidas`}</Text>
+            )}
           </View>
         </View>
 

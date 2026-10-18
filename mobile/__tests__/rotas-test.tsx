@@ -16,6 +16,7 @@ import type { Relatorio, Resumo } from '@/api';
 import AbasLayout from '@/app/(abas)/_layout';
 import CartoesScreen from '@/app/(abas)/cartoes';
 import ContasScreen from '@/app/(abas)/contas';
+import DividasScreen from '@/app/(abas)/dividas';
 import InicioScreen from '@/app/(abas)/index';
 import TransacoesScreen from '@/app/(abas)/transacoes';
 import RootLayout from '@/app/_layout';
@@ -90,6 +91,7 @@ const ARQUIVOS_DO_APP = {
   '(abas)/transacoes': TransacoesScreen,
   '(abas)/cartoes': CartoesScreen,
   '(abas)/contas': ContasScreen,
+  '(abas)/dividas': DividasScreen,
   relatorio: RelatorioScreen,
 };
 
@@ -123,6 +125,8 @@ const RESUMO_DE_OUTUBRO: Resumo = {
     falta_guardar_no_mes: '0.00',
   },
   ultima_atualizacao: null,
+  dividas_do_mes: '0.00',
+  dividas_atrasadas: '0.00',
 };
 
 const RELATORIO_SEM_GASTOS: Relatorio = {
@@ -150,13 +154,15 @@ const RELATORIO_SEM_GASTOS: Relatorio = {
 // isso os nomes abaixo. (No Android o papel seria "tab" e o nome, só o
 // rótulo.) A posição no nome ("2 of 4") também confere a ordem das abas.
 // ---------------------------------------------------------------------------
-const ABA_INICIO = 'Início, tab, 1 of 4';
-const ABA_TRANSACOES = 'Transações, tab, 2 of 4';
-const ABA_CARTOES = 'Cartões, tab, 3 of 4';
-const ABA_CONTAS = 'Contas, tab, 4 of 4';
+// Desde o módulo 12b são cinco abas ("... of 5"), com "Dívidas" em quinto.
+const ABA_INICIO = 'Início, tab, 1 of 5';
+const ABA_TRANSACOES = 'Transações, tab, 2 of 5';
+const ABA_CARTOES = 'Cartões, tab, 3 of 5';
+const ABA_CONTAS = 'Contas, tab, 4 of 5';
+const ABA_DIVIDAS = 'Dívidas, tab, 5 of 5';
 
 describe('Rotas e abas do app', () => {
-  it('a barra mostra "Início", "Transações", "Cartões" e "Contas", nessa ordem (caso 1)', async () => {
+  it('a barra mostra "Início", "Transações", "Cartões", "Contas" e "Dívidas", nessa ordem (caso 1)', async () => {
     // Prepara: monta o app começando em "/". O await espera a primeira
     // tela terminar de desenhar.
     await renderRouter(ARQUIVOS_DO_APP, { initialUrl: '/' });
@@ -166,6 +172,7 @@ describe('Rotas e abas do app', () => {
     expect(screen.getByRole('button', { name: ABA_TRANSACOES })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: ABA_CARTOES })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: ABA_CONTAS })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: ABA_DIVIDAS })).toBeOnTheScreen();
 
     // Verifica também os rótulos que a pessoa vê embaixo dos ícones, de
     // cima para baixo (a ordem do getAllByText é a ordem na tela). O /^...$/
@@ -173,12 +180,13 @@ describe('Rotas e abas do app', () => {
     // quatro nomes. As outras abas ainda não foram abertas (as abas só
     // desenham a tela quando ela é aberta pela primeira vez), então nenhum
     // título de tela entra nesta lista.
-    const rotulos = screen.getAllByText(/^(Início|Transações|Cartões|Contas)$/);
-    expect(rotulos).toHaveLength(4);
+    const rotulos = screen.getAllByText(/^(Início|Transações|Cartões|Contas|Dívidas)$/);
+    expect(rotulos).toHaveLength(5);
     expect(rotulos[0]).toHaveTextContent('Início');
     expect(rotulos[1]).toHaveTextContent('Transações');
     expect(rotulos[2]).toHaveTextContent('Cartões');
     expect(rotulos[3]).toHaveTextContent('Contas');
+    expect(rotulos[4]).toHaveTextContent('Dívidas');
   });
 
   it('ao abrir, o endereço é "/" e aparece "Carregando o resumo..." (caso 2)', async () => {
@@ -233,6 +241,17 @@ describe('Rotas e abas do app', () => {
     expect(await screen.findByText('Carregando as contas...')).toBeOnTheScreen();
     // @ts-expect-error (mesmo motivo do caso 2)
     expect(app).toHavePathname('/contas');
+  });
+
+  it('tocar em "Dívidas" leva a "/dividas" e mostra "Carregando as dívidas..." (12b, caso 13)', async () => {
+    const app = renderRouter(ARQUIVOS_DO_APP, { initialUrl: '/' });
+    await app;
+
+    await fireEvent.press(screen.getByRole('button', { name: ABA_DIVIDAS }));
+
+    expect(await screen.findByText('Carregando as dívidas...')).toBeOnTheScreen();
+    // @ts-expect-error (mesmo motivo do caso 2)
+    expect(app).toHavePathname('/dividas');
   });
 
   it('"Ver relatório do mês" no Início leva a "/relatorio", e "Voltar" volta para "/" (9b, caso 1)', async () => {

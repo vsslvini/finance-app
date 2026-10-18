@@ -22,7 +22,7 @@ function iconeDaAba(nome: LucideIconName, color: ColorValue) {
   );
 }
 
-// Layout do grupo (abas): a barra de abas embaixo, com as quatro telas.
+// Layout do grupo (abas): a barra de abas embaixo, com as cinco telas.
 // Os parênteses no nome da pasta fazem o grupo não aparecer no endereço:
 // app/(abas)/transacoes.tsx vira "/transacoes", e app/(abas)/index.tsx vira "/".
 export default function AbasLayout() {
@@ -57,7 +57,7 @@ export default function AbasLayout() {
       }}
     >
       {/* A ordem aqui é a ordem das abas na barra. Sem tabBarAccessibilityLabel,
-          o leitor de tela lê o título com a posição ("Transações, aba 2 de 4") */}
+          o leitor de tela lê o título com a posição ("Transações, aba 2 de 5") */}
       <Tabs.Screen
         name="index"
         options={{
@@ -84,6 +84,13 @@ export default function AbasLayout() {
         options={{
           title: 'Contas',
           tabBarIcon: ({ color }) => iconeDaAba('landmark', color),
+        }}
+      />
+      <Tabs.Screen
+        name="dividas"
+        options={{
+          title: 'Dívidas',
+          tabBarIcon: ({ color }) => iconeDaAba('hand-coins', color),
         }}
       />
     </Tabs>

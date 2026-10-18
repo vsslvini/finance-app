@@ -167,6 +167,10 @@ const RESUMO_DE_EXEMPLO: Resumo = {
   // é o padrão, para os testes antigos (de antes do módulo 3b-2) verem a
   // mesma tela, só com a linha nova "Ainda não atualizado".
   ultima_atualizacao: null,
+  // Módulo 12b: sem dívidas por padrão ("0.00"), para os testes antigos
+  // verem a mesma tela.
+  dividas_do_mes: '0.00',
+  dividas_atrasadas: '0.00',
 };
 
 // Monta um resumo a partir do exemplo, trocando só o que o teste precisa.
@@ -1090,6 +1094,48 @@ describe('Puxar para baixo', () => {
     // ...e o resumo foi pedido só uma vez (ao abrir a tela): se a
     // sincronização falhou, não há dados novos para buscar.
     expect(chamadasDoResumo()).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Módulo 12b: dívidas no Início (caso 12 da seção "12b: contrato do app" em
+// docs/planos/modulo-12-dividas.md)
+// ---------------------------------------------------------------------------
+describe('Dívidas no Início', () => {
+  it('com parcelas no mês, o cartão Saiu mostra "inclui R$ 333,33 de dívidas" e o rótulo completo (caso 12)', async () => {
+    // Prepara: saídas de 1.200,00, das quais 333,33 são parcelas de dívidas.
+    fetchFalso.mockResolvedValue(
+      respostaFalsa(200, criarResumo({ saidas: '1200.00', dividas_do_mes: '333.33' })),
+    );
+
+    await render(<InicioScreen />);
+
+    expect(await screen.findByText('inclui R$ 333,33 de dívidas')).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText('Saiu no mês: 1.200,00 reais, inclui 333,33 reais de dívidas'),
+    ).toBeOnTheScreen();
+  });
+
+  it('com parcelas atrasadas, mostra a faixa "Há R$ 333,33 em parcelas de dívidas atrasadas." (caso 12)', async () => {
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo({ dividas_atrasadas: '333.33' })));
+
+    await render(<InicioScreen />);
+
+    expect(
+      await screen.findByText('Há R$ 333,33 em parcelas de dívidas atrasadas.'),
+    ).toBeOnTheScreen();
+  });
+
+  it('com dívidas "0.00", não mostra a linha nem a faixa (caso 12)', async () => {
+    // O resumo padrão já tem os dois campos em "0.00".
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+
+    await render(<InicioScreen />);
+    // Espera a tela carregar antes de conferir a ausência.
+    await screen.findByText('R$ 1.250,50');
+
+    expect(screen.queryByText(/de dívidas/)).toBeNull();
+    expect(screen.queryByText(/parcelas de dívidas atrasadas/)).toBeNull();
   });
 });
 

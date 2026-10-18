@@ -77,6 +77,52 @@ export type Resumo = {
   // Hora da última sincronização com a Pluggy, já no fuso do backend:
   // "2026-10-17T14:32:05.123456-04:00"; null quando nunca sincronizou
   ultima_atualizacao: string | null;
+  // Soma das parcelas de dívidas não pagas do mês (já dentro de "saidas") e das
+  // atrasadas (de meses anteriores). "0.00" quando não há nada
+  dividas_do_mes: string;
+  dividas_atrasadas: string;
+};
+
+// Uma parcela de uma dívida (dentro de GET /api/dividas/)
+export type ParcelaDaDivida = {
+  id: number;
+  numero: number; // 1, 2, 3...
+  mes: string; // "2026-11"
+  valor: string; // "333.33"
+  paga: boolean;
+  atrasada: boolean; // não paga e de um mês anterior ao mês atual do app
+};
+
+// A próxima parcela a pagar (a primeira não paga), sem o campo "paga"
+export type ProximaParcela = {
+  id: number;
+  numero: number;
+  mes: string; // "2026-11"
+  valor: string;
+  atrasada: boolean;
+};
+
+// Uma dívida de GET /api/dividas/ (e a resposta de POST e dos PATCH)
+export type Divida = {
+  id: number;
+  credor: string; // para quem se deve: "Tia Maria"
+  motivo: string; // pode vir vazio
+  valor_total: string; // "1000.00"
+  total_parcelas: number;
+  parcelas_pagas: number;
+  valor_pago: string;
+  valor_restante: string;
+  proxima_parcela: ProximaParcela | null; // null quando tudo está pago
+  parcelas: ParcelaDaDivida[];
+};
+
+// O que o app manda para cadastrar uma dívida (POST /api/dividas/)
+export type NovaDivida = {
+  credor: string;
+  motivo: string;
+  valor_total: string; // "1000.00"
+  parcelas: number;
+  mes_inicio: string; // "2026-11"
 };
 
 // Um cartão dentro de um mês de GET /api/faturas-futuras/
@@ -170,8 +216,8 @@ async function primeiraMensagem(response: Response): Promise<string> {
 }
 
 // Os métodos HTTP que o app usa: GET lê, PATCH salva campos, POST pede uma ação
-// (a sincronização com a Pluggy)
-type Metodo = 'GET' | 'PATCH' | 'POST';
+// (a sincronização com a Pluggy) ou cria algo (uma dívida), DELETE apaga
+type Metodo = 'GET' | 'PATCH' | 'POST' | 'DELETE';
 
 // Ajudante usado por todas as funções da API: faz o fetch com o token, aplica o
 // limite de tempo e traduz o status da resposta em ErroApi.
@@ -215,15 +261,21 @@ async function pedirApi<T>(caminho: string, metodo: Metodo = 'GET', corpo?: obje
     if (response.status === 401) {
       throw new ErroApi('token');
     }
-    // 400 só é "valor recusado" quando estamos salvando (PATCH). Num GET ou
-    // POST, um 400 vem de configuração do servidor (ex.: ALLOWED_HOSTS) e cai
-    // em 'servidor'
-    if (response.status === 400 && metodo === 'PATCH') {
+    // 400 só é "valor recusado" quando estamos salvando: PATCH, ou POST com
+    // corpo (cadastrar dívida). Num GET, num POST sem corpo (a sincronização)
+    // ou num DELETE, um 400 vem de configuração do servidor (ex.: ALLOWED_HOSTS)
+    // e cai em 'servidor'
+    const estaSalvando = metodo === 'PATCH' || (metodo === 'POST' && corpo !== undefined);
+    if (response.status === 400 && estaSalvando) {
       throw new ErroApi('validacao', await primeiraMensagem(response));
     }
     // Aqui também caem o 500 e o 502 (a Pluggy falhou na sincronização)
     if (!response.ok) {
       throw new ErroApi('servidor');
+    }
+    // 204 = deu certo e a resposta vem sem corpo (o DELETE); não há JSON para ler
+    if (response.status === 204) {
+      return undefined as T;
     }
     return (await response.json()) as T;
   } finally {
@@ -293,7 +345,28 @@ export async function sincronizar(): Promise<{ ultima_atualizacao: string | null
   return pedirApi<{ ultima_atualizacao: string | null }>('/api/sincronizar/', 'POST');
 }
 
-export async function buscarPlano(): Promise<PlanoDeGuardar> {
+// Todas as dívidas, na ordem da API (mais recente primeiro)
+export async function buscarDividas(): Promise<Divida[]> {
+  return pedirApi<Divida[]>('/api/dividas/');
+}
+
+// Cadastra uma dívida; o backend gera as parcelas e devolve a dívida pronta
+export async function criarDivida(nova: NovaDivida): Promise<Divida> {
+  return pedirApi<Divida>('/api/dividas/', 'POST', nova);
+}
+
+// Marca (true) ou desmarca (false) uma parcela como paga. O backend devolve a
+// dívida inteira já atualizada.
+export async function marcarParcela(id: number, paga: boolean): Promise<Divida> {
+  return pedirApi<Divida>(`/api/parcelas/${id}/`, 'PATCH', { paga });
+}
+
+// Apaga a dívida e as parcelas dela. A resposta (204) não tem corpo.
+export async function apagarDivida(id: number): Promise<void> {
+  return pedirApi<void>(`/api/dividas/${id}/`, 'DELETE');
+}
+
+export async function buscarPlano():Promise<PlanoDeGuardar> {
   return pedirApi<PlanoDeGuardar>('/api/plano/');
 }
 

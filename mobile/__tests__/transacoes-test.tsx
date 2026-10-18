@@ -70,6 +70,8 @@ const RESUMO_DE_OUTUBRO: Resumo = {
     falta_guardar_no_mes: '0.00',
   },
   ultima_atualizacao: null,
+  dividas_do_mes: '0.00',
+  dividas_atrasadas: '0.00',
 };
 
 // As transações de outubro, no formato do GET /api/transacoes/ (os mesmos
