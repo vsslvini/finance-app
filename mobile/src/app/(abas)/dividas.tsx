@@ -21,6 +21,7 @@ import FolhaDoCadastroDeDivida from '@/componentes/FolhaDoCadastroDeDivida';
 import FolhaDoGastoFixo from '@/componentes/FolhaDoGastoFixo';
 import LinhaDeGastoFixo from '@/componentes/LinhaDeGastoFixo';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
+import { formatarReais, somarReais } from '@/formatacao';
 import { mensagemDoErro } from '@/mensagens';
 import { entradaEmCascata } from '@/movimento';
 import { cantos, cores, espaco, textos } from '@/tema';
@@ -41,7 +42,8 @@ function buscarAPagar(): Promise<[GastoFixo[], Divida[]]> {
 // mês e relê a lista; tocar no gasto abre a folha para editar ou apagar. Tocar
 // num cartão de dívida abre a folha da dívida (parcelas, marcar como paga,
 // apagar); nela, "Editar dívida" fecha essa folha e abre a do cadastro com os
-// campos preenchidos. Depois de qualquer mudança, a lista é lida de novo.
+// campos preenchidos. Depois de qualquer mudança, a lista é lida de novo. Embaixo
+// do título de cada seção, uma linha soma o que falta pagar (calculada na renderização).
 export default function DividasScreen() {
   const { estado, recarregar, atualizar, atualizando, falhouAoAtualizar } =
     useCarga(buscarAPagar);
@@ -80,6 +82,16 @@ export default function DividasScreen() {
     (soma, divida) => soma + divida.parcelas.filter((parcela) => parcela.atrasada).length,
     0,
   );
+  // Totais das seções, também calculados aqui. Fixo que ainda não começou fica
+  // fora das duas somas.
+  const fixosQueJaComecaram = gastosFixos.filter(
+    (gasto) => gasto.este_mes.situacao !== 'nao_comecou',
+  );
+  const fixosAPagar = fixosQueJaComecaram.filter((gasto) => gasto.este_mes.situacao === 'a_pagar');
+  const totalDosFixos = somarReais(fixosQueJaComecaram.map((gasto) => gasto.valor));
+  const faltaDosFixos = somarReais(fixosAPagar.map((gasto) => gasto.valor));
+  const totalDasDividas = somarReais(dividas.map((divida) => divida.valor_total));
+  const faltaDasDividas = somarReais(dividas.map((divida) => divida.valor_restante));
 
   // Marca (a pagar) ou desmarca (pago manual) o pagamento do mês do gasto. Se o
   // pedido falhar, a linha continua como estava e aparece a mensagem.
@@ -190,6 +202,11 @@ export default function DividasScreen() {
         <Text accessibilityRole="header" style={[textos.subtitulo, styles.secao]}>
           Gastos fixos
         </Text>
+        {gastosFixos.length > 0 && (
+          <Text style={[textos.corpo, styles.resumo]}>
+            {`Falta pagar este mês: ${formatarReais(faltaDosFixos)} (de ${formatarReais(totalDosFixos)} por mês)`}
+          </Text>
+        )}
         <Botao
           titulo="Novo gasto fixo"
           tipo="secundario"
@@ -221,6 +238,11 @@ export default function DividasScreen() {
         <Text accessibilityRole="header" style={[textos.subtitulo, styles.secao]}>
           Dívidas
         </Text>
+        {dividas.length > 0 && (
+          <Text style={[textos.corpo, styles.resumo]}>
+            {`Falta pagar: ${formatarReais(faltaDasDividas)} (de ${formatarReais(totalDasDividas)})`}
+          </Text>
+        )}
         <Botao titulo="Nova dívida" tipo="secundario" aoTocar={() => setNovaAberta(true)} />
 
         {dividas.length === 0 ? (
@@ -307,6 +329,9 @@ const styles = StyleSheet.create({
   },
   secao: {
     marginTop: espaco.pequeno,
+  },
+  resumo: {
+    color: cores.textoSecundario,
   },
   cartaoDosFixos: {
     backgroundColor: cores.superficie,

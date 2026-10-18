@@ -43,6 +43,22 @@ export function formatarReais(valor: string): string {
   return `${sinal}R$ ${formatarNumero(valor)}`;
 }
 
+// Soma valores no formato da API, em centavos inteiros (sem decimais do JavaScript).
+// ["1200.00", "300.50"] -> "1500.50"; ["0.10", "0.20"] -> "0.30"; [] -> "0.00"
+export function somarReais(valores: string[]): string {
+  const totalEmCentavos = valores.reduce((soma, valor) => {
+    const negativo = valor.startsWith('-');
+    const [reais, centavosTexto = ''] = (negativo ? valor.slice(1) : valor).split('.');
+    const centavos = Number(reais || '0') * 100 + Number(centavosTexto.padEnd(2, '0').slice(0, 2));
+    return soma + (negativo ? -centavos : centavos);
+  }, 0);
+
+  const sinal = totalEmCentavos < 0 ? '-' : '';
+  const absoluto = Math.abs(totalEmCentavos);
+  const reais = Math.floor(absoluto / 100);
+  return `${sinal}${reais}.${String(absoluto % 100).padStart(2, '0')}`;
+}
+
 // "2026-10-08" -> "08/10"
 // Cortamos o texto em vez de usar new Date("2026-10-08"): o JavaScript lê essa
 // data como meia-noite em UTC, e no fuso de Brasília ela vira o dia anterior.

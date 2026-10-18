@@ -10,6 +10,7 @@ import {
   lerReais,
   mesVizinho,
   nomeDoMes,
+  somarReais,
   textoDaAtualizacao,
 } from '@/formatacao';
 
@@ -31,6 +32,26 @@ describe('formatarReais', () => {
 
   it('"-45.90" vira "- R$ 45,90" (o sinal fica antes do R$)', () => {
     expect(formatarReais('-45.90')).toBe('- R$ 45,90');
+  });
+});
+
+// somarReais (módulo 16) soma valores no formato da API ("1200.00") e devolve
+// a soma no mesmo formato. Soma em centavos inteiros por dentro, para o
+// JavaScript não errar centavos com número decimal.
+describe('somarReais', () => {
+  it('soma dois valores: ["1200.00", "300.50"] dá "1500.50" (caso 1)', () => {
+    expect(somarReais(['1200.00', '300.50'])).toBe('1500.50');
+  });
+
+  it('lista vazia dá "0.00" (caso 2)', () => {
+    // Sem nada para somar, o resultado é zero, ainda com duas casas.
+    expect(somarReais([])).toBe('0.00');
+  });
+
+  it('["0.10", "0.20"] dá exatamente "0.30" (caso 3)', () => {
+    // A armadilha: no JavaScript, 0.1 + 0.2 dá 0.30000000000000004. Conferir
+    // que o resultado é "0.30" prova que a conta não usa número decimal.
+    expect(somarReais(['0.10', '0.20'])).toBe('0.30');
   });
 });
 

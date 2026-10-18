@@ -1089,6 +1089,97 @@ describe('Gastos fixos na lista (14b, casos 8 a 12)', () => {
   });
 });
 
+// ===========================================================================
+// Módulo 16: totais na aba "A pagar"
+// ===========================================================================
+describe('Totais na aba A pagar (módulo 16)', () => {
+  it('com fixos a pagar e um pago, mostra quanto falta pagar e o total por mês (caso 4)', async () => {
+    // Prepara: dois fixos a pagar (1.200,00 e 99,90) e um já pago (300,50).
+    // Falta = 1200,00 + 99,90 = 1.299,90; total por mês = 1.600,40.
+    respostaDosFixos = async () =>
+      respostaFalsa(200, [
+        criarFixo({ id: 1, nome: 'Apartamento', valor: '1200.00' }),
+        criarFixo({ id: 2, nome: 'Internet', valor: '99.90' }),
+        criarFixo({
+          id: 3,
+          nome: 'Luz',
+          valor: '300.50',
+          este_mes: { mes: '2026-10', situacao: 'pago_manual' },
+        }),
+      ]);
+
+    await render(<DividasScreen />);
+
+    expect(
+      await screen.findByText('Falta pagar este mês: R$ 1.299,90 (de R$ 1.600,40 por mês)'),
+    ).toBeOnTheScreen();
+  });
+
+  it('fixo que ainda não começou não entra no total por mês (caso 5)', async () => {
+    // Prepara: um a pagar (1.200,00), um pago automático (99,90) e um que só
+    // começa em novembro (80,00). O "por mês" deve somar só os dois primeiros
+    // (1.299,90); se a Academia entrasse, daria 1.379,90.
+    respostaDosFixos = async () =>
+      respostaFalsa(200, [
+        criarFixo({ id: 1, nome: 'Apartamento', valor: '1200.00' }),
+        criarFixo({
+          id: 2,
+          nome: 'Internet',
+          valor: '99.90',
+          este_mes: { mes: '2026-10', situacao: 'pago_automatico' },
+        }),
+        criarFixo({
+          id: 3,
+          nome: 'Academia',
+          valor: '80.00',
+          mes_inicio: '2026-11',
+          este_mes: { mes: '2026-10', situacao: 'nao_comecou' },
+        }),
+      ]);
+
+    await render(<DividasScreen />);
+
+    expect(
+      await screen.findByText('Falta pagar este mês: R$ 1.200,00 (de R$ 1.299,90 por mês)'),
+    ).toBeOnTheScreen();
+  });
+
+  it('com duas dívidas, mostra quanto falta pagar e o total delas (caso 6)', async () => {
+    // Prepara: a dívida da Tia (falta 666,67 de 1.000,00) e outra de 500,00
+    // sem nada pago. Falta = 666,67 + 500,00 = 1.166,67; total = 1.500,00.
+    const dividaDoTio = criarDivida({
+      id: 2,
+      credor: 'Tio João',
+      motivo: '',
+      valor_total: '500.00',
+      total_parcelas: 1,
+      parcelas_pagas: 0,
+      valor_pago: '0.00',
+      valor_restante: '500.00',
+      proxima_parcela: { id: 4, numero: 1, mes: '2026-11', valor: '500.00', atrasada: false },
+      parcelas: [parcela(4, '2026-11', '500.00', false, false)],
+    });
+    respostaDasDividas = async () => respostaFalsa(200, [DIVIDA_TIA, dividaDoTio]);
+
+    await render(<DividasScreen />);
+
+    expect(await screen.findByText('Falta pagar: R$ 1.166,67 (de R$ 1.500,00)')).toBeOnTheScreen();
+  });
+
+  it('sem fixos e sem dívidas, nenhuma das duas frases de total aparece (caso 7)', async () => {
+    // Prepara: as duas listas vazias. Esperamos o aviso das dívidas para ter
+    // certeza de que a tela terminou de carregar antes de procurar o que não deve existir.
+    respostaDasDividas = async () => respostaFalsa(200, []);
+    respostaDosFixos = async () => respostaFalsa(200, []);
+
+    await render(<DividasScreen />);
+    await screen.findByText('Nenhuma dívida cadastrada.');
+
+    expect(screen.queryByText(/Falta pagar este mês/)).toBeNull();
+    expect(screen.queryByText(/Falta pagar: /)).toBeNull();
+  });
+});
+
 describe('Folha "Novo gasto fixo" (14b, caso 13)', () => {
   it('mostra a explicação "Conta como saída todo mês até ser pago. Vale até você apagar." (caso 13)', async () => {
     await abrirNovoFixo();
