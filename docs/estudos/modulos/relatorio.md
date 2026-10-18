@@ -72,3 +72,25 @@ curl -H "Authorization: Token $TOKEN" "http://127.0.0.1:8000/api/relatorio/?mes=
   Pluggy, não a manual.
 - Um PIX comum com "fatura" na descrição ("Fatura do condomínio") fica fora dos gastos.
 - Parcelas com data futura dentro do mês contam como gasto.
+
+## 7. 9b: a tela
+
+- Botão "Ver relatório do mês" na tela Início (depois de Entrou e Saiu) abre `/relatorio`, uma
+  tela **fora** do grupo `(abas)`: ela fica na pilha da raiz, por cima das abas (sem a barra de
+  abas), com "Voltar" (`router.back()`; se não houver tela antes, `router.replace('/')`). O Expo
+  Router junta sozinho na pilha os arquivos que não estão declarados no `_layout.tsx`.
+- Topo com setas de mês como em Transações. O primeiro pedido vai sem `?mes=`, e o `mes` da
+  resposta é o mês atual do app (assim o app não copia a regra dos dias antes); as setas pedem
+  `?mes=`. Ao trocar de mês, só o conteúdo carrega (`key={mes}`).
+- Cartões "Entrou", "Saiu" e "Saldo do mês"; "Gastos por categoria" com a frase da diferença,
+  "Total de gastos" e uma linha por categoria com barra de porcentagem; "Maiores gastos" (sem
+  toque) e "Nenhum gasto neste mês." quando não há gastos.
+- Componentes novos: `RelatorioDoMes`, `ConteudoDoRelatorio`, `LinhaDeCategoria` e
+  `BarraDeProgresso` (tirada da `SecaoGuardado`, que passou a usá-la sem mudar nada). O
+  `ItemDeTransacao` ganhou `aoTocar` opcional: sem ele, o item não é botão.
+
+Testes (`__tests__/relatorio-test.tsx`, 10, e o caso 1 em `rotas-test.tsx`; o app passa a ter
+134): navegação do Início para `/relatorio` e "Voltar"; pedido sem `?mes=` e os três valores;
+saldo negativo; categorias com rótulo, "37%" e barra; total e frase; maiores gastos sem botão;
+"Mês anterior" e "Próximo mês" desativado; mês sem gastos; erro com "Tentar de novo"; puxar para
+baixo sem "Carregando o relatório...".
