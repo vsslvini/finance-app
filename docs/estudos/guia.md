@@ -43,6 +43,7 @@ aos pré-requisitos dele.
 | 19 | [`modulos/atualizar.md`](modulos/atualizar.md) | Módulo 3b-2: puxar para baixo (`RefreshControl`), hora sem converter fuso, função pura com "hoje" de fora | itens 12 e 18 |
 | 20 | [`modulos/faturas-futuras.md`](modulos/faturas-futuras.md) | Módulo 7: estimar faturas pelas parcelas, expressão regular, tupla como chave, `divmod` para meses | item 17 |
 | 21 | [`modulos/abas-e-telas.md`](modulos/abas-e-telas.md) | Módulo 6: grupo de rotas e abas, hook próprio (`useCarga`), `key` para trocar de mês, testes com ajudante compartilhado | itens 15 e 19 |
+| 22 | [`modulos/categorias.md`](modulos/categorias.md) | Módulo 8: tradução sem N+1 (`context`), `SerializerMethodField`, `PATCH` com validação, folha com busca | itens 17 e 21 |
 
 ## Documentos de consulta (fora desta pasta)
 
