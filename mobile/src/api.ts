@@ -237,6 +237,8 @@ export type MesAPagar = {
   total: string; // fixos + dívidas: "1933.73"
   falta: string; // o que ainda não foi pago: "300.00"
   percentual_da_renda: string | null; // "38.7" ou null (sem renda)
+  percentual_fixos: string | null; // só os fixos: "24.0" ou null (sem renda)
+  percentual_dividas: string | null; // só as dívidas: "6.7" ou null (sem renda)
 };
 
 // Resposta de GET /api/a-pagar/: 6 meses, o primeiro é o mês atual do app

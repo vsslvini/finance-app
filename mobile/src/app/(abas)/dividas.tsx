@@ -23,6 +23,7 @@ import FolhaDeEdicao from '@/componentes/FolhaDeEdicao';
 import FolhaDaDivida from '@/componentes/FolhaDaDivida';
 import FolhaDoCadastroDeDivida from '@/componentes/FolhaDoCadastroDeDivida';
 import FolhaDoGastoFixo from '@/componentes/FolhaDoGastoFixo';
+import FolhaPorMes from '@/componentes/FolhaPorMes';
 import LinhaDeGastoFixo from '@/componentes/LinhaDeGastoFixo';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
 import { formatarReais, somarReais } from '@/formatacao';
@@ -43,8 +44,9 @@ function buscarAPagar(): Promise<[GastoFixo[], Divida[], APagarPorMes]> {
 // nome mudou.
 //
 // Fluxo: a tela abre, busca /api/gastos-fixos/, /api/dividas/ e /api/a-pagar/ e
-// mostra o cartão "Por mês" e as duas seções. Tocar na renda do cartão abre a
-// folha da renda mensal. Em cada gasto fixo, "Marcar pago" ou "Desmarcar" muda o
+// mostra o cartão resumido "Por mês" e as duas seções. Tocar no cartão abre a
+// folha "Por mês" (6 meses e a renda); nela, "Editar renda" fecha essa folha e
+// abre a da renda mensal, e "Fechar" volta sem reler. Em cada gasto fixo, "Marcar pago" ou "Desmarcar" muda o
 // pagamento do mês e relê tudo; tocar no gasto abre a folha para editar ou
 // apagar. Tocar num cartão de dívida abre a folha da dívida (parcelas, marcar
 // como paga, apagar); nela, "Editar dívida" fecha essa folha e abre a do cadastro
@@ -67,6 +69,8 @@ export default function DividasScreen() {
   const [erroDoPagamento, setErroDoPagamento] = useState<string | null>(null);
   // true enquanto a folha da renda mensal está aberta
   const [rendaAberta, setRendaAberta] = useState(false);
+  // true enquanto a folha "Por mês" (os 6 meses) está aberta
+  const [porMesAberto, setPorMesAberto] = useState(false);
 
   // A borda de baixo fica com a barra de abas, que já cuida da área segura
   if (estado.tipo === 'carregando') {
@@ -157,6 +161,13 @@ export default function DividasScreen() {
     atualizar();
   }
 
+  // "Editar renda" na folha "Por mês": fecha essa folha e abre a da renda (dois
+  // Modals abertos juntos dão problema). Nada mudou, então não relê.
+  function aoEditarRenda() {
+    setPorMesAberto(false);
+    setRendaAberta(true);
+  }
+
   // A renda foi salva: fecha a folha e relê tudo (as porcentagens mudam)
   function aoSalvarRenda() {
     setRendaAberta(false);
@@ -210,7 +221,7 @@ export default function DividasScreen() {
         )}
 
         <Animated.View entering={entradaEmCascata(0)}>
-          <CartaoPorMes dados={porMes} aoEditarRenda={() => setRendaAberta(true)} />
+          <CartaoPorMes dados={porMes} aoAbrir={() => setPorMesAberto(true)} />
         </Animated.View>
 
         <Text accessibilityRole="header" style={[textos.subtitulo, styles.secao]}>
@@ -274,6 +285,14 @@ export default function DividasScreen() {
           ))
         )}
       </ScrollView>
+
+      {porMesAberto && (
+        <FolhaPorMes
+          dados={porMes}
+          aoEditarRenda={aoEditarRenda}
+          aoFechar={() => setPorMesAberto(false)}
+        />
+      )}
 
       {rendaAberta && (
         <FolhaDeEdicao

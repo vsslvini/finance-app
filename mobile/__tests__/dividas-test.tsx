@@ -170,8 +170,20 @@ function mesAPagar(
   total: string,
   falta: string,
   percentual: string | null,
+  // Módulo 18: a % que cada tipo tira da renda (texto como "24.0", ou null sem renda).
+  percentualFixos: string | null = null,
+  percentualDividas: string | null = null,
 ) {
-  return { mes, fixos, dividas, total, falta, percentual_da_renda: percentual };
+  return {
+    mes,
+    fixos,
+    dividas,
+    total,
+    falta,
+    percentual_da_renda: percentual,
+    percentual_fixos: percentualFixos,
+    percentual_dividas: percentualDividas,
+  };
 }
 
 // Padrão: sem renda e 6 meses zerados (de outubro de 2026 a março de 2027).
@@ -185,12 +197,27 @@ const A_PAGAR_SEM_RENDA = { renda_mensal: null, meses: SEIS_MESES_ZERADOS };
 const A_PAGAR_COM_RENDA = {
   renda_mensal: '5000.00',
   meses: [
-    mesAPagar('2026-10', '1600.40', '333.33', '1933.73', '300.00', '38.7'),
-    mesAPagar('2026-11', '1700.00', '333.33', '2033.33', '2033.33', '40.7'),
-    mesAPagar('2026-12', '1700.00', '333.34', '2033.34', '2033.34', '40.7'),
-    mesAPagar('2027-01', '1710.00', '0.00', '1710.00', '1710.00', '34.2'),
-    mesAPagar('2027-02', '1720.00', '0.00', '1720.00', '1720.00', '34.4'),
-    mesAPagar('2027-03', '1730.00', '50.00', '1780.00', '1780.00', '35.6'),
+    mesAPagar('2026-10', '1600.40', '333.33', '1933.73', '300.00', '38.7', '32.0', '6.7'),
+    mesAPagar('2026-11', '1700.00', '333.33', '2033.33', '2033.33', '40.7', '34.0', '6.7'),
+    mesAPagar('2026-12', '1700.00', '333.34', '2033.34', '2033.34', '40.7', '34.0', '6.7'),
+    mesAPagar('2027-01', '1710.00', '0.00', '1710.00', '1710.00', '34.2', '34.2', '0.0'),
+    mesAPagar('2027-02', '1720.00', '0.00', '1720.00', '1720.00', '34.4', '34.4', '0.0'),
+    mesAPagar('2027-03', '1730.00', '50.00', '1780.00', '1780.00', '35.6', '34.6', '1.0'),
+  ],
+};
+
+// Módulo 18b: outubro está zerado (nada a pagar), então o mês em foco do
+// cartão resumido é novembro: fixos 1.200,00 (24,0% de 5.000) e dívidas 333,33
+// (6,7%), total 1.533,33.
+const A_PAGAR_COMECA_EM_NOVEMBRO = {
+  renda_mensal: '5000.00',
+  meses: [
+    mesAPagar('2026-10', '0.00', '0.00', '0.00', '0.00', '0.0', '0.0', '0.0'),
+    mesAPagar('2026-11', '1200.00', '333.33', '1533.33', '1533.33', '30.7', '24.0', '6.7'),
+    mesAPagar('2026-12', '1200.00', '333.34', '1533.34', '1533.34', '30.7', '24.0', '6.7'),
+    mesAPagar('2027-01', '1200.00', '0.00', '1200.00', '1200.00', '24.0', '24.0', '0.0'),
+    mesAPagar('2027-02', '1200.00', '0.00', '1200.00', '1200.00', '24.0', '24.0', '0.0'),
+    mesAPagar('2027-03', '1200.00', '0.00', '1200.00', '1200.00', '24.0', '24.0', '0.0'),
   ],
 };
 
@@ -1217,17 +1244,85 @@ describe('Linhas de total da aba A pagar (módulo 17b, casos 4 a 6)', () => {
 // ===========================================================================
 // Módulo 17b: cartão "Por mês" e renda
 // ===========================================================================
-describe('Cartão "Por mês" (módulo 17b, casos 1 a 3)', () => {
-  it('mostra os 6 meses com nome, total, "Fixos R$ X · Dívidas R$ Y" e "Falta R$ W" (caso 1)', async () => {
-    // Prepara: o servidor devolve 6 meses com valores diferentes.
-    // Confere o que a pessoa lê no cartão: o nome de cada mês e, no primeiro
-    // mês, o total, o detalhe e quanto ainda falta pagar.
-    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COM_RENDA);
+// Toca no cartão resumido. Tocamos no texto "Por mês" (o toque sobe até o
+// botão que envolve o cartão) e esperamos a folha abrir, o que se nota pelo
+// nome de um mês que só existe na folha (o cartão mostra um mês só).
+async function abrirFolhaPorMes() {
+  await fireEvent.press(await screen.findByText('Por mês'));
+  await screen.findByText('Março de 2027');
+}
+
+describe('Cartão "Por mês" resumido (módulo 18b, casos 1 a 3)', () => {
+  it('mostra só o mês em foco (o primeiro com algo a pagar) e o total dele, sem as 6 linhas (caso 1)', async () => {
+    // Prepara: outubro zerado e novembro com valores. Confere que o cartão
+    // escolhe novembro, mostra o total dele e NÃO lista os outros meses.
+    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COMECA_EM_NOVEMBRO);
 
     await render(<DividasScreen />);
 
-    // Os 6 nomes de mês (o primeiro texto espera a tela carregar).
+    expect(await screen.findByText('Novembro de 2026')).toBeOnTheScreen();
+    expect(screen.getByText('R$ 1.533,33')).toBeOnTheScreen();
+    // "Gastos fixos" e "Dívidas" são títulos das seções da aba e também as
+    // linhas do cartão, por isso aparecem pelo menos 2 vezes cada.
+    expect(screen.getAllByText('Gastos fixos').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Dívidas').length).toBeGreaterThanOrEqual(2);
+    // Os valores de cada tipo no mês em foco.
+    expect(screen.getAllByText('R$ 1.200,00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('R$ 333,33').length).toBeGreaterThan(0);
+    // As 6 linhas ficam para a folha: outros meses não aparecem.
+    expect(screen.queryByText('Outubro de 2026')).toBeNull();
+    expect(screen.queryByText('Março de 2027')).toBeNull();
+    // (O "Falta R$ X" sozinho é da folha; os textos das dívidas têm mais palavras.)
+    expect(screen.queryByText(/^Falta R\$ [\d.,]+$/)).toBeNull();
+  });
+
+  it('sem nada a pagar em nenhum mês, mostra o mês atual (o primeiro) (caso 2)', async () => {
+    // O servidor padrão tem os 6 meses zerados: o foco cai no primeiro mês.
+    await render(<DividasScreen />);
+
     expect(await screen.findByText('Outubro de 2026')).toBeOnTheScreen();
+    expect(screen.queryByText('Novembro de 2026')).toBeNull();
+  });
+
+  it('com renda, mostra "Renda: R$ 5.000,00", "24,0% da renda" nos fixos e "6,7% da renda" nas dívidas (caso 3)', async () => {
+    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COMECA_EM_NOVEMBRO);
+
+    await render(<DividasScreen />);
+
+    expect(await screen.findByText('Renda: R$ 5.000,00')).toBeOnTheScreen();
+    expect(screen.getByText('24,0% da renda')).toBeOnTheScreen();
+    expect(screen.getByText('6,7% da renda')).toBeOnTheScreen();
+    expect(
+      screen.queryByText('Informe sua renda para ver quanto isso tira dela.'),
+    ).toBeNull();
+  });
+
+  it('sem renda, mostra o convite para informar e nenhuma porcentagem (caso 3)', async () => {
+    // O servidor padrão responde renda_mensal null e percentuais null.
+    await render(<DividasScreen />);
+
+    expect(
+      await screen.findByText('Informe sua renda para ver quanto isso tira dela.'),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText(/% da renda/)).toBeNull();
+    expect(screen.queryByText(/^Renda: /)).toBeNull();
+  });
+});
+
+describe('Folha "Por mês" (módulo 18b, casos 4 a 6)', () => {
+  it('tocar no cartão abre a folha com as 6 linhas: mês, detalhe, total, falta e % (caso 4)', async () => {
+    // Prepara: 6 meses com valores diferentes. Antes do toque a folha não existe.
+    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COM_RENDA);
+    await render(<DividasScreen />);
+    await screen.findByText('Renda: R$ 5.000,00');
+    expect(screen.queryByText('Março de 2027')).toBeNull();
+    expect(screen.queryByText('38,7% da renda')).toBeNull();
+
+    await abrirFolhaPorMes();
+
+    // Os 6 nomes de mês. O primeiro também está no cartão (mês em foco),
+    // por isso getAllByText nele.
+    expect(screen.getAllByText('Outubro de 2026').length).toBeGreaterThan(0);
     for (const titulo of [
       'Novembro de 2026',
       'Dezembro de 2026',
@@ -1237,60 +1332,63 @@ describe('Cartão "Por mês" (módulo 17b, casos 1 a 3)', () => {
     ]) {
       expect(screen.getByText(titulo)).toBeOnTheScreen();
     }
-    // O detalhe, o total e o "Falta" do primeiro mês. O total pode repetir em
-    // outro lugar da tela, por isso getAllByText.
+    // Detalhe, "Falta" e % do primeiro mês.
     expect(screen.getByText('Fixos R$ 1.600,40 · Dívidas R$ 333,33')).toBeOnTheScreen();
-    expect(screen.getAllByText('R$ 1.933,73').length).toBeGreaterThan(0);
     expect(screen.getByText('Falta R$ 300,00')).toBeOnTheScreen();
+    expect(screen.getByText('38,7% da renda')).toBeOnTheScreen();
+    // O total do primeiro mês agora aparece no cartão e na folha (2 vezes).
+    expect(screen.getAllByText('R$ 1.933,73')).toHaveLength(2);
     // Um mês do meio, para provar que cada linha usa os próprios valores.
     expect(screen.getByText('Fixos R$ 1.710,00 · Dívidas R$ 0,00')).toBeOnTheScreen();
     expect(screen.getAllByText('Falta R$ 1.710,00').length).toBeGreaterThan(0);
+    expect(screen.getByText('34,2% da renda')).toBeOnTheScreen();
   });
 
-  it('com renda, mostra "38,7% da renda" e o botão "Renda: R$ 5.000,00" (caso 2)', async () => {
-    // Confere que o percentual usa vírgula e que a renda aparece no topo
-    // como um botão (porque dá para tocar nela e mudar).
-    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COM_RENDA);
-
-    await render(<DividasScreen />);
-
-    expect(await screen.findByText('38,7% da renda')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'Renda: R$ 5.000,00' })).toBeOnTheScreen();
-  });
-
-  it('sem renda, mostra o convite para informar e nenhuma porcentagem (caso 2)', async () => {
-    // O servidor padrão responde renda_mensal null e percentual null.
-    await render(<DividasScreen />);
-
-    expect(
-      await screen.findByRole('button', {
-        name: 'Informe sua renda para ver quanto isso tira dela.',
-      }),
-    ).toBeOnTheScreen();
-    expect(screen.queryByText(/% da renda/)).toBeNull();
-  });
-
-  it('tocar na renda abre a folha "Renda mensal" com o valor atual no campo (caso 3)', async () => {
-    // Confere que a folha abre com o título certo e já preenchida com o
-    // valor que o servidor guarda (5000.00 aparece como 5.000,00).
+  it('a folha tem o título "Por mês" como cabeçalho (caso 4)', async () => {
     respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COM_RENDA);
     await render(<DividasScreen />);
 
-    await fireEvent.press(await screen.findByRole('button', { name: 'Renda: R$ 5.000,00' }));
+    await abrirFolhaPorMes();
+
+    // Com a folha aberta, o cartão continua embaixo dela: são dois títulos
+    // "Por mês" (o do cartão e o da folha)
+    expect(screen.getAllByRole('header', { name: 'Por mês' })).toHaveLength(2);
+  });
+
+  it('na folha, "Editar renda" abre a folha "Renda mensal" com o valor atual no campo (caso 5)', async () => {
+    // Confere que a folha da renda abre com o título certo, já preenchida
+    // (5000.00 aparece como 5.000,00), e que a folha "Por mês" fechou
+    // (duas folhas abertas juntas dão problema).
+    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COM_RENDA);
+    await render(<DividasScreen />);
+    await abrirFolhaPorMes();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Editar renda' }));
 
     expect(await screen.findByRole('header', { name: 'Renda mensal' })).toBeOnTheScreen();
     await waitFor(() =>
       expect(screen.getByLabelText('Renda mensal em reais')).toHaveDisplayValue('5.000,00'),
     );
+    expect(screen.queryByText('Março de 2027')).toBeNull();
   });
 
-  it('salvar a renda manda o PATCH com renda_mensal e a aba busca o planejamento de novo (caso 3)', async () => {
+  it('sem renda, o botão da folha se chama "Informar renda" (caso 5)', async () => {
+    // O servidor padrão não tem renda. Os 6 meses zerados existem na folha.
+    await render(<DividasScreen />);
+    await abrirFolhaPorMes();
+
+    expect(screen.getByRole('button', { name: 'Informar renda' })).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Editar renda' })).toBeNull();
+  });
+
+  it('salvar a renda manda o PATCH com renda_mensal e a aba busca o planejamento de novo (caso 5)', async () => {
     // Confere o fluxo completo: digitar 6.000,00, salvar, o PATCH levar
     // "6000.00" (só o campo editado) e o GET /api/a-pagar/ ser repetido
     // (um na abertura e outro depois de salvar).
     respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COM_RENDA);
     await render(<DividasScreen />);
-    await fireEvent.press(await screen.findByRole('button', { name: 'Renda: R$ 5.000,00' }));
+    await abrirFolhaPorMes();
+    await fireEvent.press(screen.getByRole('button', { name: 'Editar renda' }));
     const campo = await screen.findByLabelText('Renda mensal em reais');
     await waitFor(() => expect(campo).toHaveDisplayValue('5.000,00'));
 
@@ -1306,6 +1404,20 @@ describe('Cartão "Por mês" (módulo 17b, casos 1 a 3)', () => {
     expect(corpoDe('PATCH', '/api/configuracoes/')).toEqual({ renda_mensal: '6000.00' });
     await waitFor(() => expect(chamadas('GET', '/api/a-pagar/')).toHaveLength(2));
     await waitFor(() => expect(screen.queryByRole('header', { name: 'Renda mensal' })).toBeNull());
+  });
+
+  it('"Fechar" fecha a folha "Por mês" sem buscar o planejamento de novo (caso 6)', async () => {
+    // Confere que fechar só esconde a folha: a aba continua na tela e o
+    // GET /api/a-pagar/ foi chamado só 1 vez (na abertura da aba).
+    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COM_RENDA);
+    await render(<DividasScreen />);
+    await abrirFolhaPorMes();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Fechar' }));
+
+    await waitFor(() => expect(screen.queryByText('Março de 2027')).toBeNull());
+    expect(screen.getByText('Renda: R$ 5.000,00')).toBeOnTheScreen();
+    expect(chamadas('GET', '/api/a-pagar/')).toHaveLength(1);
   });
 });
 
