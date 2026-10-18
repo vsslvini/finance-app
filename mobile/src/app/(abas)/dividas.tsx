@@ -4,36 +4,61 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { buscarDividas, type Divida } from '@/api';
+import {
+  buscarDividas,
+  buscarGastosFixos,
+  desmarcarGastoFixoPago,
+  marcarGastoFixoPago,
+  type Divida,
+  type GastoFixo,
+} from '@/api';
 import Botao from '@/componentes/Botao';
 import CartaoDeDivida from '@/componentes/CartaoDeDivida';
 import Carregando from '@/componentes/Carregando';
 import EstadoVazio from '@/componentes/EstadoVazio';
 import FolhaDaDivida from '@/componentes/FolhaDaDivida';
 import FolhaDeNovaDivida from '@/componentes/FolhaDeNovaDivida';
+import FolhaDoGastoFixo from '@/componentes/FolhaDoGastoFixo';
+import LinhaDeGastoFixo from '@/componentes/LinhaDeGastoFixo';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
+import { mensagemDoErro } from '@/mensagens';
 import { entradaEmCascata } from '@/movimento';
 import { cantos, cores, espaco, textos } from '@/tema';
 import { useCarga } from '@/useCarga';
 
-// Tela Dívidas: um cartão por dívida, com o que falta pagar e a próxima parcela.
+// Busca os dois pedidos juntos. Fica fora do componente para ser sempre a mesma
+// função entre renderizações (o useCarga depende disso). Se um falhar, o
+// Promise.all falha e a tela mostra o erro.
+function buscarAPagar(): Promise<[GastoFixo[], Divida[]]> {
+  return Promise.all([buscarGastosFixos(), buscarDividas()]);
+}
+
+// Aba "A pagar": gastos fixos e dívidas. O arquivo e o endereço continuam
+// "dividas" (/dividas) porque a aba nasceu como Dívidas; só o nome mudou.
 //
-// Fluxo: a tela abre, busca /api/dividas/ e mostra os cartões. Tocar num cartão
-// abre a folha da dívida (parcelas, marcar como paga, apagar); "Nova dívida" abre
-// a folha de cadastro. Ao fechar uma folha depois de uma mudança, a lista é lida
-// de novo.
+// Fluxo: a tela abre, busca /api/gastos-fixos/ e /api/dividas/ e mostra as duas
+// seções. Em cada gasto fixo, "Marcar pago" ou "Desmarcar" muda o pagamento do
+// mês e relê a lista; tocar no gasto abre a folha para editar ou apagar. Tocar
+// num cartão de dívida abre a folha da dívida (parcelas, marcar como paga,
+// apagar). Depois de qualquer mudança, a lista é lida de novo.
 export default function DividasScreen() {
   const { estado, recarregar, atualizar, atualizando, falhouAoAtualizar } =
-    useCarga(buscarDividas);
+    useCarga(buscarAPagar);
   const [novaAberta, setNovaAberta] = useState(false);
   // A dívida cuja folha está aberta (null = nenhuma)
   const [aberta, setAberta] = useState<Divida | null>(null);
+  const [novoFixoAberto, setNovoFixoAberto] = useState(false);
+  // O gasto fixo cuja folha está aberta (null = nenhum)
+  const [fixoAberto, setFixoAberto] = useState<GastoFixo | null>(null);
+  // true enquanto o pedido de marcar ou desmarcar um pagamento está em andamento
+  const [marcando, setMarcando] = useState(false);
+  const [erroDoPagamento, setErroDoPagamento] = useState<string | null>(null);
 
   // A borda de baixo fica com a barra de abas, que já cuida da área segura
   if (estado.tipo === 'carregando') {
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.tela}>
-        <Carregando texto="Carregando as dívidas..." />
+        <Carregando texto="Carregando o que falta pagar..." />
       </SafeAreaView>
     );
   }
@@ -46,12 +71,38 @@ export default function DividasScreen() {
     );
   }
 
-  const dividas = estado.dados;
+  const [gastosFixos, dividas] = estado.dados;
   // Calculado durante a renderização, sem estado extra: quantas parcelas atrasadas
   const atrasadas = dividas.reduce(
     (soma, divida) => soma + divida.parcelas.filter((parcela) => parcela.atrasada).length,
     0,
   );
+
+  // Marca (a pagar) ou desmarca (pago manual) o pagamento do mês do gasto. Se o
+  // pedido falhar, a linha continua como estava e aparece a mensagem.
+  async function alternarPagamento(gasto: GastoFixo) {
+    setErroDoPagamento(null);
+    setMarcando(true);
+    try {
+      if (gasto.este_mes.situacao === 'a_pagar') {
+        await marcarGastoFixoPago(gasto.id, gasto.este_mes.mes);
+      } else {
+        await desmarcarGastoFixoPago(gasto.id, gasto.este_mes.mes);
+      }
+      await atualizar();
+    } catch (erroDaApi) {
+      setErroDoPagamento(mensagemDoErro(erroDaApi));
+    } finally {
+      setMarcando(false);
+    }
+  }
+
+  // O gasto fixo foi salvo ou apagado: fecha a folha e relê a lista
+  function aoSalvarFixo() {
+    setNovoFixoAberto(false);
+    setFixoAberto(null);
+    atualizar();
+  }
 
   // A nova dívida foi salva: fecha a folha e relê a lista (sem tela de carregando)
   function aoSalvarNova() {
@@ -92,7 +143,7 @@ export default function DividasScreen() {
       >
         <View style={styles.cabecalho}>
           <Text accessibilityRole="header" style={textos.titulo}>
-            Dívidas
+            A pagar
           </Text>
           {falhouAoAtualizar && (
             // accessibilityLiveRegion faz o leitor de tela do Android ler o
@@ -119,7 +170,41 @@ export default function DividasScreen() {
           </View>
         )}
 
-        <Botao titulo="Nova dívida" tipo="principal" aoTocar={() => setNovaAberta(true)} />
+        <Text accessibilityRole="header" style={[textos.subtitulo, styles.secao]}>
+          Gastos fixos
+        </Text>
+        <Botao
+          titulo="Novo gasto fixo"
+          tipo="secundario"
+          aoTocar={() => setNovoFixoAberto(true)}
+        />
+
+        <Animated.View entering={entradaEmCascata(0)} style={styles.cartaoDosFixos}>
+          {gastosFixos.length === 0 ? (
+            <EstadoVazio icone="repeat" texto="Nenhum gasto fixo cadastrado." />
+          ) : (
+            gastosFixos.map((gasto, indice) => (
+              <LinhaDeGastoFixo
+                key={gasto.id}
+                gasto={gasto}
+                comDivisoria={indice > 0}
+                ocupado={marcando}
+                aoAbrir={() => setFixoAberto(gasto)}
+                aoAlternarPagamento={() => alternarPagamento(gasto)}
+              />
+            ))
+          )}
+        </Animated.View>
+        {erroDoPagamento !== null && (
+          <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.erro]}>
+            {erroDoPagamento}
+          </Text>
+        )}
+
+        <Text accessibilityRole="header" style={[textos.subtitulo, styles.secao]}>
+          Dívidas
+        </Text>
+        <Botao titulo="Nova dívida" tipo="secundario" aoTocar={() => setNovaAberta(true)} />
 
         {dividas.length === 0 ? (
           <View style={styles.vazio}>
@@ -130,7 +215,7 @@ export default function DividasScreen() {
           // ScrollView não é recomendado
           // Cada cartão entra em cascata (seção 10 do guia), só na primeira carga
           dividas.map((divida, indice) => (
-            <Animated.View key={divida.id} entering={entradaEmCascata(indice)}>
+            <Animated.View key={divida.id} entering={entradaEmCascata(indice + 1)}>
               <CartaoDeDivida divida={divida} aoTocar={() => setAberta(divida)} />
             </Animated.View>
           ))
@@ -139,6 +224,18 @@ export default function DividasScreen() {
 
       {novaAberta && (
         <FolhaDeNovaDivida aoCancelar={() => setNovaAberta(false)} aoSalvar={aoSalvarNova} />
+      )}
+
+      {(novoFixoAberto || fixoAberto !== null) && (
+        <FolhaDoGastoFixo
+          gasto={fixoAberto ?? undefined}
+          aoCancelar={() => {
+            setNovoFixoAberto(false);
+            setFixoAberto(null);
+          }}
+          aoSalvar={aoSalvarFixo}
+          aoApagar={aoSalvarFixo}
+        />
       )}
 
       {aberta !== null && (
@@ -178,6 +275,17 @@ const styles = StyleSheet.create({
     // flex: 1 deixa o texto quebrar a linha ao lado do ícone
     flex: 1,
     color: cores.aviso,
+  },
+  secao: {
+    marginTop: espaco.pequeno,
+  },
+  cartaoDosFixos: {
+    backgroundColor: cores.superficie,
+    borderRadius: cantos.cartao,
+    padding: espaco.grande,
+  },
+  erro: {
+    color: cores.erro,
   },
   vazio: {
     backgroundColor: cores.superficie,

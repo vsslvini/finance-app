@@ -117,6 +117,11 @@ export function mesPorExtenso(mes: string): string {
   return tituloDoMes(mes).toLowerCase();
 }
 
+// "2026-10" -> "outubro" (minúsculo e sem ano, para frases como "Falta pagar em outubro")
+export function nomeCurtoDoMes(mes: string): string {
+  return tituloDoMes(mes).split(' de ')[0].toLowerCase();
+}
+
 // O mês "passo" meses antes (negativo) ou depois (positivo), no formato da API.
 // ("2026-10", -1) -> "2026-09"; ("2026-01", -1) -> "2025-12"; ("2026-12", 1) -> "2027-01".
 // Só com texto e contas inteiras, sem Date, para o fuso do celular nunca entrar.

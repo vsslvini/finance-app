@@ -192,7 +192,52 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 - "Maiores gastos" em `subtitulo`, com os itens da lista de gastos, mas sem toque.
 - Mês sem gastos: no lugar das duas seções, "Nenhum gasto neste mês." em `textoSecundario`.
 
-### Aba Dívidas (`/dividas`, desde 2026-10-18, Módulo 12b)
+### Cartão "Gasto previsto" (Início, desde 2026-10-18, Módulo 14b)
+- Logo depois da régua de dias e antes de Saldo/Fatura. `superficie`, canto 16, só leitura.
+- Cabeçalho: ícone `calendar-clock` (16, `textoSecundario`, escondido do leitor de tela) e
+  "Gasto previsto" em `rotulo`.
+- Dois blocos empilhados, separados por divisória de 1 em `borda`, cada um lido de uma vez só pelo
+  leitor de tela: "Falta pagar em outubro" e "Previsto para novembro" (nome do mês em minúsculas,
+  sem ano) em `rotulo`; o total em `valor`, sem sinal; embaixo, linhas em `detalhe` só para o que
+  não é zero: "Fatura Nubank: R$ ..." (uma por cartão), "Gastos fixos: R$ ...", "Dívidas: R$ ..." e,
+  só no mês atual, "Parcelas atrasadas: R$ ..." em cor `aviso`.
+- Zerado: "R$ 0,00" e "Nada pendente." (mês atual) ou "Nada previsto." (mês que vem).
+- Sem o bloco `previsto` no resumo, o cartão não aparece. O Início relê o resumo (sem tela de
+  carregando) sempre que a aba ganha foco.
+- Cartão "Saiu": com gastos fixos a pagar no mês, linha em `detalhe` "inclui R$ 693,58 de gastos
+  fixos", depois a de dívidas.
+
+### Aba A pagar (`/dividas`, antes "Dívidas"; Módulo 14b)
+- Título da aba e da tela: "A pagar" (o arquivo e o endereço continuam `dividas`).
+- Ordem: título; aviso de falha ao atualizar; faixa de parcelas atrasadas; seção "Gastos fixos"
+  (`subtitulo`) com o botão secundário "Novo gasto fixo" e um cartão (`superficie`, canto 16) com
+  uma linha por gasto; seção "Dívidas" (`subtitulo`) com o botão secundário "Nova dívida" e os
+  cartões de dívida.
+- Linha do gasto fixo, dois alvos de toque lado a lado, divisória de 1 em `borda` entre linhas:
+  - à esquerda (abre a folha do gasto, altura mínima 56): nome em `corpo`; "R$ 1.200,00 · vence dia
+    10" em `detalhe` (sem dia, só o valor); a situação com ícone (14) e texto em `rotulo`:
+    `circle` "A pagar" (`textoSecundario`), `circle-check` "Pago" (`acento`), `circle-check` "Pago
+    (achado nas transações)" (`acento`) ou `calendar` "Começa em novembro de 2026"
+    (`textoSecundario`);
+  - à direita, botão secundário "Marcar pago" (a pagar) ou "Desmarcar" (pago manual); sem botão no
+    pago automático e no que ainda não começou. Desativado durante o pedido; se falhar, a mensagem
+    aparece embaixo do cartão em `detalhe` com cor `erro`.
+- Sem gastos fixos: `repeat` e "Nenhum gasto fixo cadastrado." dentro do cartão.
+
+### Folha do gasto fixo (nova e editar)
+- Título "Novo gasto fixo" (ao editar, o nome do gasto) e "Conta como saída todo mês até ser pago.
+  Vale até você apagar." Máximo de 85% da altura; os campos rolam.
+- Campos, cada um com o nome visível em `rotulo`: "Nome", "Valor por mês", "Dia do vencimento
+  (opcional)", "Começa em (MM/AAAA)" (começa no mês do celular) e "Trecho para achar o pagamento
+  (opcional)", com a dica em `detalhe`: "Parte do nome que aparece no extrato quando você paga, ex.:
+  DIRECIONAL. Com ele, o app marca como pago sozinho."
+- Uma mensagem de erro só, embaixo dos campos, e a borda vermelha no campo com problema. Botões
+  "Cancelar" e "Salvar".
+- Só ao editar: botão secundário "Apagar gasto fixo" abaixo; o primeiro toque troca o texto para
+  "Toque de novo para apagar" e mostra "O gasto fixo e as marcações de pago serão apagados." em
+  `detalhe` com cor `erro`; tocar ou digitar em qualquer campo cancela a confirmação.
+
+### Aba Dívidas (`/dividas`, desde 2026-10-18, Módulo 12b; hoje dentro da aba A pagar)
 - Título "Dívidas" em `titulo`; se o puxar para baixo falhar, "Não foi possível atualizar agora." em
   `detalhe` com cor `aviso`.
 - Faixa de aviso (ícone `triangle-alert`) quando há parcelas atrasadas: "1 parcela atrasada. Se já
@@ -270,9 +315,10 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 | Transações | `arrow-left-right` | `/transacoes` |
 | Cartões | `credit-card` | `/cartoes` |
 | Contas | `landmark` | `/contas` |
-| Dívidas | `hand-coins` | `/dividas` |
+| A pagar | `hand-coins` | `/dividas` |
 
-- A quinta aba, Dívidas, entrou em 2026-10-18 (Módulo 12b).
+- A quinta aba entrou em 2026-10-18 (Módulo 12b) como "Dívidas" e virou "A pagar" no Módulo 14b
+  (gastos fixos e dívidas); o endereço continua `/dividas`.
 
 - Na tela Transações, as setas de trocar de mês usam `chevron-left` e `chevron-right` (24, área de toque 44x44); a seta desativada fica em `textoTerciario`.
 

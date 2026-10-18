@@ -81,6 +81,61 @@ export type Resumo = {
   // atrasadas (de meses anteriores). "0.00" quando não há nada
   dividas_do_mes: string;
   dividas_atrasadas: string;
+  // Gastos fixos a pagar no mês (já dentro de "saidas"); "0.00" quando não há
+  fixos_do_mes: string;
+  // Gasto previsto (sempre do mês atual do app); ausente = o cartão não aparece
+  previsto?: Previsto;
+};
+
+// Uma fatura de cartão dentro do gasto previsto
+export type FaturaPrevista = {
+  conta: number; // id da conta do cartão
+  nome_banco: string; // "Nubank"
+  nome_conta: string; // "gold"
+  valor: string; // "358.32"
+};
+
+// O que falta pagar em um mês, separado por origem
+export type MesPrevisto = {
+  mes: string; // "2026-10"
+  total: string;
+  faturas: FaturaPrevista[];
+  fixos: string;
+  dividas: string;
+};
+
+// O mês atual também traz as parcelas atrasadas (de meses anteriores)
+export type MesAtualPrevisto = MesPrevisto & { atrasadas: string };
+
+export type Previsto = {
+  mes_atual: MesAtualPrevisto;
+  proximo_mes: MesPrevisto;
+};
+
+export type SituacaoDoGastoFixo =
+  | 'a_pagar'
+  | 'pago_manual'
+  | 'pago_automatico'
+  | 'nao_comecou';
+
+// Um gasto fixo de GET /api/gastos-fixos/ (e a resposta de POST, PATCH, PUT e DELETE do pagamento)
+export type GastoFixo = {
+  id: number;
+  nome: string; // "Apartamento"
+  valor: string; // "1200.00"
+  dia_vencimento: number | null;
+  mes_inicio: string; // "2026-10"
+  trecho_descricao: string; // pode vir vazio
+  este_mes: { mes: string; situacao: SituacaoDoGastoFixo };
+};
+
+// O que o app manda para cadastrar (POST) ou editar (PATCH) um gasto fixo
+export type DadosDoGastoFixo = {
+  nome: string;
+  valor: string;
+  dia_vencimento: number | null;
+  mes_inicio: string;
+  trecho_descricao: string;
 };
 
 // Uma parcela de uma dívida (dentro de GET /api/dividas/)
@@ -216,8 +271,9 @@ async function primeiraMensagem(response: Response): Promise<string> {
 }
 
 // Os métodos HTTP que o app usa: GET lê, PATCH salva campos, POST pede uma ação
-// (a sincronização com a Pluggy) ou cria algo (uma dívida), DELETE apaga
-type Metodo = 'GET' | 'PATCH' | 'POST' | 'DELETE';
+// (a sincronização com a Pluggy) ou cria algo (uma dívida), PUT marca algo sem
+// corpo (o pagamento de um gasto fixo), DELETE apaga
+type Metodo = 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE';
 
 // Ajudante usado por todas as funções da API: faz o fetch com o token, aplica o
 // limite de tempo e traduz o status da resposta em ErroApi.
@@ -364,6 +420,34 @@ export async function marcarParcela(id: number, paga: boolean): Promise<Divida> 
 // Apaga a dívida e as parcelas dela. A resposta (204) não tem corpo.
 export async function apagarDivida(id: number): Promise<void> {
   return pedirApi<void>(`/api/dividas/${id}/`, 'DELETE');
+}
+
+// Todos os gastos fixos, por nome, com a situação de cada um no mês atual
+export async function buscarGastosFixos(): Promise<GastoFixo[]> {
+  return pedirApi<GastoFixo[]>('/api/gastos-fixos/');
+}
+
+export async function criarGastoFixo(dados: DadosDoGastoFixo): Promise<GastoFixo> {
+  return pedirApi<GastoFixo>('/api/gastos-fixos/', 'POST', dados);
+}
+
+export async function editarGastoFixo(id: number, dados: DadosDoGastoFixo): Promise<GastoFixo> {
+  return pedirApi<GastoFixo>(`/api/gastos-fixos/${id}/`, 'PATCH', dados);
+}
+
+// Apaga o gasto fixo e as marcações de pago dele. A resposta (204) não tem corpo.
+export async function apagarGastoFixo(id: number): Promise<void> {
+  return pedirApi<void>(`/api/gastos-fixos/${id}/`, 'DELETE');
+}
+
+// Marca o gasto fixo como pago em um mês ("2026-10"); devolve o gasto atualizado
+export async function marcarGastoFixoPago(id: number, mes: string): Promise<GastoFixo> {
+  return pedirApi<GastoFixo>(`/api/gastos-fixos/${id}/pagamentos/${mes}/`, 'PUT');
+}
+
+// Desfaz a marcação de pago manual; devolve o gasto atualizado
+export async function desmarcarGastoFixoPago(id: number, mes: string): Promise<GastoFixo> {
+  return pedirApi<GastoFixo>(`/api/gastos-fixos/${id}/pagamentos/${mes}/`, 'DELETE');
 }
 
 export async function buscarPlano():Promise<PlanoDeGuardar> {

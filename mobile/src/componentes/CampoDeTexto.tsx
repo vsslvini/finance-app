@@ -12,6 +12,7 @@ type CampoDeTextoProps = {
   valor: string;
   aoDigitar: (texto: string) => void;
   comErro: boolean; // pinta a borda de vermelho
+  aoFocar?: () => void; // opcional: chamada quando o campo ganha foco
 };
 
 export default function CampoDeTexto({
@@ -20,6 +21,7 @@ export default function CampoDeTexto({
   valor,
   aoDigitar,
   comErro,
+  aoFocar,
 }: CampoDeTextoProps) {
   // O foco só muda a cor da borda, então fica guardado aqui dentro
   const [emFoco, setEmFoco] = useState(false);
@@ -30,7 +32,10 @@ export default function CampoDeTexto({
       keyboardType={teclado}
       value={valor}
       onChangeText={aoDigitar}
-      onFocus={() => setEmFoco(true)}
+      onFocus={() => {
+        setEmFoco(true);
+        aoFocar?.();
+      }}
       onBlur={() => setEmFoco(false)}
       placeholderTextColor={cores.textoTerciario}
       style={[

@@ -127,6 +127,9 @@ const RESUMO_DE_OUTUBRO: Resumo = {
   ultima_atualizacao: null,
   dividas_do_mes: '0.00',
   dividas_atrasadas: '0.00',
+  // Módulo 14b: sem gastos fixos e sem o bloco "previsto" (o cartão "Gasto
+  // previsto" não aparece), para o Início ficar como antes.
+  fixos_do_mes: '0.00',
 };
 
 const RELATORIO_SEM_GASTOS: Relatorio = {
@@ -154,15 +157,16 @@ const RELATORIO_SEM_GASTOS: Relatorio = {
 // isso os nomes abaixo. (No Android o papel seria "tab" e o nome, só o
 // rótulo.) A posição no nome ("2 of 4") também confere a ordem das abas.
 // ---------------------------------------------------------------------------
-// Desde o módulo 12b são cinco abas ("... of 5"), com "Dívidas" em quinto.
+// Desde o módulo 12b são cinco abas ("... of 5"). Desde o 14b a quinta se chama
+// "A pagar" (o arquivo e o endereço continuam "dividas" e "/dividas").
 const ABA_INICIO = 'Início, tab, 1 of 5';
 const ABA_TRANSACOES = 'Transações, tab, 2 of 5';
 const ABA_CARTOES = 'Cartões, tab, 3 of 5';
 const ABA_CONTAS = 'Contas, tab, 4 of 5';
-const ABA_DIVIDAS = 'Dívidas, tab, 5 of 5';
+const ABA_A_PAGAR = 'A pagar, tab, 5 of 5';
 
 describe('Rotas e abas do app', () => {
-  it('a barra mostra "Início", "Transações", "Cartões", "Contas" e "Dívidas", nessa ordem (caso 1)', async () => {
+  it('a barra mostra "Início", "Transações", "Cartões", "Contas" e "A pagar", nessa ordem (caso 1; 14b, caso 7)', async () => {
     // Prepara: monta o app começando em "/". O await espera a primeira
     // tela terminar de desenhar.
     await renderRouter(ARQUIVOS_DO_APP, { initialUrl: '/' });
@@ -172,7 +176,7 @@ describe('Rotas e abas do app', () => {
     expect(screen.getByRole('button', { name: ABA_TRANSACOES })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: ABA_CARTOES })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: ABA_CONTAS })).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: ABA_DIVIDAS })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: ABA_A_PAGAR })).toBeOnTheScreen();
 
     // Verifica também os rótulos que a pessoa vê embaixo dos ícones, de
     // cima para baixo (a ordem do getAllByText é a ordem na tela). O /^...$/
@@ -180,13 +184,13 @@ describe('Rotas e abas do app', () => {
     // quatro nomes. As outras abas ainda não foram abertas (as abas só
     // desenham a tela quando ela é aberta pela primeira vez), então nenhum
     // título de tela entra nesta lista.
-    const rotulos = screen.getAllByText(/^(Início|Transações|Cartões|Contas|Dívidas)$/);
+    const rotulos = screen.getAllByText(/^(Início|Transações|Cartões|Contas|A pagar)$/);
     expect(rotulos).toHaveLength(5);
     expect(rotulos[0]).toHaveTextContent('Início');
     expect(rotulos[1]).toHaveTextContent('Transações');
     expect(rotulos[2]).toHaveTextContent('Cartões');
     expect(rotulos[3]).toHaveTextContent('Contas');
-    expect(rotulos[4]).toHaveTextContent('Dívidas');
+    expect(rotulos[4]).toHaveTextContent('A pagar');
   });
 
   it('ao abrir, o endereço é "/" e aparece "Carregando o resumo..." (caso 2)', async () => {
@@ -243,13 +247,13 @@ describe('Rotas e abas do app', () => {
     expect(app).toHavePathname('/contas');
   });
 
-  it('tocar em "Dívidas" leva a "/dividas" e mostra "Carregando as dívidas..." (12b, caso 13)', async () => {
+  it('tocar em "A pagar" leva a "/dividas" e mostra "Carregando o que falta pagar..." (12b, caso 13; 14b, caso 7)', async () => {
     const app = renderRouter(ARQUIVOS_DO_APP, { initialUrl: '/' });
     await app;
 
-    await fireEvent.press(screen.getByRole('button', { name: ABA_DIVIDAS }));
+    await fireEvent.press(screen.getByRole('button', { name: ABA_A_PAGAR }));
 
-    expect(await screen.findByText('Carregando as dívidas...')).toBeOnTheScreen();
+    expect(await screen.findByText('Carregando o que falta pagar...')).toBeOnTheScreen();
     // @ts-expect-error (mesmo motivo do caso 2)
     expect(app).toHavePathname('/dividas');
   });
@@ -295,5 +299,48 @@ describe('Rotas e abas do app', () => {
       // @ts-expect-error (mesmo motivo do caso 2)
       expect(app).toHavePathname('/');
     });
+  });
+
+  it('o Início relê o resumo quando a aba ganha foco de novo, sem "Carregando o resumo..." (14b, caso 15)', async () => {
+    // Prepara: o fetch falso responde o resumo e anota os pedidos. Os outros
+    // pedidos (a aba Transações busca dados ao abrir) ficam sem resposta.
+    const fetchDoResumo = jest.fn((endereco: RequestInfo | URL) => {
+      if (String(endereco).includes('/api/resumo/')) {
+        return Promise.resolve(respostaFalsa(200, RESUMO_DE_OUTUBRO));
+      }
+      return new Promise<Response>(() => {});
+    });
+    globalThis.fetch = fetchDoResumo;
+    const pedidosDoResumo = () =>
+      fetchDoResumo.mock.calls.filter(([endereco]) => String(endereco).includes('/api/resumo/'))
+        .length;
+
+    await renderRouter(ARQUIVOS_DO_APP, { initialUrl: '/' });
+    // Espera o resumo da abertura chegar.
+    await screen.findByRole('button', { name: 'Ver relatório do mês' });
+
+    // Faz: vai para a aba Transações. Ela também pede o resumo ao abrir (é de
+    // lá que vem o mês atual) e só depois pede as transações; por isso a
+    // contagem começa quando o pedido das transações aparece.
+    await fireEvent.press(screen.getByRole('button', { name: ABA_TRANSACOES }));
+    expect(await screen.findByText('Carregando as transações...')).toBeOnTheScreen();
+    await waitFor(() =>
+      expect(
+        fetchDoResumo.mock.calls.some(([endereco]) =>
+          String(endereco).includes('/api/transacoes/'),
+        ),
+      ).toBe(true),
+    );
+    const antes = pedidosDoResumo();
+
+    // Volta para o Início. O Início fica montado nas abas; o que muda é o
+    // foco (blur e depois focus).
+    await fireEvent.press(screen.getByRole('button', { name: ABA_INICIO }));
+
+    // Verifica: um novo pedido do resumo foi feito ao voltar...
+    await waitFor(() => expect(pedidosDoResumo()).toBe(antes + 1));
+    // ...e a tela manteve o resumo na tela, sem voltar ao "carregando".
+    expect(screen.queryByText('Carregando o resumo...')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Ver relatório do mês' })).toBeOnTheScreen();
   });
 });

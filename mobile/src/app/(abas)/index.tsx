@@ -1,6 +1,6 @@
 import { Lucide } from '@react-native-vector-icons/lucide';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { buscarResumo, ErroApi, sincronizar, type Resumo, type TipoErroApi } from '@/api';
 import { iconeDaCategoria } from '@/categorias';
 import Botao from '@/componentes/Botao';
+import CartaoDoPrevisto from '@/componentes/CartaoDoPrevisto';
 import EsqueletoDoInicio from '@/componentes/EsqueletoDoInicio';
 import EstadoVazio from '@/componentes/EstadoVazio';
 import FolhaDeEdicao, { type CampoEditavel } from '@/componentes/FolhaDeEdicao';
@@ -78,6 +79,37 @@ export default function InicioScreen() {
       ativo = false;
     };
   }, []);
+
+  // Ao voltar para a aba Início (por exemplo, depois de marcar um gasto fixo
+  // como pago em "A pagar"), relê o resumo para o previsto refletir a mudança.
+  // O useFocusEffect roda também na primeira vez que a aba aparece, quando o
+  // useEffect acima já está buscando; por isso a primeira chamada é ignorada
+  // (senão o resumo seria pedido duas vezes). Sem passar por 'carregando': o
+  // resumo antigo fica na tela até o novo chegar, e se falhar nada muda.
+  // O useCallback é exigido pela documentação do useFocusEffect, para o efeito
+  // não rodar de novo a cada renderização.
+  const primeiraVez = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (primeiraVez.current) {
+        primeiraVez.current = false;
+        return undefined;
+      }
+      let ativo = true;
+      buscarResumo()
+        .then((resumo) => {
+          if (ativo) {
+            setEstado({ tipo: 'sucesso', resumo });
+          }
+        })
+        .catch(() => {
+          // Mantém o resumo que já está na tela
+        });
+      return () => {
+        ativo = false;
+      };
+    }, []),
+  );
 
   // Volta para carregando e busca o resumo outra vez.
   // Usado pelo "Tentar de novo" e depois de salvar na folha de edição.
@@ -170,6 +202,9 @@ export default function InicioScreen() {
     resumo.dividas_atrasadas && resumo.dividas_atrasadas !== '0.00'
       ? resumo.dividas_atrasadas
       : null;
+  // Gastos fixos a pagar no mês (Módulo 14): null quando não há nada
+  const fixosDoMes =
+    resumo.fixos_do_mes && resumo.fixos_do_mes !== '0.00' ? resumo.fixos_do_mes : null;
 
   return (
     <SafeAreaView style={styles.tela}>
@@ -224,8 +259,15 @@ export default function InicioScreen() {
           </Animated.View>
         )}
 
+        {/* 3b. Gasto previsto (só leitura); sem o bloco no resumo, não aparece */}
+        {resumo.previsto !== undefined && (
+          <Animated.View entering={entradaEmCascata(2)}>
+            <CartaoDoPrevisto previsto={resumo.previsto} />
+          </Animated.View>
+        )}
+
         {/* 4. Saldo (só leitura) e fatura (tocável, abre a folha do limite) */}
-        <Animated.View entering={entradaEmCascata(2)} style={styles.linha}>
+        <Animated.View entering={entradaEmCascata(3)} style={styles.linha}>
           <View
             accessible
             accessibilityLabel={rotuloEmReais('Saldo', resumo.saldo_total)}
@@ -280,7 +322,7 @@ export default function InicioScreen() {
         )}
 
         {/* 6. Entradas e saídas do mês: "Entrou" é tocável e abre a folha do início do mês */}
-        <Animated.View entering={entradaEmCascata(3)} style={styles.linha}>
+        <Animated.View entering={entradaEmCascata(4)} style={styles.linha}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={rotuloEmReais('Entrou no mês', resumo.entradas)}
@@ -299,7 +341,10 @@ export default function InicioScreen() {
               rotuloEmReais('Saiu no mês', resumo.saidas) +
               (dividasDoMes === null
                 ? ''
-                : `, inclui ${formatarNumero(dividasDoMes)} reais de dívidas`)
+                : `, inclui ${formatarNumero(dividasDoMes)} reais de dívidas`) +
+              (fixosDoMes === null
+                ? ''
+                : `, inclui ${formatarNumero(fixosDoMes)} reais de gastos fixos`)
             }
             style={[styles.cartao, styles.cartaoMetade]}
           >
@@ -309,6 +354,11 @@ export default function InicioScreen() {
             </Text>
             {dividasDoMes !== null && (
               <Text style={textos.detalhe}>{`inclui ${formatarReais(dividasDoMes)} de dívidas`}</Text>
+            )}
+            {fixosDoMes !== null && (
+              <Text style={textos.detalhe}>
+                {`inclui ${formatarReais(fixosDoMes)} de gastos fixos`}
+              </Text>
             )}
           </View>
         </Animated.View>
@@ -323,7 +373,7 @@ export default function InicioScreen() {
         />
 
         {/* 7. Guardado: investimentos e plano (tocável, abre a folha do plano) */}
-        <Animated.View entering={entradaEmCascata(4)}>
+        <Animated.View entering={entradaEmCascata(5)}>
           <SecaoGuardado guardado={resumo.guardado} aoTocar={() => setPlanoAberto(true)} />
         </Animated.View>
 

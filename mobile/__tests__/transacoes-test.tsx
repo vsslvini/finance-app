@@ -72,6 +72,8 @@ const RESUMO_DE_OUTUBRO: Resumo = {
   ultima_atualizacao: null,
   dividas_do_mes: '0.00',
   dividas_atrasadas: '0.00',
+  // Módulo 14b: sem gastos fixos e sem o bloco "previsto".
+  fixos_do_mes: '0.00',
 };
 
 // As transações de outubro, no formato do GET /api/transacoes/ (os mesmos

@@ -12,6 +12,7 @@ import {
   type GastoResumo,
   type Guardado,
   type PlanoDeGuardar,
+  type Previsto,
   type Resumo,
 } from '@/api';
 // Desde o módulo 6, a tela Início mora no grupo das abas: (abas)/index.tsx.
@@ -37,6 +38,16 @@ jest.mock('@react-native-vector-icons/lucide', () => {
   // Lucide); o dublê oferece os dois, seja qual for o import da tela.
   return { __esModule: true, default: IconeFalso, Lucide: IconeFalso };
 });
+
+// Dublê só do useFocusEffect do Expo Router. Aqui a tela Início é desenhada
+// sozinha, fora de um navegador, e o useFocusEffect de verdade precisa de um
+// (ele escuta o evento "a aba ganhou foco"). O resto do expo-router continua o
+// de verdade (jest.requireActual). Reler o resumo ao ganhar foco é conferido
+// no rotas-test.tsx, que monta o app com o navegador de verdade (14b, caso 15).
+jest.mock('expo-router', () => ({
+  ...jest.requireActual('expo-router'),
+  useFocusEffect: () => {},
+}));
 
 // ---------------------------------------------------------------------------
 // O que é um mock (dublê)
@@ -171,6 +182,30 @@ const RESUMO_DE_EXEMPLO: Resumo = {
   // verem a mesma tela.
   dividas_do_mes: '0.00',
   dividas_atrasadas: '0.00',
+  // Módulo 14b: sem gastos fixos ("0.00") e sem o bloco "previsto", então o
+  // cartão "Gasto previsto" não aparece e os testes antigos veem a mesma tela.
+  fixos_do_mes: '0.00',
+};
+
+// O bloco "previsto" do resumo (módulo 14a), com os números do exemplo do
+// plano: neste mês (outubro) faltam 693,58 só de gastos fixos; no mês que vem
+// (novembro) são 1.680,29, com uma fatura do Nubank, os fixos e uma dívida.
+const PREVISTO_DE_EXEMPLO: Previsto = {
+  mes_atual: {
+    mes: '2026-10',
+    total: '693.58',
+    faturas: [],
+    fixos: '693.58',
+    dividas: '0.00',
+    atrasadas: '0.00',
+  },
+  proximo_mes: {
+    mes: '2026-11',
+    total: '1680.29',
+    faturas: [{ conta: 3, nome_banco: 'Nubank', nome_conta: 'gold', valor: '358.32' }],
+    fixos: '731.48',
+    dividas: '300.00',
+  },
 };
 
 // Monta um resumo a partir do exemplo, trocando só o que o teste precisa.
@@ -1136,6 +1171,178 @@ describe('Dívidas no Início', () => {
 
     expect(screen.queryByText(/de dívidas/)).toBeNull();
     expect(screen.queryByText(/parcelas de dívidas atrasadas/)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Módulo 14b: o cartão "Gasto previsto" e os gastos fixos no "Saiu" (casos 1 a
+// 6 da seção "14b: contrato do app" em
+// docs/planos/modulo-14-gasto-previsto-e-fixos.md). O caso 15 (reler o resumo
+// quando a aba ganha foco) está em rotas-test.tsx, porque precisa das abas.
+// ---------------------------------------------------------------------------
+describe('Cartão "Gasto previsto"', () => {
+  it('mostra o cartão com "Falta pagar em outubro" (R$ 693,58) e "Previsto para novembro" (R$ 1.680,29) (caso 1)', async () => {
+    fetchFalso.mockResolvedValue(
+      respostaFalsa(200, criarResumo({ previsto: PREVISTO_DE_EXEMPLO })),
+    );
+
+    await render(<InicioScreen />);
+
+    // O título do cartão é um cabeçalho (papel "header").
+    expect(await screen.findByRole('header', { name: 'Gasto previsto' })).toBeOnTheScreen();
+    expect(screen.getByText('Falta pagar em outubro')).toBeOnTheScreen();
+    expect(screen.getByText('R$ 693,58')).toBeOnTheScreen();
+    expect(screen.getByText('Previsto para novembro')).toBeOnTheScreen();
+    expect(screen.getByText('R$ 1.680,29')).toBeOnTheScreen();
+  });
+
+  it('o detalhe mostra só o que não é zero, na ordem fatura, fixos, dívidas (caso 2)', async () => {
+    fetchFalso.mockResolvedValue(
+      respostaFalsa(200, criarResumo({ previsto: PREVISTO_DE_EXEMPLO })),
+    );
+
+    await render(<InicioScreen />);
+    await screen.findByText('Falta pagar em outubro');
+
+    // No mês atual só há fixos; o resto é "0.00" e não aparece. O texto exato
+    // do que falta aparece e o dos zerados não.
+    expect(screen.getByText('Gastos fixos: R$ 693,58')).toBeOnTheScreen();
+    expect(screen.queryByText('Dívidas: R$ 0,00')).toBeNull();
+    expect(screen.queryByText(/Parcelas atrasadas/)).toBeNull();
+    // No mês que vem, as três linhas aparecem.
+    expect(screen.getByText('Fatura Nubank: R$ 358,32')).toBeOnTheScreen();
+    expect(screen.getByText('Gastos fixos: R$ 731,48')).toBeOnTheScreen();
+    expect(screen.getByText('Dívidas: R$ 300,00')).toBeOnTheScreen();
+    // A ordem na tela, de cima para baixo (o mês atual vem primeiro).
+    // (O "Fatura [^:]+:" evita pegar o cartão "Fatura aberta".)
+    const linhas = screen.getAllByText(
+      /^(Fatura [^:]+: |Gastos fixos: |Dívidas: |Parcelas atrasadas: )R\$/,
+    );
+    expect(linhas).toHaveLength(4);
+    expect(linhas[0]).toHaveTextContent('Gastos fixos: R$ 693,58');
+    expect(linhas[1]).toHaveTextContent('Fatura Nubank: R$ 358,32');
+    expect(linhas[2]).toHaveTextContent('Gastos fixos: R$ 731,48');
+    expect(linhas[3]).toHaveTextContent('Dívidas: R$ 300,00');
+  });
+
+  it('com parcelas atrasadas, o mês atual mostra "Parcelas atrasadas: R$ 120,00" (caso 3)', async () => {
+    const comAtraso: Previsto = {
+      ...PREVISTO_DE_EXEMPLO,
+      mes_atual: { ...PREVISTO_DE_EXEMPLO.mes_atual, total: '813.58', atrasadas: '120.00' },
+    };
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo({ previsto: comAtraso })));
+
+    await render(<InicioScreen />);
+
+    expect(await screen.findByText('Parcelas atrasadas: R$ 120,00')).toBeOnTheScreen();
+  });
+
+  it('com os dois meses zerados, mostra "Nada pendente." e "Nada previsto." (caso 4)', async () => {
+    const zerado: Previsto = {
+      mes_atual: {
+        mes: '2026-10',
+        total: '0.00',
+        faturas: [],
+        fixos: '0.00',
+        dividas: '0.00',
+        atrasadas: '0.00',
+      },
+      proximo_mes: {
+        mes: '2026-11',
+        total: '0.00',
+        faturas: [],
+        fixos: '0.00',
+        dividas: '0.00',
+      },
+    };
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo({ previsto: zerado })));
+
+    await render(<InicioScreen />);
+
+    expect(await screen.findByText('Nada pendente.')).toBeOnTheScreen();
+    expect(screen.getByText('Nada previsto.')).toBeOnTheScreen();
+    // Os dois blocos mostram "R$ 0,00" (conferido pelo rótulo de cada bloco,
+    // porque outros cartões da tela também podem mostrar "R$ 0,00").
+    expect(
+      screen.getByLabelText('Falta pagar em outubro: 0,00 reais. Nada pendente.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText('Previsto para novembro: 0,00 reais. Nada previsto.'),
+    ).toBeOnTheScreen();
+  });
+
+  it('cada bloco tem o nome completo para o leitor de tela (caso 5)', async () => {
+    fetchFalso.mockResolvedValue(
+      respostaFalsa(200, criarResumo({ previsto: PREVISTO_DE_EXEMPLO })),
+    );
+
+    await render(<InicioScreen />);
+    await screen.findByText('Falta pagar em outubro');
+
+    expect(
+      screen.getByLabelText('Falta pagar em outubro: 693,58 reais. Gastos fixos: 693,58 reais.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText(
+        'Previsto para novembro: 1.680,29 reais. Fatura Nubank: 358,32 reais. Gastos fixos: 731,48 reais. Dívidas: 300,00 reais.',
+      ),
+    ).toBeOnTheScreen();
+  });
+
+  it('o bloco zerado do mês atual fala "Nada pendente." no nome do leitor de tela (caso 5)', async () => {
+    const zerado: Previsto = {
+      mes_atual: {
+        mes: '2026-10',
+        total: '0.00',
+        faturas: [],
+        fixos: '0.00',
+        dividas: '0.00',
+        atrasadas: '0.00',
+      },
+      proximo_mes: PREVISTO_DE_EXEMPLO.proximo_mes,
+    };
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo({ previsto: zerado })));
+
+    await render(<InicioScreen />);
+
+    expect(
+      await screen.findByLabelText('Falta pagar em outubro: 0,00 reais. Nada pendente.'),
+    ).toBeOnTheScreen();
+  });
+
+  it('sem o bloco "previsto" no resumo, o cartão não aparece (caso 6)', async () => {
+    // O resumo padrão não tem "previsto".
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+
+    await render(<InicioScreen />);
+    await screen.findByText('R$ 1.250,50');
+
+    expect(screen.queryByText('Gasto previsto')).toBeNull();
+    expect(screen.queryByText(/Falta pagar em/)).toBeNull();
+  });
+});
+
+describe('Gastos fixos no Início', () => {
+  it('com fixos a pagar, o cartão Saiu mostra "inclui R$ 693,58 de gastos fixos" e o rótulo completo (caso 6)', async () => {
+    fetchFalso.mockResolvedValue(
+      respostaFalsa(200, criarResumo({ saidas: '2000.00', fixos_do_mes: '693.58' })),
+    );
+
+    await render(<InicioScreen />);
+
+    expect(await screen.findByText('inclui R$ 693,58 de gastos fixos')).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText('Saiu no mês: 2.000,00 reais, inclui 693,58 reais de gastos fixos'),
+    ).toBeOnTheScreen();
+  });
+
+  it('com fixos "0.00", não mostra a linha de gastos fixos no Saiu (caso 6)', async () => {
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+
+    await render(<InicioScreen />);
+    await screen.findByText('R$ 1.250,50');
+
+    expect(screen.queryByText(/de gastos fixos/)).toBeNull();
   });
 });
 

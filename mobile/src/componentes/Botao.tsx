@@ -8,13 +8,23 @@ type BotaoProps = {
   aoTocar: () => void;
   tipo: 'principal' | 'secundario';
   desativado?: boolean;
+  // Nome lido pelo leitor de tela quando precisa ser mais claro que o título
+  // (ex.: "Marcar Apartamento como pago em outubro"); sem ele, vale o título
+  rotulo?: string;
 };
 
-export default function Botao({ titulo, aoTocar, tipo, desativado = false }: BotaoProps) {
+export default function Botao({
+  titulo,
+  aoTocar,
+  tipo,
+  desativado = false,
+  rotulo,
+}: BotaoProps) {
   const principal = tipo === 'principal';
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={rotulo}
       accessibilityState={{ disabled: desativado }}
       disabled={desativado}
       onPress={aoTocar}

@@ -89,7 +89,7 @@ export default function AbasLayout() {
       <Tabs.Screen
         name="dividas"
         options={{
-          title: 'Dívidas',
+          title: 'A pagar',
           tabBarIcon: ({ color }) => iconeDaAba('hand-coins', color),
         }}
       />
