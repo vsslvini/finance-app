@@ -1,9 +1,17 @@
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { buscarResumo, ErroApi, type Resumo, type TipoErroApi } from '@/api';
+import { buscarResumo, ErroApi, sincronizar, type Resumo, type TipoErroApi } from '@/api';
 import { iconeDaCategoria } from '@/categorias';
 import Botao from '@/componentes/Botao';
 import FolhaDeEdicao, { type CampoEditavel } from '@/componentes/FolhaDeEdicao';
@@ -15,7 +23,9 @@ import {
   formatarData,
   formatarNumero,
   formatarReais,
+  hojeNoCelular,
   rotuloEmReais,
+  textoDaAtualizacao,
   tituloDoMes,
 } from '@/formatacao';
 import { MENSAGENS_DE_ERRO } from '@/mensagens';
@@ -52,6 +62,10 @@ export default function InicioScreen() {
   // A folha do plano de guardar fica num estado separado, porque ela tem dois
   // campos e fala com outra rota (/api/plano/), diferente da FolhaDeEdicao
   const [planoAberto, setPlanoAberto] = useState(false);
+  // true enquanto o "puxar para baixo" está sincronizando (mostra o indicador)
+  const [atualizando, setAtualizando] = useState(false);
+  // true quando a última tentativa de puxar para baixo falhou (mostra o aviso)
+  const [falhouAoAtualizar, setFalhouAoAtualizar] = useState(false);
 
   // useEffect porque buscar dados no servidor é um efeito externo: precisa
   // acontecer uma vez, quando a tela aparece, e não a cada renderização.
@@ -73,6 +87,30 @@ export default function InicioScreen() {
   function recarregar() {
     setEstado({ tipo: 'carregando' });
     carregarEstado().then(setEstado);
+  }
+
+  // Puxar para baixo: pede ao backend para buscar os dados novos na Pluggy e
+  // depois lê o resumo outra vez. Diferente do recarregar(), não passa pelo
+  // estado 'carregando': o resumo antigo fica na tela até o novo chegar, e se
+  // algo falhar ele continua lá, só com o aviso embaixo do título.
+  async function atualizar() {
+    setAtualizando(true);
+    try {
+      // Se a sincronização falhar, o await lança o erro e pulamos direto para
+      // o catch, sem buscar o resumo (ele seria igual ao que já está na tela)
+      await sincronizar();
+      const resumo = await buscarResumo();
+      setEstado({ tipo: 'sucesso', resumo });
+      // Deu certo: some o aviso de uma falha anterior, se houver
+      setFalhouAoAtualizar(false);
+    } catch {
+      // Qualquer erro (rede, token, Pluggy fora) mostra o mesmo aviso curto:
+      // os valores de antes continuam valendo
+      setFalhouAoAtualizar(true);
+    } finally {
+      // Deu certo ou não, o indicador de "atualizando" some
+      setAtualizando(false);
+    }
   }
 
   // A folha salvou: fecha a folha e mostra o resumo com o valor novo
@@ -118,11 +156,39 @@ export default function InicioScreen() {
 
   return (
     <SafeAreaView style={styles.tela}>
-      <ScrollView style={styles.tela} contentContainerStyle={styles.conteudo}>
-        {/* 1. Título: o nome do mês (as maiúsculas vêm do estilo) */}
-        <Text accessibilityRole="header" style={textos.titulo}>
-          {tituloDoMes(resumo.mes)}
-        </Text>
+      <ScrollView
+        testID="rolagem-inicio"
+        style={styles.tela}
+        contentContainerStyle={styles.conteudo}
+        // Puxar para baixo chama atualizar(). tintColor pinta o indicador no
+        // iOS; colors e progressBackgroundColor pintam o círculo no Android
+        refreshControl={
+          <RefreshControl
+            refreshing={atualizando}
+            onRefresh={atualizar}
+            tintColor={cores.acento}
+            colors={[cores.acento]}
+            progressBackgroundColor={cores.superficie}
+          />
+        }
+      >
+        {/* 1. Título: o nome do mês (as maiúsculas vêm do estilo), a hora da
+            última sincronização e, se o puxar para baixo falhou, o aviso */}
+        <View style={styles.cabecalho}>
+          <Text accessibilityRole="header" style={textos.titulo}>
+            {tituloDoMes(resumo.mes)}
+          </Text>
+          <Text style={textos.detalhe}>
+            {textoDaAtualizacao(resumo.ultima_atualizacao, hojeNoCelular())}
+          </Text>
+          {falhouAoAtualizar && (
+            // accessibilityLiveRegion faz o leitor de tela do Android ler o
+            // aviso assim que ele aparece, sem a pessoa precisar procurar
+            <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.textoAvisoCurto]}>
+              Não foi possível atualizar agora.
+            </Text>
+          )}
+        </View>
 
         {/* 2. Destaque: posso gastar por dia, direto no fundo, sem cartão */}
         {posso !== null && <Destaque valor={posso} separando={separando} />}
@@ -316,6 +382,13 @@ const styles = StyleSheet.create({
   },
   textoCentro: {
     textAlign: 'center',
+  },
+  cabecalho: {
+    // Título e linhas de detalhe juntos, mais perto entre si do que dos blocos
+    gap: espaco.minimo,
+  },
+  textoAvisoCurto: {
+    color: cores.aviso,
   },
   destaque: {
     gap: espaco.minimo,

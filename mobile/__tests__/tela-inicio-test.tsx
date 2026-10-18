@@ -1,8 +1,11 @@
 // Testes da tela Início, que busca o resumo do mês no backend e mostra os
 // números. fireEvent simula ações do usuário (tocar, digitar); waitFor
-// espera uma conferência passar; render e screen já apareceram nos testes
-// antigos.
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+// espera uma conferência passar; act (novo no módulo 3b-2) roda um pedaço de
+// código e espera a tela terminar de se atualizar; render e screen já
+// apareceram nos testes antigos.
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import type { ReactElement } from 'react';
+import type { RefreshControlProps } from 'react-native';
 
 import { buscarResumo, type Guardado, type PlanoDeGuardar, type Resumo } from '@/api';
 import InicioScreen from '@/app/index';
@@ -70,6 +73,11 @@ const BOTAO_GUARDADO = 'Guardado: 0,00 reais';
 
 const ENDERECO_CONFIGURACOES = 'http://servidor-falso:8000/api/configuracoes/';
 const ENDERECO_PLANO = 'http://servidor-falso:8000/api/plano/';
+const ENDERECO_RESUMO = 'http://servidor-falso:8000/api/resumo/';
+const ENDERECO_SINCRONIZAR = 'http://servidor-falso:8000/api/sincronizar/';
+
+// O aviso que aparece quando "puxar para baixo" não consegue atualizar.
+const AVISO_ATUALIZACAO = 'Não foi possível atualizar agora.';
 
 // O bloco "guardado" do resumo, no jeito mais neutro: nada guardado, sem
 // plano e sem desconto no "posso gastar". É o padrão de todos os testes, para
@@ -140,6 +148,10 @@ const RESUMO_DE_EXEMPLO: Resumo = {
     },
   ],
   guardado: GUARDADO_SEM_PLANO,
+  // Quando o backend sincronizou com a Pluggy pela última vez. null = nunca;
+  // é o padrão, para os testes antigos (de antes do módulo 3b-2) verem a
+  // mesma tela, só com a linha nova "Ainda não atualizado".
+  ultima_atualizacao: null,
 };
 
 // Monta um resumo a partir do exemplo, trocando só o que o teste precisa.
@@ -147,6 +159,21 @@ const RESUMO_DE_EXEMPLO: Resumo = {
 function criarResumo(mudancas: Partial<Resumo> = {}): Resumo {
   return { ...RESUMO_DE_EXEMPLO, ...mudancas };
 }
+
+// O resumo que o backend devolve depois de sincronizar com a Pluggy: o saldo
+// mudou (de 1.250,50 para 2.000,00) e a hora da atualização foi preenchida.
+// Usado nos testes de "puxar para baixo".
+const RESUMO_ATUALIZADO = criarResumo({
+  saldo_total: '2000.00',
+  ultima_atualizacao: '2026-10-17T14:32:05.123456-03:00',
+});
+
+// Um instante falso para o relógio do celular: 17/10/2026 ao meio-dia.
+// new Date(ano, mês, dia, hora, minuto) monta a data no fuso do computador
+// que roda o teste (atenção: o mês começa em 0, então 9 é outubro). Meio-dia
+// é longe da meia-noite, então em qualquer fuso o "dia de hoje" do celular é
+// 17/10, e o teste não muda de resultado conforme o computador.
+const MEIO_DIA_DE_17_DE_OUTUBRO = new Date(2026, 9, 17, 12, 0, 0);
 
 // Configurações falsas no formato do GET /api/configuracoes/: quantos dias
 // antes do dia 1 o mês começa e o limite da fatura (null = sem limite).
@@ -174,23 +201,49 @@ function respostaFalsa(status: number, dados?: unknown): Response {
 // Um servidor falso que responde conforme o endereço
 //
 // Nos testes das folhas, a tela faz pedidos diferentes: GET do resumo, GET e
-// PATCH das configurações e, na folha do plano, GET e PATCH do plano
-// (/api/plano/). O mockResolvedValue
-// devolveria a mesma resposta para todos. Com mockImplementation passamos
+// PATCH das configurações, na folha do plano GET e PATCH do plano
+// (/api/plano/) e, ao puxar para baixo, POST /api/sincronizar/. O
+// mockResolvedValue devolveria a mesma resposta para todos. Com
+// mockImplementation passamos
 // uma função nossa, que o dublê roda a cada chamada com os mesmos argumentos
 // do fetch (endereço e opções). Olhando o endereço e o método
 // (opcoes?.method; sem método, o fetch faz GET) escolhemos a resposta, como
 // um backend de mentira. O "?." é para quando opções não vierem.
 //
-// patch é a resposta do PATCH das configurações; por padrão "deu certo"
-// (200). O teste do erro 400 passa outra. O plano sempre começa vazio e o
-// PATCH dele sempre dá certo.
+// As opções mudam só o que o teste precisa (o "?" diz que cada uma é
+// opcional; o "= {}" deixa chamar sem nada: ligarServidorFalso()):
+// - patch: a resposta do PATCH das configurações; por padrão "deu certo"
+//   (200). O teste do erro 400 passa outra.
+// - sincronizacao: a resposta do POST /api/sincronizar/ (o "puxar para
+//   baixo", módulo 3b-2); por padrão "deu certo" (200). O teste da falha da
+//   Pluggy passa um 502.
+// O resumo vem de respostaDoResumo (logo abaixo). O plano sempre começa vazio
+// e o PATCH dele sempre dá certo.
 // ---------------------------------------------------------------------------
-function ligarServidorFalso(patch: Response = respostaFalsa(200, CONFIGURACOES_DE_EXEMPLO)) {
+type OpcoesDoServidor = {
+  patch?: Response;
+  sincronizacao?: Response;
+};
+
+// O que o servidor falso responde no GET /api/resumo/. Começa, em cada teste,
+// com o resumo de exemplo (veja o beforeEach). Um teste pode trocar por outro
+// resumo, para fingir que os dados mudaram no backend, ou por uma resposta
+// que demora a chegar.
+let respostaDoResumo: () => Promise<Response>;
+
+function ligarServidorFalso({
+  patch = respostaFalsa(200, CONFIGURACOES_DE_EXEMPLO),
+  sincronizacao = respostaFalsa(200, {
+    ultima_atualizacao: '2026-10-17T14:32:05.123456-03:00',
+  }),
+}: OpcoesDoServidor = {}) {
   fetchFalso.mockImplementation(async (endereco, opcoes) => {
     const url = String(endereco);
     if (url.includes('/api/resumo/')) {
-      return respostaFalsa(200, criarResumo());
+      return respostaDoResumo();
+    }
+    if (url.includes('/api/sincronizar/') && opcoes?.method === 'POST') {
+      return sincronizacao;
     }
     if (url.includes('/api/configuracoes/') && opcoes?.method === 'PATCH') {
       return patch;
@@ -204,8 +257,9 @@ function ligarServidorFalso(patch: Response = respostaFalsa(200, CONFIGURACOES_D
     if (url.includes('/api/plano/')) {
       return respostaFalsa(200, PLANO_VAZIO);
     }
-    // Um endereço que não esperávamos: falha alto, para o erro ficar claro.
-    throw new Error(`Endereço inesperado no teste: ${url}`);
+    // Um pedido que não esperávamos (endereço ou método): falha alto, para o
+    // erro ficar claro. Ex.: um GET em /api/sincronizar/ cai aqui.
+    throw new Error(`Pedido inesperado no teste: ${opcoes?.method ?? 'GET'} ${url}`);
   });
 }
 
@@ -217,6 +271,43 @@ function chamadasPatch() {
 
 function chamadasDoResumo() {
   return fetchFalso.mock.calls.filter(([endereco]) => String(endereco).includes('/api/resumo/'));
+}
+
+function chamadasDaSincronizacao() {
+  return fetchFalso.mock.calls.filter(([endereco]) =>
+    String(endereco).includes('/api/sincronizar/'),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Como o teste "puxa a tela para baixo"
+//
+// No celular, puxar a lista para baixo faz o RefreshControl (a bolinha que
+// gira no topo) chamar a função onRefresh que a tela passou para ele. No Jest
+// não existe dedo nem gesto, e a Testing Library não tem um atalho para esse
+// gesto. Então fazemos o que o gesto faria: pegamos o ScrollView da tela,
+// lemos o RefreshControl que está na propriedade refreshControl dele e
+// chamamos o onRefresh.
+//
+// Aqui usamos testID ("rolagem-inicio", combinado no contrato) porque a área
+// de rolagem não tem texto, papel nem rótulo para procurar.
+//
+// O "as ReactElement<RefreshControlProps>" diz ao TypeScript que a
+// propriedade é um elemento RefreshControl, para ele conhecer o onRefresh.
+// O act roda a chamada e espera o React terminar de atualizar a tela; na
+// Testing Library 14 ele sempre devolve uma Promise, por isso o await. O
+// fireEvent e o render já fazem isso sozinhos; aqui chamamos uma função da
+// tela direto, então o act fica por nossa conta.
+//
+// Três testes puxam a tela, por isso a função. Ela só dispara a atualização;
+// cada teste espera o resultado do seu jeito (findByText, waitFor).
+// ---------------------------------------------------------------------------
+async function puxarParaBaixo() {
+  const rolagem = screen.getByTestId('rolagem-inicio');
+  const controle = rolagem.props.refreshControl as ReactElement<RefreshControlProps>;
+  await act(() => {
+    controle.props.onRefresh?.();
+  });
 }
 
 // O corpo do primeiro PATCH, de volta de texto JSON para objeto. A tela manda
@@ -239,6 +330,9 @@ beforeEach(() => {
   // Endereço e token falsos, para não depender do .env de quem roda o teste.
   process.env.EXPO_PUBLIC_API_URL = 'http://servidor-falso:8000';
   process.env.EXPO_PUBLIC_API_TOKEN = 'token-falso';
+
+  // O servidor falso começa devolvendo o resumo de exemplo.
+  respostaDoResumo = async () => respostaFalsa(200, criarResumo());
 });
 
 afterEach(() => {
@@ -657,9 +751,9 @@ describe('Folha "Limite da fatura"', () => {
     // { campo: [mensagens] }. Quem decide recusar aqui é o servidor falso;
     // por isso digitamos um valor válido: o teste é sobre a tela mostrar a
     // recusa do backend, e não sobre a validação do próprio app.
-    ligarServidorFalso(
-      respostaFalsa(400, { limite_fatura: ['O limite da fatura não pode ser negativo.'] }),
-    );
+    ligarServidorFalso({
+      patch: respostaFalsa(400, { limite_fatura: ['O limite da fatura não pode ser negativo.'] }),
+    });
     await render(<InicioScreen />);
 
     await fireEvent.press(await screen.findByRole('button', { name: BOTAO_FATURA }));
@@ -812,6 +906,136 @@ describe('Desconto do plano no "posso gastar"', () => {
     await screen.findByText('R$ 1.250,50');
 
     expect(screen.queryByText(/já separando/)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Módulo 3b-2: a linha "Atualizado ..." e o "puxar para baixo" (casos 3 a 7)
+// ---------------------------------------------------------------------------
+describe('Linha "Atualizado ..."', () => {
+  it('com a última atualização de hoje às 14:32, mostra "Atualizado hoje às 14:32" (caso 3)', async () => {
+    // Relógio falso: além de controlar os timers (como no teste do
+    // "carregando"), ele também finge a data e a hora do celular. O "now"
+    // diz que agora é 17/10/2026 ao meio-dia. Sem isso, o teste só passaria
+    // no dia 17/10 de verdade: em qualquer outro dia, a tela diria "em
+    // 17/10" em vez de "hoje".
+    jest.useFakeTimers({ now: MEIO_DIA_DE_17_DE_OUTUBRO });
+
+    // Prepara: o backend diz que sincronizou hoje às 14:32. A hora já vem no
+    // fuso do backend; o app só recorta o texto, sem converter.
+    fetchFalso.mockResolvedValue(
+      respostaFalsa(
+        200,
+        criarResumo({ ultima_atualizacao: '2026-10-17T14:32:05.123456-03:00' }),
+      ),
+    );
+
+    await render(<InicioScreen />);
+
+    // Verifica: a linha logo abaixo do título diz "hoje" e a hora, sem os
+    // segundos.
+    expect(await screen.findByText('Atualizado hoje às 14:32')).toBeOnTheScreen();
+  });
+
+  it('sem nenhuma atualização (null), mostra "Ainda não atualizado" (caso 5)', async () => {
+    // Prepara: o resumo de exemplo, que já vem com ultima_atualizacao null
+    // (o backend nunca sincronizou com a Pluggy). Aqui não precisamos do
+    // relógio falso: o texto não depende do dia de hoje.
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+
+    await render(<InicioScreen />);
+
+    expect(await screen.findByText('Ainda não atualizado')).toBeOnTheScreen();
+  });
+});
+
+describe('Puxar para baixo', () => {
+  it('sincroniza (POST), busca o resumo de novo e mostra os valores novos (caso 6)', async () => {
+    // Prepara: o servidor falso responde o resumo e o POST /api/sincronizar/.
+    ligarServidorFalso();
+    await render(<InicioScreen />);
+    await screen.findByText('R$ 1.250,50');
+
+    // A partir de agora, o backend devolve o resumo atualizado (como se a
+    // sincronização tivesse trazido dados novos da Pluggy).
+    respostaDoResumo = async () => respostaFalsa(200, RESUMO_ATUALIZADO);
+
+    // Faz: puxa a tela para baixo.
+    await puxarParaBaixo();
+
+    // Verifica: o saldo novo aparece e o antigo sumiu.
+    expect(await screen.findByText('R$ 2.000,00')).toBeOnTheScreen();
+    expect(screen.queryByText('R$ 1.250,50')).toBeNull();
+
+    // A ordem dos pedidos: o resumo ao abrir a tela, depois a sincronização
+    // e, só então, o resumo de novo. map pega só o endereço de cada chamada
+    // anotada, e o toEqual compara a lista inteira, na ordem.
+    const enderecos = fetchFalso.mock.calls.map(([endereco]) => String(endereco));
+    expect(enderecos).toEqual([ENDERECO_RESUMO, ENDERECO_SINCRONIZAR, ENDERECO_RESUMO]);
+
+    // A sincronização foi um POST, com o token no cabeçalho (sem token, o
+    // backend responderia 401).
+    const [, opcoes] = chamadasDaSincronizacao()[0];
+    expect(opcoes).toMatchObject({
+      method: 'POST',
+      headers: { Authorization: 'Token token-falso' },
+    });
+  });
+
+  it('enquanto atualiza, mantém os valores de antes e não mostra "Carregando o resumo..." (caso 6)', async () => {
+    ligarServidorFalso();
+    await render(<InicioScreen />);
+    await screen.findByText('R$ 1.250,50');
+
+    // Prepara: o próximo GET do resumo fica "no caminho" até nós deixarmos
+    // ele chegar. É uma Promise que só termina quando chamarmos
+    // liberarResumo(). Assim conseguimos olhar a tela NO MEIO da atualização.
+    let liberarResumo: () => void = () => {};
+    respostaDoResumo = () =>
+      new Promise<Response>((resolver) => {
+        liberarResumo = () => resolver(respostaFalsa(200, RESUMO_ATUALIZADO));
+      });
+
+    // Faz: puxa a tela para baixo e espera o app chegar ao segundo GET (o
+    // POST já respondeu; agora ele espera o resumo novo).
+    await puxarParaBaixo();
+    await waitFor(() => expect(chamadasDoResumo()).toHaveLength(2));
+
+    // Verifica: no meio da atualização, a tela de carregamento não tomou o
+    // lugar do resumo, e o saldo de antes continua visível.
+    expect(screen.queryByText('Carregando o resumo...')).toBeNull();
+    expect(screen.getByText('R$ 1.250,50')).toBeOnTheScreen();
+
+    // Faz: deixa o resumo novo chegar (dentro do act, porque a tela muda).
+    await act(() => {
+      liberarResumo();
+    });
+
+    // Verifica: agora o saldo novo aparece.
+    expect(await screen.findByText('R$ 2.000,00')).toBeOnTheScreen();
+  });
+
+  it('se a sincronização falha (502), mantém os valores de antes e avisa "Não foi possível atualizar agora." (caso 7)', async () => {
+    // Prepara: o POST /api/sincronizar/ responde 502, que é o que o backend
+    // devolve quando a Pluggy falha.
+    ligarServidorFalso({
+      sincronizacao: respostaFalsa(502, { detail: 'A Pluggy não respondeu.' }),
+    });
+    await render(<InicioScreen />);
+    await screen.findByText('R$ 1.250,50');
+
+    // Faz: puxa a tela para baixo.
+    await puxarParaBaixo();
+
+    // Verifica: o aviso aparece...
+    expect(await screen.findByText(AVISO_ATUALIZACAO)).toBeOnTheScreen();
+    // ...o resumo de antes continua na tela, em vez da tela de erro (o 502
+    // vira erro de "servidor", mas aqui não pode trocar a tela inteira)...
+    expect(screen.getByText('R$ 1.250,50')).toBeOnTheScreen();
+    expect(screen.queryByText(MENSAGEM_SERVIDOR)).toBeNull();
+    // ...e o resumo foi pedido só uma vez (ao abrir a tela): se a
+    // sincronização falhou, não há dados novos para buscar.
+    expect(chamadasDoResumo()).toHaveLength(1);
   });
 });
 

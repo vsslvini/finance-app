@@ -5,9 +5,11 @@ import {
   formatarData,
   formatarMes,
   formatarReais,
+  hojeNoCelular,
   lerMes,
   lerReais,
   nomeDoMes,
+  textoDaAtualizacao,
 } from '@/formatacao';
 
 describe('formatarReais', () => {
@@ -117,5 +119,75 @@ describe('lerMes', () => {
 describe('formatarMes', () => {
   it('"2027-07" vira "07/2027"', () => {
     expect(formatarMes('2027-07')).toBe('07/2027');
+  });
+});
+
+// textoDaAtualizacao monta a linha "Atualizado ..." da tela Início (módulo
+// 3b-2). Ela recebe duas coisas: quando o backend sincronizou pela última vez
+// (o texto que vem da API, ou null) e o dia de hoje no celular ("AAAA-MM-DD").
+// Como recebe o "hoje" pronto, em vez de olhar o relógio sozinha, é uma
+// função pura: mesma entrada, mesma saída, em qualquer dia e em qualquer
+// fuso. Por isso estes testes não precisam de relógio falso.
+//
+// As horas vêm do backend já no fuso dele (o "-03:00" no fim); a função só
+// recorta a data (caracteres 0 a 10) e a hora (11 a 16), sem converter.
+describe('textoDaAtualizacao', () => {
+  it('no mesmo dia, mostra "Atualizado hoje às 14:32" (caso 3)', () => {
+    expect(textoDaAtualizacao('2026-10-17T14:32:05.123456-03:00', '2026-10-17')).toBe(
+      'Atualizado hoje às 14:32',
+    );
+  });
+
+  it('no dia anterior, mostra "Atualizado ontem às 09:10" (caso 4)', () => {
+    expect(textoDaAtualizacao('2026-10-16T09:10:00.000000-03:00', '2026-10-17')).toBe(
+      'Atualizado ontem às 09:10',
+    );
+  });
+
+  it('31/10 visto em 01/11 também é "ontem" (virada de mês, caso 4)', () => {
+    // A armadilha: comparar só o número do dia (31 e 1) não diria "ontem".
+    expect(textoDaAtualizacao('2026-10-31T09:10:00.000000-03:00', '2026-11-01')).toBe(
+      'Atualizado ontem às 09:10',
+    );
+  });
+
+  it('31/12 visto em 01/01 do ano seguinte também é "ontem" (virada de ano, caso 4)', () => {
+    // Aqui mudam o dia, o mês e o ano ao mesmo tempo.
+    expect(textoDaAtualizacao('2026-12-31T09:10:00.000000-03:00', '2027-01-01')).toBe(
+      'Atualizado ontem às 09:10',
+    );
+  });
+
+  it('antes de ontem, mostra a data: "Atualizado em 15/10 às 09:10" (caso 4)', () => {
+    expect(textoDaAtualizacao('2026-10-15T09:10:00.000000-03:00', '2026-10-17')).toBe(
+      'Atualizado em 15/10 às 09:10',
+    );
+  });
+
+  it('sem atualização (null), mostra "Ainda não atualizado" (caso 5)', () => {
+    expect(textoDaAtualizacao(null, '2026-10-17')).toBe('Ainda não atualizado');
+  });
+});
+
+// hojeNoCelular é quem olha o relógio do celular e devolve o dia de hoje
+// no formato "AAAA-MM-DD", para entregar ao textoDaAtualizacao.
+describe('hojeNoCelular', () => {
+  // Devolve o relógio de verdade depois de cada teste deste bloco, mesmo se
+  // o teste falhar no meio (por isso no afterEach, e não no fim do teste).
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('com o relógio em 05/03/2026 ao meio-dia, devolve "2026-03-05"', () => {
+    // Relógio falso: o "now" diz ao Jest que agora é 05/03/2026 ao
+    // meio-dia, no fuso do computador que roda o teste (new Date com ano,
+    // mês, dia e hora usa esse fuso; o mês começa em 0, então 2 é março).
+    // Meio-dia fica longe da meia-noite, então nenhum fuso muda o dia.
+    jest.useFakeTimers({ now: new Date(2026, 2, 5, 12, 0, 0) });
+
+    // Escolhemos março e dia 5 de propósito: mês e dia de um dígito só
+    // precisam ganhar o zero na frente ("03", "05"), como as datas da API.
+    // Também confere que o mês não sai como "02" (o Date conta de 0 a 11).
+    expect(hojeNoCelular()).toBe('2026-03-05');
   });
 });

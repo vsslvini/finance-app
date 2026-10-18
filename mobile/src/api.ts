@@ -44,6 +44,9 @@ export type Resumo = {
   posso_gastar_por_dia: string | null; // null quando não é o mês de hoje
   ultimos_gastos: GastoResumo[];
   guardado: Guardado;
+  // Hora da última sincronização com a Pluggy, já no fuso do backend:
+  // "2026-10-17T14:32:05.123456-04:00"; null quando nunca sincronizou
+  ultima_atualizacao: string | null;
 };
 
 // Resposta de GET e PATCH /api/configuracoes/
@@ -95,10 +98,14 @@ async function primeiraMensagem(response: Response): Promise<string> {
   return 'Valor inválido.';
 }
 
+// Os métodos HTTP que o app usa: GET lê, PATCH salva campos, POST pede uma ação
+// (a sincronização com a Pluggy)
+type Metodo = 'GET' | 'PATCH' | 'POST';
+
 // Ajudante usado por todas as funções da API: faz o fetch com o token, aplica o
 // limite de tempo e traduz o status da resposta em ErroApi.
-// Sem "corpo", é um GET; com "corpo", é um PATCH com JSON.
-async function pedirApi<T>(caminho: string, corpo?: object): Promise<T> {
+// "corpo" é o que vai em JSON (só o PATCH manda).
+async function pedirApi<T>(caminho: string, metodo: Metodo = 'GET', corpo?: object): Promise<T> {
   // Lidas aqui dentro (a cada chamada) para os testes poderem trocar os valores.
   // Sempre com ponto: o Expo só troca a forma process.env.EXPO_PUBLIC_X
   const url = process.env.EXPO_PUBLIC_API_URL;
@@ -108,21 +115,22 @@ async function pedirApi<T>(caminho: string, corpo?: object): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LIMITE_DE_TEMPO_MS);
 
-  const opcoes: RequestInit =
-    corpo === undefined
-      ? {
-          headers: { Authorization: `Token ${token}` },
-          signal: controller.signal,
-        }
-      : {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(corpo),
-          signal: controller.signal,
-        };
+  const opcoes: RequestInit = {
+    headers: { Authorization: `Token ${token}` },
+    signal: controller.signal,
+  };
+  // O GET vai sem "method", porque é o padrão do fetch (como sempre foi)
+  if (metodo !== 'GET') {
+    opcoes.method = metodo;
+  }
+  // Com corpo, avisamos ao servidor que ele vai em JSON
+  if (corpo !== undefined) {
+    opcoes.headers = {
+      Authorization: `Token ${token}`,
+      'Content-Type': 'application/json',
+    };
+    opcoes.body = JSON.stringify(corpo);
+  }
 
   try {
     let response: Response;
@@ -136,11 +144,13 @@ async function pedirApi<T>(caminho: string, corpo?: object): Promise<T> {
     if (response.status === 401) {
       throw new ErroApi('token');
     }
-    // 400 só é "valor recusado" quando estamos salvando (PATCH). Num GET, um
-    // 400 vem de configuração do servidor (ex.: ALLOWED_HOSTS) e cai em 'servidor'
-    if (response.status === 400 && corpo !== undefined) {
+    // 400 só é "valor recusado" quando estamos salvando (PATCH). Num GET ou
+    // POST, um 400 vem de configuração do servidor (ex.: ALLOWED_HOSTS) e cai
+    // em 'servidor'
+    if (response.status === 400 && metodo === 'PATCH') {
       throw new ErroApi('validacao', await primeiraMensagem(response));
     }
+    // Aqui também caem o 500 e o 502 (a Pluggy falhou na sincronização)
     if (!response.ok) {
       throw new ErroApi('servidor');
     }
@@ -163,7 +173,13 @@ export async function buscarConfiguracoes(): Promise<Configuracoes> {
 export async function salvarConfiguracoes(
   mudancas: Partial<Configuracoes>,
 ): Promise<Configuracoes> {
-  return pedirApi<Configuracoes>('/api/configuracoes/', mudancas);
+  return pedirApi<Configuracoes>('/api/configuracoes/', 'PATCH', mudancas);
+}
+
+// Pede ao backend para buscar os dados novos na Pluggy agora (POST, sem corpo).
+// Devolve a hora da sincronização; o resumo novo é buscado depois, à parte.
+export async function sincronizar(): Promise<{ ultima_atualizacao: string | null }> {
+  return pedirApi<{ ultima_atualizacao: string | null }>('/api/sincronizar/', 'POST');
 }
 
 export async function buscarPlano(): Promise<PlanoDeGuardar> {
@@ -173,5 +189,5 @@ export async function buscarPlano(): Promise<PlanoDeGuardar> {
 // Manda sempre os dois campos (PATCH): os dois null removem o plano.
 // Se só um vier vazio, quem recusa é o backend (400 com a mensagem dele).
 export async function salvarPlano(plano: PlanoDeGuardar): Promise<PlanoDeGuardar> {
-  return pedirApi<PlanoDeGuardar>('/api/plano/', plano);
+  return pedirApi<PlanoDeGuardar>('/api/plano/', 'PATCH', plano);
 }

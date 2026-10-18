@@ -1,4 +1,4 @@
-// Funções para mostrar dinheiro e datas no formato brasileiro.
+// Funções para mostrar dinheiro, datas e horas no formato brasileiro.
 // A API manda os valores como texto ("1250.50") e as datas como "2026-10-08".
 // Trabalhamos direto com o texto, sem converter para Number, para não perder
 // centavos com arredondamento de ponto flutuante.
@@ -50,6 +50,53 @@ export function formatarData(iso: string): string {
   const mes = iso.slice(5, 7);
   const dia = iso.slice(8, 10);
   return `${dia}/${mes}`;
+}
+
+// "2026-11-01" -> "2026-10-31": o dia anterior, no mesmo formato.
+// Date.UTC aceita o dia 0 e o transforma no último dia do mês anterior (e do
+// ano anterior, em janeiro). Usamos UTC na ida e na volta (toISOString), então
+// o fuso do celular nunca entra na conta.
+function diaAnterior(dia: string): string {
+  const ano = Number(dia.slice(0, 4));
+  const mes = Number(dia.slice(5, 7));
+  const numeroDoDia = Number(dia.slice(8, 10));
+  // No Date.UTC, janeiro é 0, por isso o "mes - 1"
+  const ontem = new Date(Date.UTC(ano, mes - 1, numeroDoDia - 1));
+  return ontem.toISOString().slice(0, 10);
+}
+
+// Texto da linha "Atualizado ..." da tela Início.
+// "ultima" vem do backend já no fuso local ("2026-10-17T14:32:05.123456-04:00"),
+// então só recortamos o texto: a data são os caracteres 0 a 10 e a hora, 11 a 16.
+// "hoje" é a data do celular, "AAAA-MM-DD" (ver hojeNoCelular).
+// null -> "Ainda não atualizado"; mesmo dia -> "Atualizado hoje às 14:32";
+// dia anterior -> "Atualizado ontem às 09:10"; outro dia -> "Atualizado em 15/10 às 09:10"
+export function textoDaAtualizacao(ultima: string | null, hoje: string): string {
+  if (ultima === null) {
+    return 'Ainda não atualizado';
+  }
+  const dia = ultima.slice(0, 10);
+  const hora = ultima.slice(11, 16);
+  if (dia === hoje) {
+    return `Atualizado hoje às ${hora}`;
+  }
+  if (dia === diaAnterior(hoje)) {
+    return `Atualizado ontem às ${hora}`;
+  }
+  return `Atualizado em ${formatarData(dia)} às ${hora}`;
+}
+
+// A data de hoje no relógio do celular, como "2026-10-17".
+// Aqui usamos o horário local de propósito (getFullYear, getMonth, getDate):
+// "hoje" é o dia que a pessoa vê no celular. O toISOString daria o dia em UTC,
+// que à noite no Brasil já é o dia seguinte.
+export function hojeNoCelular(): string {
+  const agora = new Date();
+  const ano = agora.getFullYear();
+  // getMonth vai de 0 a 11, por isso o "+ 1"; o padStart põe o zero: 7 -> "07"
+  const mes = String(agora.getMonth() + 1).padStart(2, '0');
+  const dia = String(agora.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 }
 
 // (2026, 10) -> "Outubro de 2026"; o mês vai de 1 a 12
