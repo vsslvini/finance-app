@@ -71,3 +71,45 @@ Casos de teste (8a):
   de `GET /api/categorias/`; a atual fica marcada; há a opção "Usar a categoria do banco"
   (manda `""`). Ao escolher, `PATCH` e a lista é relida.
 - Casos de teste definidos junto com o 8b.
+
+## 8b: contrato do app (decidido em 2026-10-17)
+
+- `src/api.ts`: `GastoResumo` (e portanto `Transacao`) ganha `categoria_original: string`; tipo
+  `Categoria = { descricao: string; nome: string }`; `buscarCategorias(): Promise<Categoria[]>`
+  (`GET /api/categorias/`) e `trocarCategoria(id: number, categoriaManual: string):
+  Promise<Transacao>` (`PATCH /api/transacoes/<id>/` com `{ categoria_manual }`).
+- Ícone pela `categoria_original` (`iconeDaCategoria(item.categoria_original)`) nos últimos
+  gastos do Início e na aba Transações; o texto mostrado continua sendo `categoria` (agora em
+  português).
+- Aba Transações: cada item vira um botão (`accessibilityRole="button"`, mesmo
+  `accessibilityLabel` de hoje, `accessibilityHint="Toque para trocar a categoria"`). Tocar abre
+  a folha `FolhaDeCategoria` (`src/componentes/FolhaDeCategoria.tsx`, no estilo das outras
+  folhas: `Modal`, fundo escurecido, `superficieElevada`).
+- Folha: título "Categoria" (header); embaixo, a descrição da transação (`detalhe`); campo de
+  busca com `accessibilityLabel="Buscar categoria"`, que filtra pelo `nome` sem diferenciar
+  maiúsculas nem acentos ("saude" acha "Saúde"); primeira opção "Usar a categoria do banco"
+  (manda `""`); depois a lista (`FlatList`) com um botão por categoria (texto = `nome`), e a
+  categoria atual (`descricao === categoria_original`) com `accessibilityState={{ selected: true }}`
+  e um ícone `check` em `acento`; sem resultado, "Nenhuma categoria encontrada."; botão secundário
+  "Cancelar" embaixo.
+- Enquanto busca a lista: "Carregando as categorias..."; erro ao buscar: a mensagem de sempre
+  (`mensagemDoErro`).
+- Ao tocar numa categoria: `trocarCategoria`; deu certo, a folha fecha e a lista do mês é relida
+  sem "Carregando as transações..." (como o puxar para baixo), mostrando a categoria nova; deu
+  errado, a folha fica aberta com a mensagem (a do backend no 400, ex.: "Categoria
+  desconhecida.").
+
+Casos de teste (8b):
+
+1. Os últimos gastos do Início e os itens de Transações mostram a categoria em português
+   ("Mercado") e escolhem o ícone pela `categoria_original` ("Groceries", ícone de mercado).
+2. Tocar numa transação abre "Categoria", com a descrição da transação e a lista de
+   `GET /api/categorias/`; a categoria atual vem marcada como selecionada.
+3. Buscar "merc" deixa só "Mercado"; "saude" acha "Saúde"; "xyz" mostra "Nenhuma categoria
+   encontrada.".
+4. Escolher "Restaurantes" manda `PATCH /api/transacoes/<id>/` com
+   `{"categoria_manual": "Restaurants"}`, fecha a folha, relê o mesmo mês e mostra "Restaurantes"
+   no item, sem "Carregando as transações...".
+5. "Usar a categoria do banco" manda `{"categoria_manual": ""}`.
+6. Com 400 "Categoria desconhecida.", a folha continua aberta e mostra a mensagem.
+7. "Cancelar" fecha a folha sem nenhum `PATCH`.

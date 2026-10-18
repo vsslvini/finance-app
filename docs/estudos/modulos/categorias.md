@@ -93,3 +93,41 @@ curl -H "Authorization: Token $TOKEN" http://127.0.0.1:8000/api/categorias/
 curl -X PATCH -H "Authorization: Token $TOKEN" -H "Content-Type: application/json" \
   -d '{"categoria_manual": "Groceries"}' http://127.0.0.1:8000/api/transacoes/1/
 ```
+
+## 7. 8b: o app
+
+- Os últimos gastos do Início e os itens de Transações mostram a `categoria` (em português) e
+  escolhem o ícone pela `categoria_original` (em inglês), porque o `categorias.ts` compara nomes
+  em inglês.
+- Na aba Transações, cada item virou um botão ("Toque para trocar a categoria"). Tocar abre a
+  folha **"Categoria"** (`src/componentes/FolhaDeCategoria.tsx`): a descrição da transação, um
+  campo "Buscar categoria", a opção "Usar a categoria do banco" (manda `""`) e a lista de
+  `GET /api/categorias/`, com a categoria atual marcada (ícone `check` e
+  `accessibilityState={{ selected: true }}`).
+- **Busca sem acento**: `texto.normalize('NFD')` separa cada letra do seu acento ("ú" vira "u" +
+  acento), e `.replace(/[̀-ͯ]/g, '')` apaga os acentos; com `toLowerCase()`, "saude"
+  acha "Saúde". A lista filtrada é calculada na renderização, sem estado extra.
+- Escolher uma categoria faz o `PATCH`; deu certo, a folha fecha e a lista é relida com o
+  `atualizar()` do `useCarga` (sem "Carregando as transações..."). Deu errado, a folha fica com a
+  mensagem (ex.: "Categoria desconhecida."). A folha mora dentro da `ListaDeTransacoes`, que já
+  tem o `atualizar`, então nada precisou passar pela tela.
+- `src/api.ts`: `categoria_original` no `GastoResumo`, tipo `Categoria`, `buscarCategorias()` e
+  `trocarCategoria(id, categoriaManual)`.
+
+Testes (`__tests__/transacoes-test.tsx` e `tela-inicio-test.tsx`; o app passa a ter 123):
+
+1. Categoria em português e ícone de mercado pela `categoria_original` (no Início pelo testID
+   do círculo; em Transações pelo texto que o dublê do Lucide desenha, `shopping-cart`).
+2. Tocar abre "Categoria" com a descrição e a lista; a atual vem selecionada.
+3. Busca: "merc" deixa "Mercado", "saude" acha "Saúde", "xyz" mostra "Nenhuma categoria
+   encontrada.".
+4. Escolher "Restaurantes" manda `{"categoria_manual": "Restaurants"}` para
+   `/api/transacoes/3/`; segurando a releitura, "Carregando" não aparece; depois, a folha fecha
+   e o item mostra "Restaurantes".
+5. "Usar a categoria do banco" manda `{"categoria_manual": ""}`.
+6. Com 400, a folha fica aberta com "Categoria desconhecida.".
+7. "Cancelar" fecha sem `PATCH`.
+
+Curiosidade dos testes: a Testing Library monta o nome de um botão com o texto de **todos** os
+filhos, até os escondidos. O ícone `check` (que o dublê desenha como o texto "check") entra no
+nome do botão da categoria atual; por isso esse botão é achado por `selected: true`.
