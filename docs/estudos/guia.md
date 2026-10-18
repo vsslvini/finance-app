@@ -3,7 +3,7 @@
 Mapa de tudo o que existe para estudar no projeto, na ordem certa. Atualizado a cada
 sessão e sempre que um documento de estudo novo entra nesta pasta.
 
-Última atualização: 2026-10-17.
+Última atualização: 2026-10-18.
 
 ## O projeto em poucas linhas
 
@@ -58,6 +58,7 @@ Não são para ler do começo ao fim; servem para tirar dúvidas.
 - [`../requisitos.md`](../requisitos.md): o que o app precisa fazer (RF e RNF) e as dúvidas decididas.
 - [`../arquitetura.md`](../arquitetura.md): o desenho geral (caminho dos dados, models, rotas).
 - [`../pluggy.md`](../pluggy.md): tudo da Pluggy que usamos, com fontes e datas.
+- [`../deploy.md`](../deploy.md): roteiro do deploy no servidor caseiro (Docker, Tailscale, backup, APK).
 
 ## Para a próxima sessão de estudos
 

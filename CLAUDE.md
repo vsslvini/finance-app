@@ -78,6 +78,9 @@ mas sempre mostra o texto antes e espera aprovação.
 - Rodar o lint (backend): `cd backend && ruff check . && ruff format --check .` (para corrigir: `ruff check . --fix` e depois `ruff format .`)
 - Sincronizar com a Pluggy de verdade (banco do Docker no ar): `python manage.py shell` e, dentro dele, `from financas.services.sincronizacao import sincronizar; sincronizar()` (sem saída quando dá certo; conferir no admin)
 - Criar o token da API (uma vez, depois do `migrate`): `python manage.py drf_create_token <usuário>` (`-r` gera um novo)
+- Sincronizar pelo terminal (banco do Docker no ar): `cd backend && python manage.py sincronizar` (escreve "Sincronizado: N conexões, ..."). Automático a cada 3 horas: timer do systemd em `deploy/systemd/README.md`.
+- Conferir se o app monta (pega erro de rota que o Jest não vê): `cd mobile && npx expo export --platform android --output-dir /tmp/export`
+- Deploy no servidor caseiro: roteiro em `docs/deploy.md`.
 - Testar a API à mão (com o `runserver` no ar): `curl -H "Authorization: Token $TOKEN" http://127.0.0.1:8000/api/resumo/`
 
 ## Decisões
@@ -111,6 +114,14 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-10, o mês do app pode começar N dias antes do dia 1 (configurável pelo app, padrão 0), porque o salário cai no fim do mês anterior; o "posso gastar por dia" divide o saldo pelos dias até o fim desse mês, sem descontar a fatura, que é paga com o salário seguinte.
 - 2026-10-10, entradas e saídas do resumo são contadas só pela conta corrente (o pagamento da fatura conta, as compras do cartão ficam na fatura e os investimentos não contam), porque a Pluggy mandou pagamentos de fatura com a categoria errada e a regra antiga contava o mesmo dinheiro duas vezes.
 - 2026-10-10, o visual segue `docs/design.md` (tema escuro, acento roxo, fonte Manrope, ícones Lucide), e as configurações do usuário moram no app Django `planejamento`.
+- 2026-10-17, modo autônomo: Claude orquestra os agentes e decide os passos não críticos (regra 14), com plano por módulo em `docs/planos/`, porque o Vinicius ficou sem tempo e o projeto virou estudo de orquestração com IA.
+- 2026-10-17, faturas futuras estimadas pela última parcela vista de cada compra no cartão, porque a Pluggy só manda cada parcela no mês em que é cobrada.
+- 2026-10-17, por dentro as categorias continuam em inglês (regras do resumo) e só o que o app mostra é traduzido, pela tabela `GET /categories` da Pluggy guardada no banco.
+- 2026-10-17, o relatório soma o cartão e a corrente nos gastos e tira os pagamentos de fatura da corrente pela palavra "fatura" na descrição, porque a Pluggy os marca como "Transfers".
+- 2026-10-18, as regras de entradas, saídas e gastos usam a categoria manual quando existe, e transferências próprias mal marcadas são corrigidas pela pessoa ("Transferência entre minhas contas"), porque casar saída e entrada automaticamente deu falso positivo nos dados reais.
+- 2026-10-18, dívidas e gastos fixos não pagos contam como saída no mês e saem do "posso gastar" até serem marcados como pagos (fixos com trecho da descrição são marcados sozinhos), para não contar o mesmo dinheiro duas vezes.
+- 2026-10-18, animações só com Reanimated (a hairline é só para web), sem animar valores em dinheiro e respeitando "reduzir movimento" (seção 10 do `docs/design.md`).
+- 2026-10-18, deploy planejado com Docker Compose, Gunicorn e WhiteNoise, acessível só pelo Tailscale (sem porta aberta na internet), e o app como APK do EAS (`docs/deploy.md`).
 
 ## Obstáculos e aprendizados
 
@@ -128,25 +139,28 @@ mas sempre mostra o texto antes e espera aprovação.
 - 2026-10-08, o `Response` do DRF transforma `Decimal` solto em `float`, e só o `DecimalField` de um serializer devolve texto; resolvemos com um `ResumoSerializer`. Aprendi: conferir como a biblioteca trata dinheiro, em vez de supor.
 - 2026-10-08, os agentes entregaram os dois módulos com erros de lint, que só apareceram porque o lint rodou antes do commit. Aprendi: código que parece certo pode não passar no lint; rodar testes e lint sempre, mesmo com o fluxo mais rápido.
 
+- 2026-10-17, os agentes às vezes entregam testes com dados errados (parcela 2 de 3 esperando dezembro) ou suposições erradas (contar "R$ 0,00" na tela inteira); o teste vermelho mostrou que o código estava certo. Aprendi: quando um teste falha, conferir primeiro se o teste está certo antes de mudar o código.
+- 2026-10-18, o `useFocusEffect` quebrou os testes que desenham a tela fora de um navegador, e o `useReducedMotion` não existe na versão simulada do Reanimated; resolvemos com um dublê só do `useFocusEffect` e confiando no padrão do `withTiming`. Aprendi: bibliotecas que dependem de contexto (navegação, animação) pedem cuidado nos testes, e o teste de rotas com o navegador de verdade cobre o que o dublê esconde.
+
 ## Estado atual e próximos passos
 
 (atualizar ao fim de cada sessão; vale só o estado mais recente)
 
-**Onde paramos (2026-10-18):**
+**Onde paramos (2026-10-18, fim da sessão):**
 
-- Modo autônomo (regra 14). Planos de cada módulo em `docs/planos/`; documentos em `docs/estudos/modulos/` (guia até o item 27).
-- Feito (tudo com commit): módulos 5 a 10 da sessão de 2026-10-17 e, em 2026-10-18, o 11 (transferências entre contas próprias: as regras usam a categoria manual; atalho "Transferência entre minhas contas" na folha de categoria), o 12 (aba Dívidas: parcelas calculadas que contam como saída no mês até serem marcadas como pagas; atrasadas descontam do "posso gastar") e o 13 (embelezamento com Reanimated: toque, estados vazios, folha animada, barras, cascata, troca de mês, esqueleto; regras na seção 10 do `docs/design.md`). Backend 217 testes, mobile 182; lint, `tsc` e `expo export` ok.
-- Banco de desenvolvimento em dia (migrations aplicadas até `planejamento.0003`).
+- Modo autônomo (regra 14). Planos em `docs/planos/` (módulos 3b-2 a 14); documentos em `docs/estudos/modulos/` (guia até o item 28).
+- Feito (tudo com commit): módulos 5 a 14. Os mais recentes: 11 (transferências entre contas próprias), 12 (dívidas), 13 (embelezamento com Reanimated) e 14 (gasto previsto no Início e gastos fixos na aba "A pagar", com pago automático pelo trecho da descrição). Backend 268 testes, mobile 220; lint, `tsc` e `expo export` ok. Testado no celular pelo Vinicius até o Módulo 13 ("muito bom para uma versão inicial").
+- Banco de desenvolvimento em dia (migrations até `planejamento.0004`).
 - Sem commit, de propósito: as mudanças do Vinicius em `.claude/agents/` (`model:` e o agente `Explore`).
-- Pendente do Vinicius: testar tudo no celular (nenhuma tela nova foi vista num aparelho), instalar o timer (`deploy/systemd/README.md`), decidir as divisórias com `StyleSheet.hairlineWidth` vendo no celular.
-- Dúvidas ainda abertas (em `docs/requisitos.md`): data de fechamento não vem (RF14); parcelas futuras vêm só em parte (RF13, por isso estimativa); dúvidas 4 e 6.
+- Pendente do Vinicius: cadastrar os gastos fixos e conferir o "Gasto previsto"; testar o Módulo 14 no celular; decidir as divisórias com `StyleSheet.hairlineWidth`.
+- Dúvidas ainda abertas (em `docs/requisitos.md`): data de fechamento não vem (RF14); parcelas futuras vêm só em parte (RF13, por isso estimativa); vencimento da fatura vem velho da Pluggy (afeta o previsto); dúvidas 4 e 6.
 - Para recomeçar: ler `docs/inicio-de-sessao.md`; `docker compose up -d`, `cd backend && source .venv/bin/activate.fish && python manage.py runserver 0.0.0.0:8000`; em outro terminal `cd mobile && npx expo start --clear`. Para estudar: `docs/estudos/guia.md`.
 
 **Próximos passos, em ordem:**
 
-1. Corrigir o que aparecer no teste do app no celular.
-2. RF22 (limite de gasto mensal com aviso) e RF10 (gasto manual).
-3. Depois: editar dívida (para quem e motivo), animação ao fechar a folha, RF20 (metas), RF26 (biometria, pede `expo-local-authentication`), "Ver todas" nos últimos gastos, atualizar `jest-expo` para a versão esperada pelo Expo (~57.0.6).
+1. Corrigir o que aparecer no teste do Módulo 14 no celular.
+2. Deploy: Fase 0 do `docs/deploy.md` como módulo (Gunicorn, WhiteNoise, Dockerfile, `docker-compose.prod.yml`, `eas.json`), depois as fases no servidor.
+3. Depois: RF22 (limite mensal com aviso), RF10 (gasto manual), editar dívida, animação ao fechar a folha, RF20 (metas), RF26 (biometria), atualizar `jest-expo` para ~57.0.6.
 
 ## Ao fim de cada sessão
 
