@@ -1,0 +1,14 @@
+# Roda "python manage.py sincronizar" uma vez e termina. Quem chama este serviço
+# é o app-financas-sincronizar.timer; ele não tem [Install] porque não liga sozinho.
+#
+# %h é a pasta do usuário (ex.: /home/vsslvini). Os caminhos supõem o projeto em
+# ~/Projetos/app-finacas; se estiver em outro lugar, ajuste WorkingDirectory e
+# ExecStart. O banco do Docker precisa estar no ar (docker compose up -d).
+
+[Unit]
+Description=Sincronização do app de finanças com a Pluggy
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Projetos/app-finacas/backend
+ExecStart=%h/Projetos/app-finacas/backend/.venv/bin/python manage.py sincronizar

@@ -128,6 +128,7 @@ Fonte do `yield`: https://docs.pytest.org/en/stable/how-to/fixtures.html#yield-f
 | `conexao`, `dados_pluggy` | nós | `backend/financas/tests/test_sincronizacao.py` |
 | `cliente_com_token` | nós | `backend/financas/tests/conftest.py` (vale para a pasta inteira) |
 | `monkeypatch` | o próprio pytest | `backend/.venv/lib/python3.14/site-packages/_pytest/monkeypatch.py` |
+| `capsys` | o próprio pytest (seção 7) | `backend/.venv/lib/python3.14/site-packages/_pytest/capture.py` |
 | `db`, `settings` | o pytest-django | `backend/.venv/lib/python3.14/site-packages/pytest_django/fixtures.py` |
 
 O pytest já conhece as fixtures dele e as dos plugins instalados (o pytest-django é um plugin). Para ver todas as fixtures disponíveis, rode `pytest --fixtures` dentro de `backend/`.
@@ -232,6 +233,20 @@ with pytest.raises(requests.HTTPError):
 
 O código depois do `with` continua rodando, por isso em `test_erro_no_meio_nao_salva_nada` dá para conferir, logo em seguida, que nada ficou salvo no banco.
 
+### Olhar o erro por dentro: `as erro`
+
+Mesma fonte (conferida em 2026-10-17): o `as` guarda um `ExceptionInfo`, um "embrulho" do erro levantado. O erro em si fica em `.value`. Usamos no Módulo 10 para conferir a mensagem e o código de saída do comando:
+
+```python
+with pytest.raises(CommandError) as erro:
+    call_command("sincronizar")
+
+assert str(erro.value).startswith("Não foi possível falar com a Pluggy.")
+assert erro.value.returncode == 1
+```
+
+Só use `erro.value` **depois** do bloco `with`: é lá que o erro já foi pego.
+
 ## 6. pytest-django: `db`, `@pytest.mark.django_db` e `settings`
 
 Fontes: https://pytest-django.readthedocs.io/en/latest/helpers.html e https://pytest-django.readthedocs.io/en/latest/database.html (conferidos em 2026-10-06).
@@ -260,7 +275,34 @@ def test_obter_api_key_manda_credenciais_e_devolve_a_chave(monkeypatch, settings
 
 Assim o teste não depende do `.env` real e nunca usa a chave de verdade.
 
-## 7. Comandos que usamos
+## 7. `capsys`: ler o que foi escrito na tela
+
+Fonte: https://docs.pytest.org/en/stable/how-to/capture-stdout-stderr.html#accessing-captured-output-from-a-test-function (conferido em 2026-10-17).
+
+Durante os testes, o pytest "segura" tudo o que seria escrito na tela (por isso um `print` dentro do teste não aparece, a não ser que o teste falhe). A fixture `capsys`, do próprio pytest, deixa o teste ler esse texto. Como toda fixture, chega pelo nome do parâmetro, sem `import` (seção 3).
+
+`capsys.readouterr()` devolve o que foi escrito até aquele momento, separado em dois campos:
+
+- `.out`: a saída padrão (stdout), onde vai a mensagem normal;
+- `.err`: o erro padrão (stderr), onde vão as mensagens de erro.
+
+Usamos no Módulo 10 (`backend/financas/tests/test_comando_sincronizar.py`) para testar o comando `python manage.py sincronizar`:
+
+```python
+def test_comando_sincroniza_e_mostra_conexoes_e_horario(sincronizar_falso, capsys):
+    ...
+    call_command("sincronizar")
+
+    saida = capsys.readouterr()
+    assert saida.out == "Sincronizado: 2 conexões, 2026-10-17 14:32\n"
+    assert saida.err == ""
+```
+
+- `call_command("sincronizar")` é do **Django**, não do pytest: roda o comando como o `python manage.py sincronizar`, mas dentro do teste. Fonte: https://docs.djangoproject.com/en/6.1/ref/django-admin/#running-management-commands-from-your-code (conferido em 2026-10-17). O `CommandError` chegar até quem chamou está em https://docs.djangoproject.com/en/6.1/howto/custom-management-commands/ ("it's up to you to catch the exception").
+- O comando escreve com `self.stdout.write(...)`, que o Django liga à saída padrão; por isso o texto aparece no `.out`. O `"\n"` do fim é o Django que coloca em cada `write()`.
+- Diferença importante: pelo terminal, quando o comando levanta `CommandError`, o Django escreve a mensagem no erro padrão e sai com código 1. Pelo `call_command`, o erro chega até o teste, e conferimos com `pytest.raises` (seção 5).
+
+## 8. Comandos que usamos
 
 Fonte: https://docs.pytest.org/en/stable/how-to/usage.html#specifying-which-tests-to-run (conferido em 2026-10-06).
 

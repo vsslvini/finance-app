@@ -1,0 +1,12 @@
+# Chama o app-financas-sincronizar.service (mesmo nome, outra extensão) 5 minutos
+# depois de ligar o computador e, a partir daí, 3 horas depois de cada execução.
+
+[Unit]
+Description=Sincronização do app de finanças a cada 3 horas
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=3h
+
+[Install]
+WantedBy=timers.target
