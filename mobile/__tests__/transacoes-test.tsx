@@ -687,3 +687,111 @@ describe('Folha "Categoria" (8b)', () => {
     expect(chamadasPatch()).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Módulo 11b: a opção fixa "Transferência entre minhas contas" (casos 1 a 4)
+//
+// A folha "Categoria" ganha, logo depois da busca, um atalho que marca a
+// transação como transferência entre contas do próprio Vinicius. Ele manda o
+// nome em inglês que a Pluggy usa, "Same person transfer", e o backend
+// (11a) passa a não contar a transação como entrada nem saída.
+//
+// O botão tem o nome acessível exatamente "Transferência entre minhas
+// contas" (accessibilityLabel). Como o accessibilityLabel substitui o texto
+// de dentro do botão, o nome continua o mesmo mesmo quando a opção tem o
+// ícone de "check"; por isso podemos achá-la pelo nome exato em todos os
+// testes, inclusive no da opção selecionada.
+// ---------------------------------------------------------------------------
+const TRANSFERENCIA_PROPRIA = 'Transferência entre minhas contas';
+const EXPLICACAO_TRANSFERENCIA = 'Não conta como entrada nem saída.';
+
+// Uma transferência que a Pluggy já marcou como "mesma titularidade" (caso 3).
+// Ela só entra na lista do teste que precisa dela (trocando a
+// respostaDasTransacoes), para não mudar os testes de cima, que contam itens
+// e pedidos.
+const PIX_PARA_INTER: Transacao = {
+  id: 6,
+  data: '2026-10-12',
+  descricao: 'PIX para Inter',
+  valor: '-200.00',
+  conta: 1,
+  nome_conta: 'Conta Corrente',
+  nome_banco: 'Nubank',
+  categoria: 'Transferência mesma titularidade',
+  categoria_original: 'Same person transfer - PIX',
+  parcela_atual: null,
+  total_parcelas: null,
+};
+
+const ROTULO_PIX_PARA_INTER =
+  'PIX para Inter, saída de 200,00 reais, 12/10, Nubank Conta Corrente, categoria Transferência mesma titularidade';
+
+describe('Transferência entre minhas contas (11b)', () => {
+  it('a folha mostra "Transferência entre minhas contas" e "Não conta como entrada nem saída." (11b, caso 1)', async () => {
+    // Prepara: abre a folha do iFood (categoria "Food delivery", que não é
+    // transferência).
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    // Verifica: a opção é um botão com esse nome...
+    expect(screen.getByRole('button', { name: TRANSFERENCIA_PROPRIA })).toBeOnTheScreen();
+    // ...e a explicação aparece como texto, para a pessoa entender o efeito.
+    expect(screen.getByText(EXPLICACAO_TRANSFERENCIA)).toBeOnTheScreen();
+  });
+
+  it('tocar na opção manda PATCH com categoria_manual "Same person transfer" (11b, caso 2)', async () => {
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    // Faz: toca no atalho.
+    await fireEvent.press(screen.getByRole('button', { name: TRANSFERENCIA_PROPRIA }));
+
+    // Verifica: um PATCH no endereço do iFood, com o nome em inglês que o
+    // backend conhece (o mesmo da tabela de categorias da Pluggy).
+    await waitFor(() => expect(chamadasPatch()).toHaveLength(1));
+    const [endereco] = chamadasPatch()[0];
+    expect(endereco).toBe(ENDERECO_PATCH_IFOOD);
+    expect(corpoDoPatch()).toEqual({ categoria_manual: 'Same person transfer' });
+  });
+
+  it('depois de tocar na opção, a folha fecha e o mesmo mês é relido (11b, caso 2)', async () => {
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    await fireEvent.press(screen.getByRole('button', { name: TRANSFERENCIA_PROPRIA }));
+
+    // Verifica: a folha fechou (o título sumiu)...
+    await waitFor(() => expect(screen.queryByRole('header', { name: 'Categoria' })).toBeNull());
+    // ...e a lista de outubro foi pedida de novo (ao abrir e depois da troca).
+    // O filtro "?mes=" deixa o endereço do PATCH de fora.
+    expect(enderecosPedidos('/api/transacoes/?mes=')).toEqual([
+      ENDERECO_OUTUBRO,
+      ENDERECO_OUTUBRO,
+    ]);
+  });
+
+  it('numa transação com categoria original "Same person transfer - PIX", a opção vem selecionada (11b, caso 3)', async () => {
+    // Prepara: a lista de outubro passa a ter também a transferência.
+    respostaDasTransacoes = async (mes) =>
+      respostaFalsa(200, mes === '2026-10' ? [PIX_PARA_INTER, ...TRANSACOES_DE_OUTUBRO] : []);
+
+    // Faz: abre a folha da transferência.
+    await abrirFolhaDe(ROTULO_PIX_PARA_INTER);
+
+    // Verifica: o atalho está selecionado (o leitor de tela diz
+    // "selecionado")...
+    expect(screen.getByRole('button', { name: TRANSFERENCIA_PROPRIA })).toBeSelected();
+    // ...e é o único selecionado: nenhuma categoria da lista ganhou a marca.
+    expect(screen.getAllByRole('button', { selected: true })).toHaveLength(1);
+  });
+
+  it('buscar "merc" não esconde a opção "Transferência entre minhas contas" (11b, caso 4)', async () => {
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    // Faz: digita "merc" na busca, como no teste do 8b.
+    await fireEvent.changeText(screen.getByLabelText('Buscar categoria'), 'merc');
+
+    // Verifica: a busca funcionou (Restaurantes sumiu)...
+    expect(screen.queryByRole('button', { name: 'Restaurantes' })).toBeNull();
+    // ...mas o atalho do topo continua lá, porque ele não faz parte da lista
+    // filtrada.
+    expect(screen.getByRole('button', { name: TRANSFERENCIA_PROPRIA })).toBeOnTheScreen();
+  });
+});

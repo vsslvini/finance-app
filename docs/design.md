@@ -213,8 +213,11 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
   vermelha no campo com problema.
 - Folha "Categoria" (aba Transações, tocar numa transação): título "Categoria", a descrição da
   transação em `detalhe`, campo "Buscar categoria" (estilo do campo de texto, filtra sem
-  diferenciar maiúsculas nem acentos) e uma lista que rola: primeiro "Usar a categoria do banco",
-  depois uma linha por categoria (texto em `corpo`, altura mínima 48, divisória de 1 em `borda`).
+  diferenciar maiúsculas nem acentos) e uma lista que rola: primeiro a opção fixa "Transferência
+  entre minhas contas" (com "Não conta como entrada nem saída." embaixo, em `detalhe`; manda
+  "Same person transfer" e fica com o `check` quando a categoria original começa com "Same person
+  transfer"), depois "Usar a categoria do banco"; a busca não esconde essas duas. Depois, uma
+  linha por categoria (texto em `corpo`, altura mínima 48, divisória de 1 em `borda`).
   A categoria atual tem o ícone `check` (20, `acento`) à direita. Sem botão "Salvar": tocar numa
   linha já troca. Embaixo, só o botão secundário "Cancelar". A folha ocupa no máximo 85% da
   altura da tela. Sem resultado na busca: "Nenhuma categoria encontrada." em `textoSecundario`.

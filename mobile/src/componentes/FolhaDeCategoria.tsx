@@ -34,6 +34,11 @@ function semAcento(texto: string): string {
     .toLowerCase();
 }
 
+// Categoria da Pluggy para transferência entre contas da mesma pessoa
+// ("Transferência mesma titularidade"). A Pluggy também usa variações que
+// começam assim, como "Same person transfer - PIX".
+const TRANSFERENCIA_PROPRIA = 'Same person transfer';
+
 // A folha está sempre em um destes estados enquanto busca as categorias
 type Carga =
   | { tipo: 'carregando' }
@@ -156,12 +161,27 @@ export default function FolhaDeCategoria({
                 keyExtractor={(categoria) => categoria.descricao}
                 keyboardShouldPersistTaps="handled"
                 style={styles.lista}
+                // O cabeçalho fica fora do filtro: a busca nunca esconde estas
+                // duas opções fixas
                 ListHeaderComponent={
-                  <OpcaoDeCategoria
-                    nome="Usar a categoria do banco"
-                    selecionada={false}
-                    aoTocar={() => escolher('')}
-                  />
+                  <>
+                    {/* Atalho para marcar transferência própria. Se a lista
+                        trouxer categorias "Same person transfer", elas
+                        continuam aparecendo embaixo, normalmente */}
+                    <OpcaoDeCategoria
+                      nome="Transferência entre minhas contas"
+                      detalhe="Não conta como entrada nem saída."
+                      selecionada={transacao.categoria_original.startsWith(
+                        TRANSFERENCIA_PROPRIA,
+                      )}
+                      aoTocar={() => escolher(TRANSFERENCIA_PROPRIA)}
+                    />
+                    <OpcaoDeCategoria
+                      nome="Usar a categoria do banco"
+                      selecionada={false}
+                      aoTocar={() => escolher('')}
+                    />
+                  </>
                 }
                 renderItem={({ item }) => (
                   <OpcaoDeCategoria
@@ -188,24 +208,29 @@ export default function FolhaDeCategoria({
 
 type OpcaoDeCategoriaProps = {
   nome: string;
+  detalhe?: string; // explicação curta embaixo do nome (só em algumas opções)
   selecionada: boolean; // a categoria atual da transação
   aoTocar: () => void;
 };
 
-// Uma linha da lista: o nome e, na categoria atual, o ícone de "check".
-// Fica neste arquivo porque só esta folha usa.
-function OpcaoDeCategoria({ nome, selecionada, aoTocar }: OpcaoDeCategoriaProps) {
+// Uma linha da lista: o nome (com a explicação embaixo, quando houver) e, na
+// categoria atual, o ícone de "check". Fica neste arquivo porque só esta folha usa.
+function OpcaoDeCategoria({ nome, detalhe, selecionada, aoTocar }: OpcaoDeCategoriaProps) {
   return (
     <Pressable
       accessibilityRole="button"
-      // Rótulo explícito para o leitor de tela ler só o nome, sem o ícone
+      // Rótulo explícito para o leitor de tela ler só o nome, sem o ícone nem
+      // a explicação (o nome acessível fica exatamente igual ao texto visível)
       accessibilityLabel={nome}
       // "selected" faz o leitor de tela dizer que esta é a categoria atual
       accessibilityState={{ selected: selecionada }}
       onPress={aoTocar}
       style={({ pressed }) => [styles.opcao, pressed && styles.apertado]}
     >
-      <Text style={[textos.corpo, styles.nomeDaOpcao]}>{nome}</Text>
+      <View style={styles.nomeDaOpcao}>
+        <Text style={textos.corpo}>{nome}</Text>
+        {detalhe !== undefined && <Text style={textos.detalhe}>{detalhe}</Text>}
+      </View>
       {selecionada && (
         // Só desenho: o "selected" acima já avisa o leitor de tela
         <Lucide
