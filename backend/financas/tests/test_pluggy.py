@@ -158,3 +158,40 @@ def test_listar_investimentos_sem_nenhum(monkeypatch):
 
     assert investimentos == []
     assert len(chamadas) == 1
+
+
+def test_listar_categorias_junta_as_duas_paginas(monkeypatch):
+    # Caso 1 do Módulo 8: categorias em duas páginas, com a mesma paginação por
+    # número dos investimentos. A lista é uma só para todos (sem itemId)
+    primeira = RespostaFalsa(
+        {
+            "page": 1,
+            "total": 2,
+            "totalPages": 2,
+            "results": [{"id": "08000000", "description": "Groceries"}],
+        }
+    )
+    segunda = RespostaFalsa(
+        {
+            "page": 2,
+            "total": 2,
+            "totalPages": 2,
+            "results": [{"id": "09010000", "description": "Eating out"}],
+        }
+    )
+    chamadas = trocar_get(monkeypatch, primeira, segunda)
+
+    categorias = pluggy.listar_categorias("chave-falsa")
+
+    assert categorias == [
+        {"id": "08000000", "description": "Groceries"},
+        {"id": "09010000", "description": "Eating out"},
+    ]
+    assert len(chamadas) == 2
+    assert chamadas[0]["url"] == f"{URL}/categories"
+    assert chamadas[0]["params"] == {"page": 1}
+    assert chamadas[1]["url"] == f"{URL}/categories"
+    assert chamadas[1]["params"] == {"page": 2}
+    assert chamadas[0]["headers"]["X-API-KEY"] == "chave-falsa"
+    assert chamadas[1]["headers"]["X-API-KEY"] == "chave-falsa"
+    assert chamadas[0]["timeout"]

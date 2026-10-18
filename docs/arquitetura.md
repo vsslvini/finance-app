@@ -32,6 +32,7 @@ App Django `financas` para os dados dos bancos. Metas e dívidas entram depois, 
 | `Conta` | conta corrente ou cartão | conexão, id da Pluggy, tipo, nome, saldo; no cartão: limite total, limite disponível, fechamento, vencimento |
 | `Transacao` | cada entrada ou saída | conta, data, descrição, valor, categoria da Pluggy, categoria manual, parcela X de Y, id da Pluggy (vazio se manual) |
 | `Investimento` | cada investimento da Pluggy (desde 2026-10-17) | conexão, id da Pluggy, nome, tipo, subtipo, instituição, saldo, status |
+| `Categoria` | a árvore de categorias da Pluggy, para mostrar em português (desde 2026-10-17) | id da Pluggy, descrição em inglês, descrição em português, id da categoria pai |
 | `PlanoDeGuardar` (app `planejamento`) | o plano de guardar, uma linha só | valor por mês e mês alvo (os dois vazios = sem plano) |
 
 - Os ids das conexões (copiados do painel da Pluggy) são cadastrados pelo admin do Django.
@@ -69,8 +70,9 @@ Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pl
 |---|---|
 | `GET /api/resumo/?mes=2026-10` | saldo total, entradas, saídas, posso gastar por dia, últimos gastos (RF15 a RF18) e o bloco `guardado` (RF04, RF28, RF29) |
 | `GET /api/contas/` | lista de contas com o nome do banco (o app agrupa), com dados do cartão (RF01 a RF03, RF11, RF12, RF14) |
-| `GET /api/transacoes/?mes=...` | transações do mês, com filtros opcionais (RF05 a RF07, RF09) |
-| `PATCH /api/transacoes/<id>/` | trocar a categoria (RF08) |
+| `GET /api/transacoes/?mes=...` | transações do mês, com filtros opcionais (RF05 a RF07, RF09); cada uma traz `categoria` (em português, para mostrar) e `categoria_original` (o nome em inglês da Pluggy) |
+| `PATCH /api/transacoes/<id>/` | trocar a categoria com `{"categoria_manual": "Groceries"}` (o nome em inglês de uma categoria da lista; `""` volta para a da Pluggy) e receber a transação no formato da lista (RF08, desde 2026-10-17) |
+| `GET /api/categorias/` | categorias para a troca, `[{"descricao": "Groceries", "nome": "Mercado"}]`, sem as que são grupo de outras, em ordem alfabética do nome (RF07, RF08, desde 2026-10-17) |
 | `POST /api/transacoes/` | gasto manual (RF10) |
 | `GET /api/faturas-futuras/` | estimativa dos 6 meses seguintes ao mês atual do app, pelas compras parceladas do cartão: total do mês e total por cartão (RF13) |
 | `POST /api/sincronizar/` | atualizar agora (RF24) |

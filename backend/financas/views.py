@@ -1,15 +1,19 @@
 from datetime import date
 
 import requests
-from django.db.models import Max
+from django.db.models import Max, Value
+from django.db.models.functions import Coalesce, NullIf
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from financas.models import Conexao, Conta, Transacao
+from financas.models import Categoria, Conexao, Conta, Transacao
 from financas.serializers import (
+    CategoriaManualSerializer,
+    CategoriaSerializer,
     ContaSerializer,
     FaturasFuturasSerializer,
     ResumoSerializer,
@@ -69,6 +73,46 @@ class TransacoesView(generics.ListAPIView):
             .order_by("-data", "-id")
         )
 
+    def get_serializer_context(self):
+        # As traduções são lidas uma vez por pedido e vão para o serializer
+        # pelo context, em vez de uma consulta por transação
+        contexto = super().get_serializer_context()
+        contexto["traducoes"] = Categoria.traducoes()
+        return contexto
+
+
+@api_view(["PATCH"])
+def trocar_categoria(request, pk):
+    # get_object_or_404: id que não existe vira resposta 404
+    transacao = get_object_or_404(
+        Transacao.objects.select_related("conta__conexao"), pk=pk
+    )
+    entrada = CategoriaManualSerializer(transacao, data=request.data)
+    # Categoria desconhecida: o DRF responde 400 com a mensagem do serializer
+    entrada.is_valid(raise_exception=True)
+    entrada.save()
+    # A resposta sai no mesmo formato da lista de transações, já traduzida
+    contexto = {"traducoes": Categoria.traducoes()}
+    return Response(TransacaoSerializer(transacao, context=contexto).data)
+
+
+class CategoriasView(generics.ListAPIView):
+    serializer_class = CategoriaSerializer
+
+    def get_queryset(self):
+        # Categorias que são pai de outras (ex.: "Food and drinks") são grupos e
+        # ficam de fora da escolha; as que não têm filhas (ex.: "Groceries") entram
+        pais = Categoria.objects.exclude(id_pai="").values("id_pai")
+        # nome = a tradução ou, se ela estiver vazia, o inglês. NullIf troca o ""
+        # por NULL, e o Coalesce pega o primeiro valor que não é NULL. Ordenar no
+        # banco também ordena certo os nomes com acento
+        nome = Coalesce(NullIf("descricao_pt", Value("")), "descricao")
+        return (
+            Categoria.objects.exclude(id_pluggy__in=pais)
+            .annotate(nome=nome)
+            .order_by("nome")
+        )
+
 
 @api_view(["GET"])
 def resumo(request):
@@ -87,7 +131,8 @@ def resumo(request):
         valor_mensal=plano.valor_mensal,
         mes_alvo=plano.mes_alvo,
     )
-    return Response(ResumoSerializer(dados).data)
+    contexto = {"traducoes": Categoria.traducoes()}
+    return Response(ResumoSerializer(dados, context=contexto).data)
 
 
 @api_view(["GET"])

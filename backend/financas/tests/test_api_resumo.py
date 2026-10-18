@@ -5,7 +5,7 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from financas.models import Conexao, Conta, Investimento, Transacao
+from financas.models import Categoria, Conexao, Conta, Investimento, Transacao
 from planejamento.models import Configuracao, PlanoDeGuardar
 
 MES_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-10."
@@ -90,10 +90,36 @@ def test_resumo_traz_as_chaves_e_dinheiro_como_texto(cliente_com_token):
             "nome_conta": "Conta Nubank",
             "nome_banco": "Nubank",
             "categoria": "Supermercado",
+            "categoria_original": "Supermercado",
             "parcela_atual": None,
             "total_parcelas": None,
         }
     ]
+
+
+def test_ultimos_gastos_vem_traduzidos(cliente_com_token):
+    # Caso 5 do Módulo 8: os últimos gastos do resumo trazem a categoria em
+    # português e a original em inglês, como a lista de transações
+    Categoria.objects.create(
+        id_pluggy="08000000", descricao="Groceries", descricao_pt="Mercado"
+    )
+    conexao = Conexao.objects.create(id_pluggy="item-nubank", nome_banco="Nubank")
+    conta = Conta.objects.create(
+        conexao=conexao, tipo="corrente", nome="Conta Nubank", saldo=Decimal(0)
+    )
+    Transacao.objects.create(
+        conta=conta,
+        data=timezone.localdate(),
+        descricao="Mercado do bairro",
+        valor=Decimal("-50.00"),
+        categoria_pluggy="Groceries",
+    )
+
+    resposta = cliente_com_token.get("/api/resumo/")
+
+    gasto = resposta.json()["ultimos_gastos"][0]
+    assert gasto["categoria"] == "Mercado"
+    assert gasto["categoria_original"] == "Groceries"
 
 
 def test_resumo_mostra_o_limite_e_o_aviso_da_fatura(cliente_com_token):

@@ -1,7 +1,9 @@
 from rest_framework import serializers
 
-from financas.models import Conta, Transacao
+from financas.models import Categoria, Conta, Transacao
 from planejamento.serializers import PlanoDeGuardarSerializer
+
+CATEGORIA_DESCONHECIDA = "Categoria desconhecida."
 
 
 class ContaSerializer(serializers.ModelSerializer):
@@ -29,8 +31,11 @@ class TransacaoSerializer(serializers.ModelSerializer):
     nome_banco = serializers.CharField(
         source="conta.conexao.nome_banco", read_only=True
     )
-    # Uma categoria só para o app: manual, senão a da Pluggy, senão "Sem categoria"
-    categoria = serializers.CharField(source="categoria_exibida", read_only=True)
+    # SerializerMethodField: o valor vem do método get_<nome do campo>
+    # "categoria" é o texto para mostrar, em português quando há tradução
+    categoria = serializers.SerializerMethodField()
+    # "categoria_original" é o nome em inglês (o app escolhe o ícone por ele)
+    categoria_original = serializers.SerializerMethodField()
 
     class Meta:
         model = Transacao
@@ -44,9 +49,45 @@ class TransacaoSerializer(serializers.ModelSerializer):
             "nome_conta",
             "nome_banco",
             "categoria",
+            "categoria_original",
             "parcela_atual",
             "total_parcelas",
         )
+
+    def get_categoria(self, transacao):
+        # Manual, senão a da Pluggy, senão "Sem categoria", traduzida pelo
+        # dicionário que a view mandou no context; sem tradução, fica como está
+        exibida = transacao.categoria_exibida
+        return self.context.get("traducoes", {}).get(exibida, exibida)
+
+    def get_categoria_original(self, transacao):
+        return transacao.categoria_manual or transacao.categoria_pluggy
+
+
+class CategoriaManualSerializer(serializers.ModelSerializer):
+    # Só a entrada do PATCH; a resposta usa o TransacaoSerializer.
+    # Declarado aqui para ser obrigatório (o padrão de um campo declarado): sem
+    # ele, um PATCH com o campo errado daria 200 sem mudar nada. "" continua
+    # aceito (volta para a categoria da Pluggy)
+    categoria_manual = serializers.CharField(max_length=100, allow_blank=True)
+
+    class Meta:
+        model = Transacao
+        fields = ("categoria_manual",)
+
+    def validate_categoria_manual(self, valor):
+        if valor and not Categoria.objects.filter(descricao=valor).exists():
+            raise serializers.ValidationError(CATEGORIA_DESCONHECIDA)
+        return valor
+
+
+class CategoriaSerializer(serializers.ModelSerializer):
+    # "nome" não é campo do model: vem pronto da view (annotate)
+    nome = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Categoria
+        fields = ("descricao", "nome")
 
 
 class GuardadoSerializer(serializers.Serializer):
@@ -80,6 +121,8 @@ class ResumoSerializer(serializers.Serializer):
     posso_gastar_por_dia = serializers.DecimalField(
         max_digits=12, decimal_places=2, allow_null=True
     )
+    # O DRF passa o context deste serializer aos de dentro, então as traduções
+    # que a view manda chegam aqui sem mais nada
     ultimos_gastos = TransacaoSerializer(many=True)
     # None quando não há limite definido na configuração
     limite_fatura = serializers.DecimalField(

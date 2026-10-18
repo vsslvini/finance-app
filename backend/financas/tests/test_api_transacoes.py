@@ -2,10 +2,12 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from financas.models import Conexao, Conta, Transacao
+from financas.models import Categoria, Conexao, Conta, Transacao
 from planejamento.models import Configuracao
 
 MES_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-10."
@@ -118,6 +120,7 @@ def test_transacao_traz_os_campos_combinados(cliente_com_token, conta):
             "nome_conta": "Conta Nubank",
             "nome_banco": "Nubank",
             "categoria": "Eletrodomésticos",
+            "categoria_original": "Eletrodomésticos",
             "parcela_atual": 3,
             "total_parcelas": 10,
         }
@@ -162,3 +165,145 @@ def test_transacoes_mais_novas_primeiro(cliente_com_token, conta):
 
     ids = [transacao["id"] for transacao in resposta.json()]
     assert ids == [dia_10.id, dia_5_segunda.id, dia_5_primeira.id]
+
+
+def criar_mercado():
+    # A categoria da Pluggy "Groceries", com a tradução que a Pluggy manda
+    return Categoria.objects.create(
+        id_pluggy="08000000", descricao="Groceries", descricao_pt="Mercado"
+    )
+
+
+def test_categoria_traduzida_e_categoria_original(cliente_com_token, conta):
+    # Caso 3 do Módulo 8: com tradução, "categoria" vem em português e
+    # "categoria_original" em inglês; sem tradução, os dois em inglês; sem
+    # categoria, "Sem categoria" e texto vazio
+    criar_mercado()
+    criar_transacao(conta, descricao="Com tradução", categoria_pluggy="Groceries")
+    criar_transacao(conta, descricao="Sem tradução", categoria_pluggy="Food delivery")
+    criar_transacao(conta, descricao="Sem nada")
+
+    resposta = cliente_com_token.get("/api/transacoes/?mes=2026-10")
+
+    categorias = [
+        (item["descricao"], item["categoria"], item["categoria_original"])
+        for item in resposta.json()
+    ]
+    # Mesmo dia: a criada por último vem primeiro
+    assert categorias == [
+        ("Sem nada", "Sem categoria", ""),
+        ("Sem tradução", "Food delivery", "Food delivery"),
+        ("Com tradução", "Mercado", "Groceries"),
+    ]
+
+
+def test_categoria_manual_vence_e_tambem_e_traduzida(cliente_com_token, conta):
+    # Caso 4 do Módulo 8: a categoria manual vence a da Pluggy e também sai
+    # traduzida; a original é a manual, em inglês
+    criar_mercado()
+    criar_transacao(conta, categoria_pluggy="Eating out", categoria_manual="Groceries")
+
+    resposta = cliente_com_token.get("/api/transacoes/?mes=2026-10")
+
+    assert resposta.json()[0]["categoria"] == "Mercado"
+    assert resposta.json()[0]["categoria_original"] == "Groceries"
+
+
+def contar_consultas(cliente):
+    # CaptureQueriesContext anota cada consulta SQL feita dentro do "with"
+    with CaptureQueriesContext(connection) as consultas:
+        cliente.get("/api/transacoes/?mes=2026-10")
+    return len(consultas)
+
+
+def test_traduzir_nao_faz_uma_consulta_por_transacao(cliente_com_token, conta):
+    # Caso 6 do Módulo 8: com 1 ou com 5 transações traduzidas, o pedido faz o
+    # mesmo número de consultas (a tradução é lida uma vez só por pedido)
+    criar_mercado()
+    criar_transacao(conta, categoria_pluggy="Groceries")
+    # O primeiro pedido cria a configuração (consultas a mais); fica fora da conta
+    cliente_com_token.get("/api/transacoes/?mes=2026-10")
+    com_uma = contar_consultas(cliente_com_token)
+    for _ in range(4):
+        criar_transacao(conta, categoria_pluggy="Groceries")
+
+    com_cinco = contar_consultas(cliente_com_token)
+
+    assert com_cinco == com_uma
+
+
+def trocar_categoria(cliente, transacao_id, categoria):
+    return cliente.patch(
+        f"/api/transacoes/{transacao_id}/",
+        {"categoria_manual": categoria},
+        format="json",
+    )
+
+
+def test_patch_troca_a_categoria_e_devolve_a_transacao(cliente_com_token, conta):
+    # Caso 8 do Módulo 8: o PATCH guarda a categoria manual e devolve a
+    # transação traduzida, no mesmo formato da lista
+    criar_mercado()
+    transacao = criar_transacao(conta, categoria_pluggy="Eating out")
+
+    resposta = trocar_categoria(cliente_com_token, transacao.id, "Groceries")
+
+    assert resposta.status_code == 200
+    assert resposta.json()["categoria"] == "Mercado"
+    assert resposta.json()["categoria_original"] == "Groceries"
+    lista = cliente_com_token.get("/api/transacoes/?mes=2026-10").json()
+    assert resposta.json() == lista[0]
+    transacao.refresh_from_db()
+    assert transacao.categoria_manual == "Groceries"
+
+
+def test_patch_vazio_volta_para_a_categoria_da_pluggy(cliente_com_token, conta):
+    # Caso 8 do Módulo 8: mandar "" apaga a categoria manual, e a da Pluggy
+    # (traduzida) volta a aparecer
+    criar_mercado()
+    transacao = criar_transacao(
+        conta, categoria_pluggy="Groceries", categoria_manual="Eating out"
+    )
+
+    resposta = trocar_categoria(cliente_com_token, transacao.id, "")
+
+    assert resposta.status_code == 200
+    assert resposta.json()["categoria"] == "Mercado"
+    assert resposta.json()["categoria_original"] == "Groceries"
+    transacao.refresh_from_db()
+    assert transacao.categoria_manual == ""
+
+
+def test_patch_categoria_desconhecida_responde_400(cliente_com_token, conta):
+    # Caso 8 do Módulo 8: uma categoria que não está na tabela é recusada com a
+    # mensagem combinada, e a transação continua como estava
+    criar_mercado()
+    transacao = criar_transacao(conta, categoria_manual="Groceries")
+
+    resposta = trocar_categoria(cliente_com_token, transacao.id, "Inventada")
+
+    assert resposta.status_code == 400
+    assert resposta.json() == {"categoria_manual": ["Categoria desconhecida."]}
+    transacao.refresh_from_db()
+    assert transacao.categoria_manual == "Groceries"
+
+
+def test_patch_transacao_inexistente_responde_404(cliente_com_token, conta):
+    # Caso 8 do Módulo 8: id que não existe recebe 404
+    criar_mercado()
+
+    resposta = trocar_categoria(cliente_com_token, 999999, "Groceries")
+
+    assert resposta.status_code == 404
+
+
+def test_patch_sem_token_responde_401(conta):
+    # Caso 8 do Módulo 8: sem token, a API recusa com 401 e nada muda
+    criar_mercado()
+    transacao = criar_transacao(conta)
+
+    resposta = trocar_categoria(APIClient(), transacao.id, "Groceries")
+
+    assert resposta.status_code == 401
+    transacao.refresh_from_db()
+    assert transacao.categoria_manual == ""

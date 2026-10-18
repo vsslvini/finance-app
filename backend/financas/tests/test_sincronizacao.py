@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 import requests
 
-from financas.models import Conexao, Conta, Investimento, Transacao
+from financas.models import Categoria, Conexao, Conta, Investimento, Transacao
 from financas.services.sincronizacao import sincronizar
 
 
@@ -72,6 +72,18 @@ def investimento_pluggy(**campos):
     return investimento
 
 
+def categoria_pluggy(**campos):
+    # Categoria no formato da Pluggy (GET /categories); sem parentId, como as de
+    # primeiro nível
+    categoria = {
+        "id": "08000000",
+        "description": "Groceries",
+        "descriptionTranslated": "Mercado",
+    }
+    categoria.update(campos)
+    return categoria
+
+
 @pytest.fixture
 def conexao(db):
     # Conexão cadastrada no admin, com o id do item copiado do painel da Pluggy
@@ -81,16 +93,21 @@ def conexao(db):
 @pytest.fixture
 def dados_pluggy(monkeypatch):
     # O que a Pluggy falsa devolve: contas e investimentos por id do item e
-    # transações por id da conta. O teste pode mudar este dicionário antes de
-    # chamar sincronizar(). Sem investimentos por padrão
+    # transações por id da conta; as categorias são uma lista só. O teste pode
+    # mudar este dicionário antes de chamar sincronizar(). Sem investimentos e
+    # sem categorias por padrão
     dados = {
         "contas": {"item-nubank": [conta_pluggy()]},
         "transacoes": {"conta-corrente": [transacao_pluggy()]},
         "investimentos": {},
+        "categorias": [],
     }
 
     def obter_api_key_falso():
         return "chave-falsa"
+
+    def listar_categorias_falso(api_key):
+        return dados["categorias"]
 
     def listar_contas_falso(api_key, item_id):
         return dados["contas"].get(item_id, [])
@@ -112,6 +129,9 @@ def dados_pluggy(monkeypatch):
     )
     monkeypatch.setattr(
         "financas.integracoes.pluggy.listar_investimentos", listar_investimentos_falso
+    )
+    monkeypatch.setattr(
+        "financas.integracoes.pluggy.listar_categorias", listar_categorias_falso
     )
     return dados
 
@@ -455,3 +475,36 @@ def test_investimento_que_sumiu_da_conexao_e_apagado(conexao, dados_pluggy):
     assert Investimento.objects.get(id_pluggy="cdb-nubank").conexao == conexao
     assert Investimento.objects.get(id_pluggy="cdb-inter").conexao == inter
     assert Investimento.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_categorias_sao_criadas_atualizadas_e_nunca_apagadas(conexao, dados_pluggy):
+    # Caso 2 do Módulo 8: a primeira sincronização cria as categorias; a segunda
+    # atualiza a tradução da mesma linha (sem duplicar), e a categoria que sumiu
+    # da Pluggy continua na tabela, porque uma transação antiga pode usar
+    dados_pluggy["categorias"] = [
+        categoria_pluggy(descriptionTranslated="Supermercado"),
+        categoria_pluggy(
+            id="09010000",
+            description="Eating out",
+            descriptionTranslated="Restaurantes",
+            parentId="09000000",
+            parentDescription="Food and drinks",
+        ),
+    ]
+    sincronizar()
+    pk_antes = Categoria.objects.get(id_pluggy="08000000").pk
+    dados_pluggy["categorias"] = [categoria_pluggy(descriptionTranslated="Mercado")]
+
+    sincronizar()
+
+    mercado = Categoria.objects.get(id_pluggy="08000000")
+    assert mercado.pk == pk_antes
+    assert mercado.descricao == "Groceries"
+    assert mercado.descricao_pt == "Mercado"
+    assert mercado.id_pai == ""
+    restaurantes = Categoria.objects.get(id_pluggy="09010000")
+    assert restaurantes.descricao == "Eating out"
+    assert restaurantes.descricao_pt == "Restaurantes"
+    assert restaurantes.id_pai == "09000000"
+    assert Categoria.objects.count() == 2

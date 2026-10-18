@@ -11,6 +11,7 @@ Documentação oficial: https://docs.pluggy.ai (índice para leitura: https://do
 - **Account**: conta corrente, poupança ou cartão de crédito de um item. Vira uma `Conta`.
 - **Transaction**: entrada ou saída de uma conta. Vira uma `Transacao`.
 - **Investment**: um investimento de um item (CDB, fundo, Tesouro...). Vira um `Investimento` (seção 9).
+- **Category**: uma categoria da árvore de categorias da Pluggy, igual para todos os itens. Vira uma `Categoria` (seção 10).
 - **Connector**: o "conector" de cada banco na Pluggy. No nosso caso usamos o conector **MeuPluggy**, que lê os bancos já conectados no Meu Pluggy.
 
 ## 2. Meu Pluggy (uso pessoal)
@@ -107,6 +108,7 @@ Fonte: guia `developer-tools/rate-limits` (conferido em 2026-10-06).
 
 - `POST /auth`, `GET /accounts` e `GET /transactions`: até 360 chamadas por minuto, por IP.
 - `GET /investments` (e `GET /investments/{id}`): também 360 por minuto, por IP (conferido em 2026-10-17). Cada rota tem o seu limite, contado à parte.
+- `GET /categories`: a página de limites não traz um número para ela (conferido em 2026-10-17). Usamos 1 chamada por sincronização (seção 10).
 - Uso no projeto (decidido em 2026-10-08, limite conferido de novo no mesmo dia): uma sincronização faz por volta de 15 chamadas (1 `POST /auth`, 1 `GET /accounts` por conexão e as páginas de `GET /transactions` de cada conta), bem abaixo do limite. Desde o Módulo 5 (2026-10-17), mais 1 `GET /investments` por conexão (uma página guarda até 500 investimentos). Por isso o `POST /api/sincronizar/` do nosso backend não tem limite de uma vez por hora. Se passar do limite, a Pluggy responde `429 Too Many Requests`, com o cabeçalho `Retry-After` dizendo quantos segundos esperar.
 
 ## 7. O que vimos no teste real (2026-10-07)
@@ -166,8 +168,9 @@ Os ícones da tela Início usam outros nomes da mesma árvore (`Groceries`, `Foo
 `Eating out`, `Food delivery`, `Transportation` e as subcategorias dele); a lista fica em
 `mobile/src/categorias.ts`.
 
-Se a Pluggy mudar esses nomes, ou se passarmos a usar a tradução do `GET /categories`, as
-constantes do `resumo.py` e do `categorias.ts` precisam mudar junto.
+Se a Pluggy mudar esses nomes, as constantes do `resumo.py` e do `categorias.ts` precisam
+mudar junto. A tradução do `GET /categories` (seção 10, desde 2026-10-17) não muda isso: por
+dentro tudo continua em inglês, e só o texto que o app mostra é traduzido.
 
 A mesma lista de categorias de investimento (`INVESTIMENTO`, no `resumo.py`) também calcula o
 "guardado este mês" do Módulo 5: aplicações menos resgates na conta corrente, no mês do app.
@@ -217,3 +220,51 @@ Campos que nos interessam:
   FINANCIAMENTO E INVESTIMENTO" (o mesmo nome em todas, então o nome não diferencia uma caixinha
   da outra). Um Tesouro Prefixado resgatado veio como `TOTAL_WITHDRAWAL` com saldo 0,00, como a
   documentação diz. `institution` veio vazio.
+
+## 10. Categorias: `GET /categories`
+
+Fontes (conferidas em 2026-10-17):
+
+- Referência da rota (operationId `categories-list`): https://docs.pluggy.ai/en/reference/Category/categories-list
+- Árvore de categorias: https://docs.pluggy.ai/en/docs/products/transaction-categorization.md
+- Limites: https://docs.pluggy.ai/en/docs/developer-tools/rate-limits.md
+
+Usado pelo `sincronizar()` desde o Módulo 8 (categorias em português e troca de categoria), em
+`listar_categorias()` (`backend/financas/integracoes/pluggy.py`).
+
+- A lista é a mesma para todos os itens: a rota não pede `itemId`. Por isso o `sincronizar()`
+  chama uma vez só, antes do laço das conexões.
+- Parâmetro opcional `parentId` (só as filhas de uma categoria). Não usamos.
+- A resposta é paginada por número de página, como a dos investimentos (seção 9):
+  `{"page", "total", "totalPages", "results": [...]}`. Pedimos `page=1`, `page=2`... até
+  `totalPages`. **Atenção:** a página de referência mostra `page`, `total` e `totalPages` na
+  resposta, mas não lista `page` nem `pageSize` como parâmetros do pedido. Mandamos `page` no
+  mesmo padrão das outras rotas da Pluggy. Na conta real vieram 130 categorias numa página só,
+  então o laço para na primeira.
+- Não há limite próprio para esta rota na página de limites (seção 6).
+
+Campos que nos interessam (tirados do exemplo da referência; o esquema completo não aparece na
+página):
+
+| Campo da Pluggy | Significado | No nosso model |
+|---|---|---|
+| `id` | id da categoria, com 8 dígitos (ex.: `"01010000"`) | `Categoria.id_pluggy` |
+| `description` | nome em inglês (ex.: `"Salary"`), o mesmo texto do `category` das transações | `Categoria.descricao` |
+| `descriptionTranslated` | nome em português (ex.: `"Salário"`) | `Categoria.descricao_pt` (vazio se não vier) |
+| `parentId` | id da categoria pai; não vem nas de primeiro nível (ex.: `"Income"`) | `Categoria.id_pai` (vazio se não vier) |
+| `parentDescription` | nome em inglês da categoria pai | (não guardamos) |
+
+Como usamos (decidido em 2026-10-17, plano em `docs/planos/modulo-8-categorias.md`):
+
+- A tabela `Categoria` é atualizada a cada `sincronizar()` pelo `id`. Categorias que sumirem
+  da Pluggy **não são apagadas**, porque uma transação antiga pode ainda usar o nome delas.
+- A transação continua guardando o nome em inglês (`categoria_pluggy`, e a `categoria_manual`
+  também guarda o nome em inglês de uma categoria da lista). A API traduz só na hora de
+  mostrar: `categoria` (português) e `categoria_original` (inglês).
+- A árvore da documentação não repete nenhum nome em inglês, por isso a `descricao` é única na
+  nossa tabela (a troca de categoria procura pelo nome).
+- Categorias que são pai de outras (ex.: `Food and drinks`) são grupos e ficam fora da lista de
+  escolha (`GET /api/categorias/`). As de primeiro nível sem filhas (ex.: `Groceries`,
+  `Leisure`) entram.
+- Na conta real (conferido pelo Claude em 2026-10-17, no plano do módulo): as 45 categorias
+  usadas nas transações têm tradução.

@@ -6,7 +6,7 @@ from django.utils import timezone
 
 # Importa o módulo (e não as funções) para os testes conseguirem trocá-las
 from financas.integracoes import pluggy
-from financas.models import Conexao, Conta, Investimento, Transacao
+from financas.models import Categoria, Conexao, Conta, Investimento, Transacao
 
 TIPOS_DE_CONTA = {
     "BANK": Conta.Tipo.CORRENTE,
@@ -108,10 +108,26 @@ def apagar_investimentos_que_sumiram(conexao, investimentos):
     da_conexao.exclude(id_pluggy__in=ids_recebidos).delete()
 
 
+def salvar_categoria(dados):
+    Categoria.objects.update_or_create(
+        id_pluggy=dados["id"],
+        defaults={
+            "descricao": dados["description"],
+            "descricao_pt": dados.get("descriptionTranslated") or "",
+            "id_pai": dados.get("parentId") or "",
+        },
+    )
+
+
 def sincronizar():
     # Tudo ou nada: se der erro no meio, o banco volta a como estava
     with transaction.atomic():
         api_key = pluggy.obter_api_key()
+        # As categorias valem para todas as conexões. As que sumirem da Pluggy
+        # não são apagadas: uma transação antiga ainda pode usar o nome delas
+        for dados_categoria in pluggy.listar_categorias(api_key):
+            salvar_categoria(dados_categoria)
+
         for conexao in Conexao.objects.all():
             for dados_conta in pluggy.listar_contas(api_key, conexao.id_pluggy):
                 # Tipo que não conhecemos (nem conta nem cartão): fica de fora

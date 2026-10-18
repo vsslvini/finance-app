@@ -77,3 +77,25 @@ def listar_investimentos(api_key, item_id):
         pagina += 1
 
     return investimentos
+
+
+def listar_categorias(api_key):
+    # A árvore de categorias é a mesma para todas as conexões (sem itemId).
+    # Mesma paginação por número de página dos investimentos
+    categorias = []
+    pagina = 1
+    total_de_paginas = 1
+    while pagina <= total_de_paginas:
+        resposta = requests.get(
+            f"{URL}/categories",
+            params={"page": pagina},
+            headers=cabecalho(api_key),
+            timeout=TIMEOUT,
+        )
+        resposta.raise_for_status()
+        dados = resposta.json()
+        categorias.extend(dados["results"])
+        total_de_paginas = dados["totalPages"]
+        pagina += 1
+
+    return categorias

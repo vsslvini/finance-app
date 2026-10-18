@@ -81,3 +81,24 @@ class Investimento(models.Model):
 
     def __str__(self):
         return self.nome
+
+
+class Categoria(models.Model):
+    # A árvore de categorias da Pluggy (GET /categories), copiada a cada
+    # sincronização para o app mostrar as categorias em português
+    id_pluggy = models.CharField(max_length=100, unique=True)
+    # O nome em inglês, o mesmo texto que vem no "category" das transações
+    descricao = models.CharField(max_length=100, unique=True)
+    descricao_pt = models.CharField(max_length=100, blank=True, default="")
+    # Vazio nas categorias de primeiro nível (ex.: "Income")
+    id_pai = models.CharField(max_length=100, blank=True, default="")
+
+    def __str__(self):
+        return self.descricao_pt or self.descricao
+
+    @classmethod
+    def traducoes(cls):
+        # {"Groceries": "Mercado"} numa consulta só, para a API traduzir todas as
+        # transações de um pedido sem uma consulta por transação
+        sem_vazias = cls.objects.exclude(descricao_pt="")
+        return dict(sem_vazias.values_list("descricao", "descricao_pt"))
