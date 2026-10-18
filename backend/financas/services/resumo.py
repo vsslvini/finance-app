@@ -71,12 +71,22 @@ def entradas_e_saidas(transacoes_do_mes):
 
 
 def resumo_do_mes(
-    mes, hoje, dias_antes=0, limite=None, valor_mensal=None, mes_alvo=None
+    mes,
+    hoje,
+    dias_antes=0,
+    limite=None,
+    valor_mensal=None,
+    mes_alvo=None,
+    dividas_do_mes=ZERO,
+    dividas_atrasadas=ZERO,
 ):
     # "hoje" vem de fora para os testes fixarem o dia sem trocar o relógio.
     # dias_antes e limite também vêm de fora (a view lê da Configuracao), para
     # os testes não precisarem salvar configuração no banco. Pelo mesmo motivo,
-    # valor_mensal e mes_alvo (o plano de guardar) vêm de fora, None sem plano
+    # valor_mensal e mes_alvo (o plano de guardar) vêm de fora, None sem plano,
+    # e também as dívidas (Módulo 12): dividas_do_mes é a soma das parcelas não
+    # pagas deste mês, e dividas_atrasadas, a das não pagas de meses antes do
+    # mês atual do app
     inicio, fim = periodo_do_mes(mes.year, mes.month, dias_antes)
     transacoes_do_mes = transacoes_do_periodo(inicio, fim)
     gastos = transacoes_do_mes.filter(valor__lt=0).exclude(NAO_E_GASTO)
@@ -97,12 +107,20 @@ def resumo_do_mes(
     )
 
     entradas, saidas = entradas_e_saidas(transacoes_do_mes)
+    # A parcela não paga é uma saída do mês dela; quando for paga de verdade (um
+    # PIX), ela deixa de contar aqui, e o PIX já entra pelas transações
+    saidas += dividas_do_mes
+
+    e_o_mes_atual = (mes.year, mes.month) == mes_atual(hoje, dias_antes)
+    # Atrasadas só fazem sentido olhando o mês atual
+    if not e_o_mes_atual:
+        dividas_atrasadas = ZERO
 
     # Os três só fazem sentido no mês de hoje; nos outros meses ficam None
     posso_gastar_por_dia = None
     dia_do_mes = None
     dias_no_mes = None
-    if (mes.year, mes.month) == mes_atual(hoje, dias_antes):
+    if e_o_mes_atual:
         # +1 nas três contas: o primeiro e o último dia também contam
         # (ex.: de 29/09 a 29/10 são 31 dias, e 10/10 é o dia 12)
         dias_no_mes = (fim - inicio).days + 1
@@ -110,10 +128,17 @@ def resumo_do_mes(
         # No último dia ainda sobra 1 dia, então não há divisão por zero
         dias_restantes = (fim - hoje).days + 1
         # A fatura não é descontada: ela é paga com o salário do mês seguinte.
-        # O que falta guardar no mês é descontado (RF29): já tem destino.
+        # O que falta guardar no mês é descontado (RF29): já tem destino. As
+        # parcelas não pagas do mês e as atrasadas também: o dinheiro já está
+        # comprometido (Módulo 12).
         # ROUND_FLOOR arredonda para baixo, inclusive nos negativos, para nunca
         # sugerir gastar mais do que se tem
-        disponivel = saldo_total - guardado["falta_guardar_no_mes"]
+        disponivel = (
+            saldo_total
+            - guardado["falta_guardar_no_mes"]
+            - dividas_do_mes
+            - dividas_atrasadas
+        )
         posso_gastar_por_dia = (disponivel / dias_restantes).quantize(
             Decimal("0.01"), rounding=ROUND_FLOOR
         )
@@ -140,6 +165,9 @@ def resumo_do_mes(
         "limite_fatura": limite,
         "fatura_acima_do_limite": limite is not None and fatura_aberta > limite,
         "guardado": guardado,
+        "dividas_do_mes": dividas_do_mes,
+        # 0.00 quando o resumo não é do mês atual
+        "dividas_atrasadas": dividas_atrasadas,
         # Quando o nosso backend leu a Pluggy pela última vez (a conexão mais
         # recente); None se nunca sincronizou. O app mostra "Atualizado ..."
         "ultima_atualizacao": Conexao.objects.aggregate(

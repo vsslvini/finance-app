@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from financas.models import Categoria, Conexao, Conta, Transacao
-from planejamento.models import Configuracao
+from planejamento.models import Configuracao, Divida, ParcelaDaDivida
 
 MES_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-10."
 
@@ -134,6 +134,40 @@ def test_relatorio_sem_gastos_traz_zeros_e_listas_vazias(cliente_com_token):
         "gastos_por_categoria": [],
         "maiores_gastos": [],
     }
+
+
+def test_relatorio_le_as_parcelas_das_dividas(cliente_com_token):
+    # Caso 8 do Módulo 12, pela API: a parcela não paga de outubro (200) vira a
+    # categoria "Dívidas" e entra nas saidas; a paga de outubro e a de
+    # novembro não contam
+    divida = Divida.objects.create(
+        credor="Tia Ana",
+        valor_total=Decimal("450.00"),
+        total_parcelas=3,
+        mes_inicio=date(2026, 10, 1),
+    )
+    for numero, mes, valor, paga in [
+        (1, date(2026, 10, 1), "200.00", False),
+        (2, date(2026, 10, 1), "150.00", True),
+        (3, date(2026, 11, 1), "100.00", False),
+    ]:
+        ParcelaDaDivida.objects.create(
+            divida=divida, numero=numero, mes=mes, valor=Decimal(valor), paga=paga
+        )
+
+    dados = cliente_com_token.get("/api/relatorio/?mes=2026-10").json()
+
+    assert dados["saidas"] == "200.00"
+    assert dados["total_gastos"] == "200.00"
+    assert dados["gastos_por_categoria"] == [
+        {
+            "categoria": "Dívidas",
+            "categoria_original": "",
+            "total": "200.00",
+            "porcentagem": 100,
+        }
+    ]
+    assert dados["maiores_gastos"] == []
 
 
 def test_relatorio_mes_invalido_responde_400_com_mensagem(cliente_com_token):

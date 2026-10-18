@@ -244,6 +244,48 @@ def test_transferencia_propria_trocada_volta_a_ser_gasto(corrente):
     assert relatorio["saidas"] == Decimal("80.00")
 
 
+def test_dividas_do_mes_viram_a_categoria_dividas(corrente):
+    # Caso 8 do Módulo 12: 300 de parcelas não pagas em outubro viram a
+    # categoria "Dívidas" (sem nome em inglês), entram no total (100 + 300 =
+    # 400), na ordem e na porcentagem (300/400 = 75; 100/400 = 25), e nas
+    # saidas, que continuam iguais às do resumo. Não entram nos maiores gastos
+    padaria = criar_transacao(corrente, descricao="Padaria", valor=Decimal("-100.00"))
+    dividas = Decimal("300.00")
+
+    relatorio = relatorio_do_mes(OUTUBRO, dividas_do_mes=dividas)
+    resumo = resumo_do_mes(OUTUBRO, HOJE, dividas_do_mes=dividas)
+
+    assert relatorio["saidas"] == resumo["saidas"] == Decimal("400.00")
+    assert relatorio["saldo_do_mes"] == Decimal("-400.00")
+    assert relatorio["total_gastos"] == Decimal("400.00")
+    assert relatorio["gastos_por_categoria"] == [
+        {
+            "categoria": "Dívidas",
+            "categoria_original": "",
+            "total": Decimal("300.00"),
+            "porcentagem": 75,
+        },
+        {
+            "categoria": "Sem categoria",
+            "categoria_original": "",
+            "total": Decimal("100.00"),
+            "porcentagem": 25,
+        },
+    ]
+    assert relatorio["maiores_gastos"] == [padaria]
+
+
+def test_sem_dividas_no_mes_nao_aparece_a_categoria(corrente):
+    # Caso 8 do Módulo 12: sem parcelas no mês (0.00), não aparece uma linha
+    # "Dívidas" zerada
+    criar_transacao(corrente, valor=Decimal("-100.00"))
+
+    relatorio = relatorio_do_mes(OUTUBRO)
+
+    nomes = [grupo["categoria"] for grupo in relatorio["gastos_por_categoria"]]
+    assert nomes == ["Sem categoria"]
+
+
 def test_sem_gastos_tudo_zero_e_listas_vazias(corrente):
     # Caso 6: só uma entrada no mês, nenhum gasto: total zero, listas vazias e
     # nenhuma divisão por zero na porcentagem

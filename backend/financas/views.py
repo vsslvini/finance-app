@@ -28,6 +28,7 @@ from financas.services.periodo import mes_atual, periodo_do_mes
 from financas.services.relatorio import relatorio_do_mes
 from financas.services.resumo import resumo_do_mes
 from planejamento.models import Configuracao, PlanoDeGuardar
+from planejamento.services.dividas import total_atrasadas, total_do_mes
 
 MES_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-10."
 PLUGGY_FORA = "Não foi possível falar com a Pluggy. Tente de novo mais tarde."
@@ -125,6 +126,9 @@ def resumo(request):
     dias_antes = configuracao.dias_antes_do_mes
     hoje = timezone.localdate()
     mes = ler_mes(request.query_params.get("mes"), hoje, dias_antes)
+    # Atrasadas = não pagas de antes do mês atual do app (não do mês pedido);
+    # o service zera esse número quando o mês pedido não é o atual
+    ano_atual, numero_atual = mes_atual(hoje, dias_antes)
     dados = resumo_do_mes(
         mes,
         hoje,
@@ -132,6 +136,8 @@ def resumo(request):
         configuracao.limite_fatura,
         valor_mensal=plano.valor_mensal,
         mes_alvo=plano.mes_alvo,
+        dividas_do_mes=total_do_mes(mes),
+        dividas_atrasadas=total_atrasadas(date(ano_atual, numero_atual, 1)),
     )
     contexto = {"traducoes": Categoria.traducoes()}
     return Response(ResumoSerializer(dados, context=contexto).data)
@@ -144,7 +150,7 @@ def relatorio(request):
     # Lidas uma vez: o service traduz as categorias, e o serializer, os maiores
     # gastos
     traducoes = Categoria.traducoes()
-    dados = relatorio_do_mes(mes, dias_antes, traducoes)
+    dados = relatorio_do_mes(mes, dias_antes, traducoes, total_do_mes(mes))
     contexto = {"traducoes": traducoes}
     return Response(RelatorioSerializer(dados, context=contexto).data)
 

@@ -22,7 +22,7 @@ Por que guardar uma cópia:
 
 ## 2. Backend
 
-App Django `financas` para os dados dos bancos. Metas e dívidas entram depois, num app `planejamento`.
+App Django `financas` para os dados dos bancos. Configurações, plano de guardar e dívidas ficam no app `planejamento`.
 
 ### Models
 
@@ -34,6 +34,8 @@ App Django `financas` para os dados dos bancos. Metas e dívidas entram depois, 
 | `Investimento` | cada investimento da Pluggy (desde 2026-10-17) | conexão, id da Pluggy, nome, tipo, subtipo, instituição, saldo, status |
 | `Categoria` | a árvore de categorias da Pluggy, para mostrar em português (desde 2026-10-17) | id da Pluggy, descrição em inglês, descrição em português, id da categoria pai |
 | `PlanoDeGuardar` (app `planejamento`) | o plano de guardar, uma linha só | valor por mês e mês alvo (os dois vazios = sem plano) |
+| `Divida` (app `planejamento`, desde 2026-10-18) | uma dívida com alguém (RF21) | para quem (`credor`), motivo, valor total, número de parcelas (`total_parcelas`, 1 a 120), mês da primeira parcela (dia 1), criada em |
+| `ParcelaDaDivida` (app `planejamento`, desde 2026-10-18) | cada parcela mensal de uma dívida, gerada ao cadastrar | dívida (`CASCADE`: apagar a dívida apaga as parcelas), número, mês (dia 1), valor, paga, paga em |
 
 - Os ids das conexões (copiados do painel da Pluggy) são cadastrados pelo admin do Django.
 - Valores em dinheiro usam `DecimalField`, exato até o centavo (RNF04).
@@ -68,8 +70,8 @@ Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pl
 
 | Rota | Requisitos |
 |---|---|
-| `GET /api/resumo/?mes=2026-10` | saldo total, entradas, saídas, posso gastar por dia, últimos gastos (RF15 a RF18) e o bloco `guardado` (RF04, RF28, RF29) |
-| `GET /api/relatorio/?mes=2026-10` | relatório do mês: entradas, saídas e saldo do mês (iguais aos do resumo), total de gastos (corrente e cartão, sem pagamento de fatura), gastos por categoria (traduzida, com porcentagem) e os 5 maiores gastos no formato da lista de transações (RF27, desde 2026-10-17) |
+| `GET /api/resumo/?mes=2026-10` | saldo total, entradas, saídas, posso gastar por dia, últimos gastos (RF15 a RF18), o bloco `guardado` (RF04, RF28, RF29) e, desde 2026-10-18, `dividas_do_mes` (parcelas não pagas do mês, somadas em `saidas`) e `dividas_atrasadas` (não pagas de meses antes do mês atual do app, `"0.00"` fora dele); o "posso gastar" desconta as duas (RF21) |
+| `GET /api/relatorio/?mes=2026-10` | relatório do mês: entradas, saídas e saldo do mês (iguais aos do resumo), total de gastos (corrente e cartão, sem pagamento de fatura), gastos por categoria (traduzida, com porcentagem) e os 5 maiores gastos no formato da lista de transações (RF27, desde 2026-10-17); desde 2026-10-18 as parcelas não pagas do mês entram como a categoria "Dívidas" (fora dos maiores gastos) |
 | `GET /api/contas/` | lista de contas com o nome do banco (o app agrupa), com dados do cartão (RF01 a RF03, RF11, RF12, RF14) |
 | `GET /api/transacoes/?mes=...` | transações do mês, com filtros opcionais (RF05 a RF07, RF09); cada uma traz `categoria` (em português, para mostrar) e `categoria_original` (o nome em inglês da Pluggy) |
 | `PATCH /api/transacoes/<id>/` | trocar a categoria com `{"categoria_manual": "Groceries"}` (o nome em inglês de uma categoria da lista; `""` volta para a da Pluggy) e receber a transação no formato da lista (RF08, desde 2026-10-17) |
@@ -79,6 +81,9 @@ Chamadas HTTP à Pluggy com a biblioteca `requests`. Os detalhes das rotas da Pl
 | `POST /api/sincronizar/` | atualizar agora (RF24) |
 | `GET` e `PATCH /api/configuracoes/` | dias antes do mês e limite da fatura, do app `planejamento` (RF30, RF31) |
 | `GET` e `PATCH /api/plano/` | plano de guardar (valor por mês e mês alvo `AAAA-MM`), do app `planejamento` (RF28) |
+| `GET` e `POST /api/dividas/` | lista das dívidas (mais recente primeiro) com pago, restante, próxima parcela e parcelas (cada uma com `atrasada`); o `POST` com `{credor, motivo, valor_total, parcelas, mes_inicio: "AAAA-MM"}` cria a dívida e gera as parcelas (RF21, desde 2026-10-18) |
+| `PATCH` e `DELETE /api/dividas/<id>/` | muda só `credor` e `motivo`; o `DELETE` apaga a dívida e as parcelas (204) (RF21, desde 2026-10-18) |
+| `PATCH /api/parcelas/<id>/` | marca ou desmarca a parcela com `{"paga": true\|false}` e responde a dívida inteira (RF21, desde 2026-10-18) |
 
 Os cálculos ficam no backend, não no app: uma fonte só da verdade, testada com pytest.
 

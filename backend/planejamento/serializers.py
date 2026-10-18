@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from planejamento.models import Configuracao, PlanoDeGuardar
+from planejamento.models import Configuracao, Divida, ParcelaDaDivida, PlanoDeGuardar
+from planejamento.services.dividas import criar_divida
 
 DIAS_INVALIDOS = "Os dias antes do mês precisam ficar entre 0 e 10."
 LIMITE_NEGATIVO = "O limite da fatura não pode ser negativo."
@@ -8,6 +9,14 @@ VALOR_NEGATIVO = "O valor por mês não pode ser negativo."
 MES_ALVO_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2027-07."
 MES_ALVO_NO_PASSADO = "O mês alvo não pode ser antes do mês atual."
 PLANO_INCOMPLETO = "Preencha o valor por mês e o mês alvo, ou deixe os dois vazios."
+SEM_CREDOR = "Informe para quem é a dívida."
+VALOR_INVALIDO = "O valor precisa ser maior que zero."
+PARCELAS_INVALIDAS = "As parcelas precisam ficar entre 1 e 120."
+MES_INICIO_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-11."
+
+# O mesmo texto para o campo que falta, que vem vazio ou só com espaços (o
+# CharField do DRF tira os espaços das pontas antes de conferir)
+ERROS_DO_CREDOR = {"required": SEM_CREDOR, "blank": SEM_CREDOR, "null": SEM_CREDOR}
 
 
 class ConfiguracaoSerializer(serializers.ModelSerializer):
@@ -66,3 +75,102 @@ class PlanoDeGuardarSerializer(serializers.ModelSerializer):
         if (valor is None) != (mes is None):
             raise serializers.ValidationError(PLANO_INCOMPLETO)
         return dados
+
+
+class ParcelaSerializer(serializers.ModelSerializer):
+    # O mês sai como "2026-11", igual ao mes_alvo do plano
+    mes = serializers.DateField(format="%Y-%m")
+    atrasada = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ParcelaDaDivida
+        fields = ("id", "numero", "mes", "valor", "paga", "atrasada")
+
+    def get_atrasada(self, parcela):
+        # Não paga e de um mês antes do mês atual do app (o mesmo critério do
+        # dividas_atrasadas do resumo). A view manda o mês atual (dia 1) no
+        # context; os serializers de dentro recebem o mesmo context
+        return not parcela.paga and parcela.mes < self.context["mes_atual"]
+
+
+class ProximaParcelaSerializer(ParcelaSerializer):
+    # A mesma parcela, sem o "paga" (a próxima nunca está paga)
+    class Meta(ParcelaSerializer.Meta):
+        fields = ("id", "numero", "mes", "valor", "atrasada")
+
+
+class DividaSerializer(serializers.ModelSerializer):
+    # Só a saída (GET e as respostas); a entrada é do NovaDividaSerializer e
+    # do EditarDividaSerializer. Os campos de conta vêm das @property do model.
+    # DecimalField para o dinheiro sair como texto ("333.33"), não float
+    parcelas_pagas = serializers.IntegerField(read_only=True)
+    valor_pago = serializers.DecimalField(
+        max_digits=12, decimal_places=2, read_only=True
+    )
+    valor_restante = serializers.DecimalField(
+        max_digits=12, decimal_places=2, read_only=True
+    )
+    # None (null no JSON) quando todas estão pagas
+    proxima_parcela = ProximaParcelaSerializer(read_only=True, allow_null=True)
+    parcelas = ParcelaSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Divida
+        fields = (
+            "id",
+            "credor",
+            "motivo",
+            "valor_total",
+            "total_parcelas",
+            "parcelas_pagas",
+            "valor_pago",
+            "valor_restante",
+            "proxima_parcela",
+            "parcelas",
+        )
+
+
+class NovaDividaSerializer(serializers.Serializer):
+    # Entrada do POST. Serializer comum (não ModelSerializer) porque "parcelas"
+    # é um número aqui e vira as ParcelaDaDivida no service
+    credor = serializers.CharField(max_length=100, error_messages=ERROS_DO_CREDOR)
+    motivo = serializers.CharField(
+        max_length=200, allow_blank=True, required=False, default=""
+    )
+    valor_total = serializers.DecimalField(max_digits=12, decimal_places=2)
+    parcelas = serializers.IntegerField(
+        min_value=1,
+        max_value=120,
+        error_messages={
+            "min_value": PARCELAS_INVALIDAS,
+            "max_value": PARCELAS_INVALIDAS,
+        },
+    )
+    # "2026-11" vira 01/11/2026, como o mes_alvo do plano
+    mes_inicio = serializers.DateField(
+        input_formats=["%Y-%m"], error_messages={"invalid": MES_INICIO_INVALIDO}
+    )
+
+    def validate_valor_total(self, valor):
+        if valor <= 0:
+            raise serializers.ValidationError(VALOR_INVALIDO)
+        return valor
+
+    def create(self, dados):
+        # serializer.save() chama este método com os dados já validados; quem
+        # grava a dívida e gera as parcelas é o service
+        return criar_divida(**dados)
+
+
+class EditarDividaSerializer(serializers.ModelSerializer):
+    # Entrada do PATCH da dívida: só "para quem" e motivo (decisão 4)
+    credor = serializers.CharField(max_length=100, error_messages=ERROS_DO_CREDOR)
+
+    class Meta:
+        model = Divida
+        fields = ("credor", "motivo")
+
+
+class MarcarParcelaSerializer(serializers.Serializer):
+    # Entrada do PATCH da parcela: {"paga": true} ou {"paga": false}
+    paga = serializers.BooleanField()

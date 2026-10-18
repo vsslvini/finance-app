@@ -6,7 +6,12 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from financas.models import Categoria, Conexao, Conta, Investimento, Transacao
-from planejamento.models import Configuracao, PlanoDeGuardar
+from planejamento.models import (
+    Configuracao,
+    Divida,
+    ParcelaDaDivida,
+    PlanoDeGuardar,
+)
 
 MES_INVALIDO = "Mês inválido. Use o formato AAAA-MM, ex.: 2026-10."
 
@@ -70,6 +75,8 @@ def test_resumo_traz_as_chaves_e_dinheiro_como_texto(cliente_com_token):
         "fatura_acima_do_limite",
         "guardado",
         "ultima_atualizacao",
+        "dividas_do_mes",
+        "dividas_atrasadas",
     }
     assert dados["saldo_total"] == "1000.00"
     assert dados["fatura_aberta"] == "0.00"
@@ -282,3 +289,45 @@ def test_resumo_sem_sincronizar_traz_ultima_atualizacao_null(cliente_com_token):
     resposta = cliente_com_token.get("/api/resumo/")
 
     assert resposta.json()["ultima_atualizacao"] is None
+
+
+def test_resumo_le_as_parcelas_das_dividas(cliente_com_token, monkeypatch):
+    # Casos 6 e 7 do Módulo 12, pela API: hoje 08/10/2026. Não pagas: 100 de
+    # setembro (atrasada), 240 de outubro (do mês) e 30 de novembro (de outro
+    # mês, não conta). As pagas (50 e 70) não contam. Saldo 1200:
+    # (1200 - 240 - 100) / 24 dias = 35.833..., vira 35.83
+    fixar_hoje(monkeypatch, date(2026, 10, 8))
+    conexao = Conexao.objects.create(id_pluggy="item-nubank", nome_banco="Nubank")
+    Conta.objects.create(
+        conexao=conexao, tipo="corrente", nome="Conta Nubank", saldo=Decimal(1200)
+    )
+    divida = Divida.objects.create(
+        credor="Tia Ana",
+        valor_total=Decimal("490.00"),
+        total_parcelas=5,
+        mes_inicio=date(2026, 9, 1),
+    )
+    parcelas = [
+        (date(2026, 9, 1), "100.00", False),
+        (date(2026, 9, 1), "50.00", True),
+        (date(2026, 10, 1), "240.00", False),
+        (date(2026, 10, 1), "70.00", True),
+        (date(2026, 11, 1), "30.00", False),
+    ]
+    for numero, (mes, valor, paga) in enumerate(parcelas, start=1):
+        ParcelaDaDivida.objects.create(
+            divida=divida, numero=numero, mes=mes, valor=Decimal(valor), paga=paga
+        )
+
+    outubro = cliente_com_token.get("/api/resumo/").json()
+    setembro = cliente_com_token.get("/api/resumo/?mes=2026-09").json()
+
+    assert outubro["dividas_do_mes"] == "240.00"
+    assert outubro["dividas_atrasadas"] == "100.00"
+    assert outubro["saidas"] == "240.00"
+    assert outubro["posso_gastar_por_dia"] == "35.83"
+    # Olhando setembro, a parcela não paga dele entra nas saidas de setembro,
+    # e não há atrasadas (só fazem sentido no mês atual)
+    assert setembro["dividas_do_mes"] == "100.00"
+    assert setembro["saidas"] == "100.00"
+    assert setembro["dividas_atrasadas"] == "0.00"

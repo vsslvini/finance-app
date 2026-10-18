@@ -130,6 +130,10 @@ class ResumoSerializer(serializers.Serializer):
     )
     fatura_acima_do_limite = serializers.BooleanField()
     guardado = GuardadoSerializer()
+    # Parcelas das dívidas não pagas: do mês do resumo (já somadas em saidas)
+    # e atrasadas de meses anteriores ("0.00" fora do mês atual)
+    dividas_do_mes = serializers.DecimalField(max_digits=12, decimal_places=2)
+    dividas_atrasadas = serializers.DecimalField(max_digits=12, decimal_places=2)
     # Sai no fuso do projeto (TIME_ZONE), ex.: "2026-10-17T14:32:05-04:00", então o
     # app só recorta o texto, sem converter fuso; null se nunca sincronizou
     ultima_atualizacao = serializers.DateTimeField(allow_null=True)

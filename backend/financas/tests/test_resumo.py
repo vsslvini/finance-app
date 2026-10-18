@@ -583,3 +583,73 @@ def test_saida_marcada_como_investimento_vira_guardado(corrente):
     assert resumo["saidas"] == Decimal("0.00")
     assert resumo["ultimos_gastos"] == []
     assert resumo["guardado"]["este_mes"] == Decimal("300.00")
+
+
+def test_sem_dividas_os_dois_campos_sao_zero(db):
+    # Casos 6 e 7 do Módulo 12: sem dívidas, os dois campos vêm 0.00
+    resumo = resumo_do_mes(OUTUBRO, HOJE)
+
+    assert resumo["dividas_do_mes"] == Decimal("0.00")
+    assert resumo["dividas_atrasadas"] == Decimal("0.00")
+
+
+def test_divida_do_mes_entra_nas_saidas_e_desconta_do_posso_gastar(conexao):
+    # Caso 6 do Módulo 12: 240 de parcelas não pagas em outubro entram nas
+    # saidas (10 da padaria + 240 = 250) e saem do "posso gastar":
+    # (1200 - 240) / 24 dias (08 a 31/10) = 40.00
+    corrente = criar_conta(conexao, saldo=Decimal("1200.00"))
+    criar_transacao(corrente, descricao="Padaria", valor=Decimal("-10.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE, dividas_do_mes=Decimal("240.00"))
+
+    assert resumo["dividas_do_mes"] == Decimal("240.00")
+    assert resumo["saidas"] == Decimal("250.00")
+    assert resumo["posso_gastar_por_dia"] == Decimal("40.00")
+
+
+def test_divida_atrasada_desconta_do_posso_gastar_mas_nao_das_saidas(conexao):
+    # Caso 7 do Módulo 12: 120 atrasados (de meses anteriores) não entram nas
+    # saidas de outubro, mas saem do "posso gastar": (1200 - 120) / 24 = 45.00
+    corrente = criar_conta(conexao, saldo=Decimal("1200.00"))
+    criar_transacao(corrente, descricao="Padaria", valor=Decimal("-10.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE, dividas_atrasadas=Decimal("120.00"))
+
+    assert resumo["dividas_atrasadas"] == Decimal("120.00")
+    assert resumo["saidas"] == Decimal("10.00")
+    assert resumo["posso_gastar_por_dia"] == Decimal("45.00")
+
+
+def test_posso_gastar_desconta_guardar_dividas_do_mes_e_atrasadas(conexao):
+    # Casos 6 e 7 do Módulo 12, com o plano de guardar: saldo 1400, faltam
+    # guardar 200, 240 do mês e 120 atrasados: (1400 - 200 - 240 - 120) / 24
+    # = 840 / 24 = 35.00
+    corrente = criar_conta(conexao, saldo=Decimal("1400.00"))
+    aplicar(corrente, Decimal("-300.00"))
+
+    resumo = resumo_do_mes(
+        OUTUBRO,
+        HOJE,
+        valor_mensal=POR_MES,
+        mes_alvo=JULHO_2027,
+        dividas_do_mes=Decimal("240.00"),
+        dividas_atrasadas=Decimal("120.00"),
+    )
+
+    assert resumo["posso_gastar_por_dia"] == Decimal("35.00")
+
+
+def test_outro_mes_conta_a_divida_do_mes_mas_nao_as_atrasadas(db):
+    # Casos 6 e 7 do Módulo 12: olhando setembro com hoje em outubro, a parcela
+    # de setembro entra nas saidas de setembro, e as atrasadas vêm 0.00 (só
+    # fazem sentido no mês atual)
+    resumo = resumo_do_mes(
+        date(2026, 9, 1),
+        HOJE,
+        dividas_do_mes=Decimal("240.00"),
+        dividas_atrasadas=Decimal("120.00"),
+    )
+
+    assert resumo["dividas_do_mes"] == Decimal("240.00")
+    assert resumo["saidas"] == Decimal("240.00")
+    assert resumo["dividas_atrasadas"] == Decimal("0.00")
