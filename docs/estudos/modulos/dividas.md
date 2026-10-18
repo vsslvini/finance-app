@@ -61,3 +61,39 @@ curl -X POST -H "Authorization: Token $TOKEN" -H "Content-Type: application/json
   -d '{"credor": "Tia Ana", "motivo": "Joia", "valor_total": "1000.00", "parcelas": 3, "mes_inicio": "2026-11"}' \
   http://127.0.0.1:8000/api/dividas/
 ```
+
+## 6. 12b: o app
+
+- **Aba "Dívidas"** (quinta aba, `hand-coins`, `src/app/(abas)/dividas.tsx`): faixa de parcelas
+  atrasadas (singular e plural), botão "Nova dívida", um cartão por dívida
+  (`CartaoDeDivida`: falta quanto, barra por parcelas pagas, próxima parcela ou "Atrasada: ..." ou
+  "Tudo pago"), vazio "Nenhuma dívida cadastrada." e puxar para baixo.
+- **Folha "Nova dívida"** (`FolhaDeNovaDivida`): cinco campos, validações no app na ordem do
+  contrato (só a primeira aparece, sem chamar o servidor), prévia "3x de R$ 333,33 (a última de
+  R$ 333,34)" calculada em **centavos inteiros** (mesma regra do backend, sem erro de ponto
+  flutuante) e o `POST`.
+- **Folha da dívida** (`FolhaDaDivida`): parcelas como `checkbox` (o leitor de tela diz
+  "marcado" ou "não marcado"), com ícone e texto ("Paga", "A pagar", "Atrasada") para a cor não
+  ser a única pista; marcar faz o `PATCH` e troca a dívida pela resposta; apagar pede dois toques
+  ("Toque de novo para apagar"), sem diálogo do sistema.
+- **Início**: "inclui R$ X de dívidas" embaixo do "Saiu" e a faixa "Há R$ X em parcelas de
+  dívidas atrasadas.".
+- `src/api.ts`: tipos e funções das dívidas; o `pedirApi` ganhou `DELETE`, trata o **204** (sem
+  corpo, não dá para ler JSON) e passou a tratar 400 de um `POST` com corpo como "valor recusado".
+
+Testes (`__tests__/dividas-test.tsx`, mais acréscimos no Início e nas abas; o app tem 181):
+aba vazia; cartão com textos, barra e rótulo; sem motivo e quitada; faixa singular, plural e
+ausente; carregando e erro; cada validação sem chamar a API; valores iniciais e prévias; salvar
+com o corpo exato e o 400; parcelas com os três estados; marcar, desmarcar e erro; apagar com
+dois toques; Início com dívidas; quinta aba.
+
+## 7. Como usar
+
+Aba Dívidas, "Nova dívida": "Tia", "Joia", "600", "2", "11/2026". Em novembro e dezembro aparecem
+R$ 300,00 nas saídas e o "posso gastar" já desconta. Quando pagar, abra a dívida e toque na
+parcela para marcar como paga.
+
+## 8. Para depois
+
+Editar "para quem" e "motivo" na folha (o `PATCH` já existe), quitadas no fim da lista, a faixa
+do Início levando à aba e um ícone próprio para "Dívidas" no relatório.
