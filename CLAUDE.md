@@ -60,6 +60,8 @@ mas sempre mostra o texto antes e espera aprovação.
 12. **Módulos documentados.** Cada módulo tem um `docs/estudos/modulos/<nome>.md` detalhado: o fluxo de uma requisição do começo ao fim, cada arquivo e o porquê dele, cada teste explicado e os comandos para testar à mão. As explicações antigas em `docs/estudos/testes/` continuam onde estão.
 13. **Pasta de estudos.** Todo material de estudo fica em `docs/estudos/`. O `docs/estudos/guia.md` é o ponto de entrada: contexto do projeto sempre em poucas linhas, ordem de estudo com pré-requisitos ("para entender X, estude Y antes") e roteiro da próxima sessão de estudos. Ele é atualizado a cada sessão e a cada documento de estudo novo.
 
+14. **Modo autônomo (desde 2026-10-17).** Claude conduz os agentes, decide planos e casos de teste, roda testes, lint, `migrate` e sincronização e faz os commits, sem pedir aprovação a cada passo. Continua valendo: plano escrito em `docs/planos/` antes do código, testes e lint verdes em cada commit, documento do módulo, segredos fora do git, nada destrutivo no banco e nenhum push sem pedido. Vinicius só é chamado em decisão que mude o rumo do projeto.
+
 ## Stack e comandos
 
 (preencher conforme o projeto ganha forma)
