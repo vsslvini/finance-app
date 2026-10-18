@@ -280,7 +280,9 @@ export default function InicioScreen() {
             // Poucos itens (os últimos gastos), então um map simples basta;
             // FlatList dentro de ScrollView não é recomendado
             resumo.ultimos_gastos.map((gasto, indice) => {
-              const icone = iconeDaCategoria(gasto.categoria);
+              // O ícone vem do nome em inglês (categoria_original), que não
+              // muda com a tradução; o texto mostrado é a categoria em português
+              const icone = iconeDaCategoria(gasto.categoria_original);
               return (
                 <View
                   key={gasto.id}

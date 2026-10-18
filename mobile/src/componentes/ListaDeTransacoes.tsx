@@ -6,11 +6,16 @@
 // e o React troca o componente por um novo, que começa do zero em
 // "carregando". O antigo é desmontado e o useCarga ignora a resposta que ele
 // ainda esperava: assim só a resposta do último mês pedido entra na tela.
-import { useCallback } from 'react';
+//
+// Tocar numa transação abre a FolhaDeCategoria. Quando a troca dá certo, a
+// folha fecha e a lista é relida com o mesmo "atualizar" do puxar para baixo:
+// a lista de antes fica na tela até a nova chegar, sem "Carregando...".
+import { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { buscarTransacoes } from '@/api';
+import { buscarTransacoes, type Transacao } from '@/api';
 import Carregando from '@/componentes/Carregando';
+import FolhaDeCategoria from '@/componentes/FolhaDeCategoria';
 import ItemDeTransacao from '@/componentes/ItemDeTransacao';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
 import { tituloDoMes } from '@/formatacao';
@@ -26,6 +31,14 @@ export default function ListaDeTransacoes({ mes }: ListaDeTransacoesProps) {
   // useCarga pede (senão ele buscaria de novo a cada renderização)
   const buscar = useCallback(() => buscarTransacoes(mes), [mes]);
   const { estado, recarregar, atualizar, atualizando, falhouAoAtualizar } = useCarga(buscar);
+  // A transação com a folha "Categoria" aberta (null = folha fechada)
+  const [transacaoAberta, setTransacaoAberta] = useState<Transacao | null>(null);
+
+  // A troca deu certo: fecha a folha e relê o mês sem passar por "carregando"
+  function aoTrocarCategoria() {
+    setTransacaoAberta(null);
+    atualizar();
+  }
 
   if (estado.tipo === 'carregando') {
     return <Carregando texto="Carregando as transações..." />;
@@ -59,6 +72,7 @@ export default function ListaDeTransacoes({ mes }: ListaDeTransacoesProps) {
             comDivisoria={index > 0}
             primeira={index === 0}
             ultima={index === transacoes.length - 1}
+            aoTocar={() => setTransacaoAberta(item)}
           />
         )}
         ListEmptyComponent={
@@ -81,6 +95,14 @@ export default function ListaDeTransacoes({ mes }: ListaDeTransacoesProps) {
           />
         }
       />
+
+      {transacaoAberta !== null && (
+        <FolhaDeCategoria
+          transacao={transacaoAberta}
+          aoCancelar={() => setTransacaoAberta(null)}
+          aoTrocar={aoTrocarCategoria}
+        />
+      )}
     </View>
   );
 }

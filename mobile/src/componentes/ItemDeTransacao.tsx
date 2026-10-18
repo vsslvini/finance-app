@@ -1,7 +1,8 @@
 // Uma linha da lista da tela Transações: ícone da categoria, descrição, duas
-// linhas de detalhe e o valor com sinal à direita.
+// linhas de detalhe e o valor com sinal à direita. A linha inteira é um botão:
+// tocar nela abre a folha "Categoria" (quem abre a folha é a ListaDeTransacoes).
 import { Lucide } from '@react-native-vector-icons/lucide';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Transacao } from '@/api';
 import { iconeDaCategoria } from '@/categorias';
@@ -15,6 +16,7 @@ type ItemDeTransacaoProps = {
   // A primeira e a última linha arredondam os cantos do cartão da lista
   primeira: boolean;
   ultima: boolean;
+  aoTocar: () => void; // abre a folha de trocar a categoria
 };
 
 export default function ItemDeTransacao({
@@ -22,8 +24,11 @@ export default function ItemDeTransacao({
   comDivisoria,
   primeira,
   ultima,
+  aoTocar,
 }: ItemDeTransacaoProps) {
-  const icone = iconeDaCategoria(transacao.categoria);
+  // O ícone vem do nome em inglês (categoria_original), que não muda com a
+  // tradução; o texto mostrado é a categoria em português
+  const icone = iconeDaCategoria(transacao.categoria_original);
   // Saída vem negativa da API ("-45.90"); entrada vem positiva ("3000.00")
   const saida = transacao.valor.startsWith('-');
   const data = formatarData(transacao.data);
@@ -39,7 +44,7 @@ export default function ItemDeTransacao({
   const valorNaTela = saida ? formatarReais(transacao.valor) : `+ ${formatarReais(transacao.valor)}`;
 
   // O leitor de tela lê esta frase no lugar dos textos de dentro do item.
-  // "iFood, saída de 45,90 reais, 08/10, Nubank Mastercard Black, categoria Food delivery"
+  // "iFood, saída de 45,90 reais, 08/10, Nubank Mastercard Black, categoria Delivery"
   const rotulo =
     `${transacao.descricao}, ${saida ? 'saída' : 'entrada'} de ` +
     `${formatarNumero(transacao.valor)} reais, ${data}, ` +
@@ -47,18 +52,24 @@ export default function ItemDeTransacao({
     (parcela !== null ? `, ${parcela.toLowerCase()}` : '');
 
   return (
-    <View
-      accessible
+    <Pressable
+      accessibilityRole="button"
       accessibilityLabel={rotulo}
-      style={[
+      // O "hint" é lido depois do rótulo e conta o que o toque faz
+      accessibilityHint="Toque para trocar a categoria"
+      onPress={aoTocar}
+      style={({ pressed }) => [
         styles.item,
         comDivisoria && styles.divisoria,
         primeira && styles.cantosDeCima,
         ultima && styles.cantosDeBaixo,
+        pressed && styles.apertado,
       ]}
     >
-      {/* Círculo da categoria: só desenho, escondido do leitor de tela */}
+      {/* Círculo da categoria: só desenho, escondido do leitor de tela. O
+          testID (o mesmo da tela Início) deixa os testes conferirem o ícone */}
       <View
+        testID={`icone-categoria-${icone.icone}`}
         importantForAccessibility="no-hide-descendants"
         accessibilityElementsHidden
         style={[styles.icone, { backgroundColor: icone.fundo }]}
@@ -75,7 +86,7 @@ export default function ItemDeTransacao({
         </Text>
       </View>
       <Text style={[textos.valor, saida ? styles.negativo : styles.positivo]}>{valorNaTela}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -99,6 +110,9 @@ const styles = StyleSheet.create({
   cantosDeBaixo: {
     borderBottomLeftRadius: cantos.cartao,
     borderBottomRightRadius: cantos.cartao,
+  },
+  apertado: {
+    opacity: 0.7,
   },
   icone: {
     width: 30,

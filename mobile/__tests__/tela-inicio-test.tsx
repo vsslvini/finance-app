@@ -7,7 +7,13 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import type { ReactElement } from 'react';
 import type { RefreshControlProps } from 'react-native';
 
-import { buscarResumo, type Guardado, type PlanoDeGuardar, type Resumo } from '@/api';
+import {
+  buscarResumo,
+  type GastoResumo,
+  type Guardado,
+  type PlanoDeGuardar,
+  type Resumo,
+} from '@/api';
 // Desde o módulo 6, a tela Início mora no grupo das abas: (abas)/index.tsx.
 import InicioScreen from '@/app/(abas)/index';
 
@@ -111,6 +117,12 @@ const PLANO_SALVO: PlanoDeGuardar = { valor_mensal: '500.00', mes_alvo: '2027-07
 
 // Dados falsos no mesmo formato do GET /api/resumo/ (ResumoSerializer do
 // backend). Os valores vêm como texto, como o backend manda.
+//
+// Desde o módulo 8b, cada gasto tem "categoria" (o texto para mostrar, em
+// português quando há tradução) e "categoria_original" (o nome em inglês da
+// Pluggy, usado para escolher o ícone). Aqui os dois ficam em inglês (o caso
+// "sem tradução conhecida"), para os testes antigos verem os mesmos textos;
+// a tradução aparece no teste do caso 1 do 8b.
 const RESUMO_DE_EXEMPLO: Resumo = {
   mes: '2026-10',
   saldo_total: '1250.50',
@@ -132,6 +144,7 @@ const RESUMO_DE_EXEMPLO: Resumo = {
       nome_conta: 'Conta corrente',
       nome_banco: 'Nubank',
       categoria: 'Groceries',
+      categoria_original: 'Groceries',
       parcela_atual: null,
       total_parcelas: null,
     },
@@ -144,6 +157,7 @@ const RESUMO_DE_EXEMPLO: Resumo = {
       nome_conta: 'Conta',
       nome_banco: 'Inter',
       categoria: 'Transportation',
+      categoria_original: 'Transportation',
       parcela_atual: null,
       total_parcelas: null,
     },
@@ -483,6 +497,45 @@ describe('Tela Início', () => {
     expect(linhasDeDetalhes).toHaveLength(2);
     expect(linhasDeDetalhes[0]).toHaveTextContent('08/10 · Nubank · Groceries');
     expect(linhasDeDetalhes[1]).toHaveTextContent('07/10 · Inter · Transportation');
+  });
+
+  it('mostra a categoria em português e escolhe o ícone pela categoria original (8b, caso 1)', async () => {
+    // Prepara: um gasto com tradução. O backend manda "Mercado" para mostrar
+    // e "Groceries" como original. A descrição (Pão de Açúcar) é diferente de
+    // "Mercado" de propósito, para não confundir com o primeiro gasto do
+    // exemplo, que se chama "Mercado".
+    const PAO_DE_ACUCAR: GastoResumo = {
+      id: 813,
+      data: '2026-10-10',
+      descricao: 'Pão de Açúcar',
+      valor: '-87.35',
+      conta: 1,
+      nome_conta: 'Conta corrente',
+      nome_banco: 'Nubank',
+      categoria: 'Mercado',
+      categoria_original: 'Groceries',
+      parcela_atual: null,
+      total_parcelas: null,
+    };
+    fetchFalso.mockResolvedValue(
+      respostaFalsa(200, criarResumo({ ultimos_gastos: [PAO_DE_ACUCAR] })),
+    );
+
+    await render(<InicioScreen />);
+
+    // Verifica: a linha de detalhes mostra a categoria em português.
+    expect(await screen.findByText('10/10 · Nubank · Mercado')).toBeOnTheScreen();
+
+    // Verifica: o círculo é o do carrinho (shopping-cart), que vem de
+    // "Groceries". Se a tela escolhesse o ícone pelo texto "Mercado", que não
+    // está no mapa de categorias, o círculo seria o dos três pontinhos
+    // (ellipsis). Usamos o testID do círculo, como no teste acima.
+    expect(
+      screen.getByTestId('icone-categoria-shopping-cart', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.queryByTestId('icone-categoria-ellipsis', { includeHiddenElements: true }),
+    ).toBeNull();
   });
 
   it('sem gastos, avisa "Nenhum gasto neste mês ainda." e mantém os totais', async () => {

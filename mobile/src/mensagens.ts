@@ -11,7 +11,7 @@ export const MENSAGENS_DE_ERRO: Record<TipoErroApi, string> = {
 };
 
 // Escolhe a frase que aparece embaixo do campo quando a API falha.
-// Fica aqui porque as duas folhas (FolhaDeEdicao e FolhaDoPlano) usam a mesma regra.
+// Fica aqui porque as folhas (FolhaDeEdicao, FolhaDoPlano e FolhaDeCategoria) usam a mesma regra.
 export function mensagemDoErro(erro: unknown): string {
   if (erro instanceof ErroApi) {
     if (erro.tipo === 'validacao' && erro.mensagem) {

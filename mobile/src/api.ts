@@ -9,7 +9,11 @@ export type GastoResumo = {
   conta: number; // id da conta
   nome_conta: string;
   nome_banco: string;
+  // O texto para mostrar, já em português: "Mercado" (ou "Sem categoria")
   categoria: string;
+  // O nome em inglês, como a Pluggy manda: "Groceries" ("" sem categoria).
+  // Serve para escolher o ícone e para marcar a categoria atual na troca
+  categoria_original: string;
   parcela_atual: number | null;
   total_parcelas: number | null;
 };
@@ -17,6 +21,13 @@ export type GastoResumo = {
 // Uma transação da tela Transações. O backend usa o mesmo TransacaoSerializer
 // nos "últimos gastos" do resumo e em /api/transacoes/, então o tipo é o mesmo.
 export type Transacao = GastoResumo;
+
+// Uma categoria de GET /api/categorias/, para a folha de trocar a categoria.
+// "descricao" é o nome em inglês (é o que vai no PATCH); "nome" é o que aparece
+export type Categoria = {
+  descricao: string; // "Groceries"
+  nome: string; // "Mercado"
+};
 
 // Uma conta de GET /api/contas/ (mesmos campos do ContaSerializer)
 export type Conta = {
@@ -221,6 +232,20 @@ export async function buscarFaturasFuturas(): Promise<FaturasFuturas> {
 // O backend já aplica o "mês começando dias antes", então o app só manda o mês.
 export async function buscarTransacoes(mes: string): Promise<Transacao[]> {
   return pedirApi<Transacao[]>(`/api/transacoes/?mes=${mes}`);
+}
+
+// As categorias que podem ser escolhidas, já em ordem alfabética do "nome"
+export async function buscarCategorias(): Promise<Categoria[]> {
+  return pedirApi<Categoria[]>('/api/categorias/');
+}
+
+// Troca a categoria de uma transação. "categoriaManual" é a "descricao" (em
+// inglês) de uma categoria da lista, ou "" para voltar à categoria do banco.
+// O backend devolve a transação já com a categoria nova.
+export async function trocarCategoria(id: number, categoriaManual: string): Promise<Transacao> {
+  return pedirApi<Transacao>(`/api/transacoes/${id}/`, 'PATCH', {
+    categoria_manual: categoriaManual,
+  });
 }
 
 export async function buscarConfiguracoes(): Promise<Configuracoes> {

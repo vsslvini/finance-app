@@ -1,5 +1,7 @@
 // Ícone de cada gasto: um ícone Lucide com as cores da categoria.
-// As categorias vêm da Pluggy em inglês; comparamos pelo nome exato.
+// As categorias vêm da Pluggy em inglês; comparamos pelo nome exato. As telas
+// passam aqui a "categoria_original" da API (em inglês), e não a "categoria"
+// (traduzida), para o ícone não depender da tradução.
 import { coresDeCategoria } from '@/tema';
 
 // Nomes dos ícones Lucide usados nas categorias (conferidos no glyphmap do pacote)

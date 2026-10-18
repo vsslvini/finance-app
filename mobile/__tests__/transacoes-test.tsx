@@ -5,9 +5,14 @@
 //
 // As peças repetidas (fetch falso, respostas falsas, mensagens, puxar para
 // baixo) estão em mobile/testes/ajudantes.ts.
+//
+// Módulo 8b: a categoria aparece em português, o ícone é escolhido pela
+// categoria original (em inglês) e tocar numa transação abre a folha
+// "Categoria", que lista GET /api/categorias/ e troca a categoria com
+// PATCH /api/transacoes/<id>/. Esses testes estão no fim do arquivo.
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
-import type { Resumo, Transacao } from '@/api';
+import type { Categoria, Resumo, Transacao } from '@/api';
 import TransacoesScreen from '@/app/(abas)/transacoes';
 
 import {
@@ -70,6 +75,15 @@ const RESUMO_DE_OUTUBRO: Resumo = {
 // As transações de outubro, no formato do GET /api/transacoes/ (os mesmos
 // campos dos "últimos gastos" do resumo). Os valores vêm como texto; saída é
 // negativa e entrada é positiva.
+//
+// Desde o módulo 8b, cada transação tem dois campos de categoria:
+// - categoria: o texto para mostrar (em português, quando o backend conhece
+//   a tradução);
+// - categoria_original: o nome em inglês, da Pluggy, que o app usa para
+//   escolher o ícone e para marcar a categoria atual na folha.
+// iFood, Salário e Loja X ficam com os dois campos em inglês (o caso "sem
+// tradução conhecida" do plano), para os testes antigos continuarem vendo os
+// mesmos textos. A tradução aparece no Pão de Açúcar, logo abaixo.
 const IFOOD: Transacao = {
   id: 3,
   data: '2026-10-08',
@@ -79,6 +93,7 @@ const IFOOD: Transacao = {
   nome_conta: 'Mastercard Black',
   nome_banco: 'Nubank',
   categoria: 'Food delivery',
+  categoria_original: 'Food delivery',
   parcela_atual: null,
   total_parcelas: null,
 };
@@ -92,6 +107,7 @@ const SALARIO: Transacao = {
   nome_conta: 'Conta Corrente',
   nome_banco: 'Inter',
   categoria: 'Salary',
+  categoria_original: 'Salary',
   parcela_atual: null,
   total_parcelas: null,
 };
@@ -106,32 +122,95 @@ const LOJA_X: Transacao = {
   nome_conta: 'Mastercard Black',
   nome_banco: 'Nubank',
   categoria: 'Shopping',
+  categoria_original: 'Shopping',
   parcela_atual: 3,
   total_parcelas: 10,
 };
 
-const TRANSACOES_DE_OUTUBRO = [IFOOD, SALARIO, LOJA_X];
+// Uma compra com tradução (módulo 8b): o backend manda "Mercado" para
+// mostrar e "Groceries" como original. O id é 5 porque o teste do puxar para
+// baixo já usa o 4 (Padaria).
+const PAO_DE_ACUCAR: Transacao = {
+  id: 5,
+  data: '2026-10-10',
+  descricao: 'Pão de Açúcar',
+  valor: '-87.35',
+  conta: 1,
+  nome_conta: 'Conta Corrente',
+  nome_banco: 'Inter',
+  categoria: 'Mercado',
+  categoria_original: 'Groceries',
+  parcela_atual: null,
+  total_parcelas: null,
+};
+
+// Da mais nova para a mais antiga, como o backend manda.
+const TRANSACOES_DE_OUTUBRO = [PAO_DE_ACUCAR, IFOOD, SALARIO, LOJA_X];
+
+// As categorias de GET /api/categorias/ (módulo 8b): "descricao" é o nome em
+// inglês (o que o app manda no PATCH) e "nome" é o texto em português (o que
+// aparece na folha). O backend já manda em ordem alfabética do nome.
+const CATEGORIAS: Categoria[] = [
+  { descricao: 'Groceries', nome: 'Mercado' },
+  { descricao: 'Restaurants', nome: 'Restaurantes' },
+  { descricao: 'Health', nome: 'Saúde' },
+  { descricao: 'Transportation', nome: 'Transporte' },
+];
+
+// O iFood depois de trocar a categoria para Restaurantes: é o que o backend
+// devolve no PATCH e, depois, na lista relida.
+const IFOOD_EM_RESTAURANTES: Transacao = {
+  ...IFOOD,
+  categoria: 'Restaurantes',
+  categoria_original: 'Restaurants',
+};
+
+// O endereço do PATCH do iFood (id 3).
+const ENDERECO_PATCH_IFOOD = `${ENDERECO_BASE}/api/transacoes/3/`;
+
+// O nome que o leitor de tela fala para cada item (o mesmo accessibilityLabel
+// de antes do 8b). Desde o 8b, cada item é um botão, e é por esse nome que o
+// teste acha o item para tocar nele, como alguém usando o TalkBack faria.
+const ROTULO_IFOOD =
+  'iFood, saída de 45,90 reais, 08/10, Nubank Mastercard Black, categoria Food delivery';
+const ROTULO_PAO_DE_ACUCAR =
+  'Pão de Açúcar, saída de 87,35 reais, 10/10, Inter Conta Corrente, categoria Mercado';
 
 // ---------------------------------------------------------------------------
 // O servidor falso desta tela
 //
 // Ele responde conforme o endereço pedido:
 // - /api/resumo/ devolve o resumo de outubro;
+// - /api/categorias/ devolve a lista CATEGORIAS (módulo 8b);
+// - PATCH /api/transacoes/<id>/ chama respostaDoPatch (módulo 8b);
 // - /api/transacoes/?mes=... chama respostaDasTransacoes com o mês pedido.
 // Qualquer outro pedido (ex.: POST /api/sincronizar/) dá erro alto, para o
 // teste mostrar claramente que a tela pediu algo que não devia.
 //
+// O PATCH vem antes do GET das transações porque os dois endereços contêm
+// "/api/transacoes/"; só o método (opcoes?.method) separa um do outro. Sem
+// método, o fetch faz GET.
+//
 // respostaDasTransacoes começa, em cada teste, devolvendo a lista acima para
-// outubro e uma lista vazia para qualquer outro mês (veja o beforeEach). Um
-// teste pode trocá-la no meio, para fingir que o backend mudou.
+// outubro e uma lista vazia para qualquer outro mês; respostaDoPatch começa
+// devolvendo "deu certo" com o iFood em Restaurantes (veja o beforeEach). Um
+// teste pode trocar qualquer uma no meio, para fingir que o backend mudou ou
+// que recusou o pedido.
 // ---------------------------------------------------------------------------
 let respostaDasTransacoes: (mes: string) => Promise<Response>;
+let respostaDoPatch: () => Promise<Response>;
 
 function ligarServidorFalso() {
   fetchFalso.mockImplementation(async (endereco, opcoes) => {
     const url = String(endereco);
     if (url.includes('/api/resumo/')) {
       return respostaFalsa(200, RESUMO_DE_OUTUBRO);
+    }
+    if (url.includes('/api/categorias/')) {
+      return respostaFalsa(200, CATEGORIAS);
+    }
+    if (url.includes('/api/transacoes/') && opcoes?.method === 'PATCH') {
+      return respostaDoPatch();
     }
     if (url.includes('/api/transacoes/')) {
       // O mês é o que vem depois de "mes=" no endereço:
@@ -147,8 +226,38 @@ function ligarServidorFalso() {
 beforeEach(() => {
   respostaDasTransacoes = async (mes) =>
     respostaFalsa(200, mes === '2026-10' ? TRANSACOES_DE_OUTUBRO : []);
+  respostaDoPatch = async () => respostaFalsa(200, IFOOD_EM_RESTAURANTES);
   ligarServidorFalso();
 });
+
+// Lê as anotações do dublê (fetchFalso.mock.calls, cada chamada com
+// [endereço, opções]) e fica só com os PATCH (módulo 8b).
+function chamadasPatch() {
+  return fetchFalso.mock.calls.filter(([, opcoes]) => opcoes?.method === 'PATCH');
+}
+
+// O corpo do primeiro PATCH, de volta de texto JSON para objeto. A tela manda
+// JSON.stringify({...}); o JSON.parse desfaz isso, para comparar objetos com
+// toEqual (mesma ideia do tela-inicio-test.tsx).
+function corpoDoPatch(): unknown {
+  const [, opcoes] = chamadasPatch()[0];
+  return JSON.parse(String(opcoes?.body));
+}
+
+// Abre a tela, toca na transação com este nome (o accessibilityLabel) e
+// espera a folha "Categoria" abrir com a lista já carregada. Quase todos os
+// testes da folha começam assim, por isso a função.
+//
+// Esperamos pelo botão "Restaurantes" porque ele só aparece depois que o
+// GET /api/categorias/ responde, e porque ele nunca é a categoria atual
+// nestes testes (a atual pode ganhar o ícone de "check" junto do nome, e aí o
+// nome do botão deixaria de ser só "Restaurantes").
+async function abrirFolhaDe(rotulo: string) {
+  await render(<TransacoesScreen />);
+  await fireEvent.press(await screen.findByRole('button', { name: rotulo }));
+  await screen.findByRole('header', { name: 'Categoria' });
+  await screen.findByRole('button', { name: 'Restaurantes' });
+}
 
 describe('Tela Transações', () => {
   it('mostra "Carregando as transações..." enquanto a API não responde (caso 1)', async () => {
@@ -352,5 +461,229 @@ describe('Tela Transações', () => {
     // ...e a lista de antes continua, sem a mensagem de erro de tela inteira.
     expect(screen.getByText('iFood')).toBeOnTheScreen();
     expect(screen.queryByText(MENSAGEM_SERVIDOR)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Módulo 8b: categorias em português e troca de categoria (casos 1 a 7)
+//
+// A folha "Categoria" é um Modal. No Jest, o Modal aberto mostra o conteúdo
+// junto com a tela de trás (a lista continua desenhada); fechado, não
+// desenha nada. Por isso, para saber se a folha fechou, conferimos que o
+// título dela (o cabeçalho "Categoria") sumiu.
+// ---------------------------------------------------------------------------
+describe('Categoria em português (8b)', () => {
+  it('mostra "Mercado" no item e escolhe o ícone pela categoria original "Groceries" (8b, caso 1)', async () => {
+    await render(<TransacoesScreen />);
+
+    // Verifica: o texto mostrado é a categoria em português.
+    expect(await screen.findByText('Pão de Açúcar')).toBeOnTheScreen();
+    expect(screen.getByText('Mercado')).toBeOnTheScreen();
+
+    // Verifica: o ícone é o carrinho (shopping-cart), que o iconeDaCategoria
+    // dá para "Groceries". Se a tela escolhesse pelo texto "Mercado", que não
+    // está no mapa de categorias, o ícone seria os três pontinhos (ellipsis).
+    // O dublê do Lucide (lá em cima) desenha um Text com o nome do ícone, e é
+    // esse texto que procuramos. O círculo do ícone fica escondido do leitor
+    // de tela, por isso o includeHiddenElements ("procure também nos
+    // escondidos"), como no teste do ícone da tela Início.
+    expect(screen.getByText('shopping-cart', { includeHiddenElements: true })).toBeOnTheScreen();
+  });
+});
+
+describe('Folha "Categoria" (8b)', () => {
+  it('tocar numa transação abre "Categoria" com a descrição dela e a lista de GET /api/categorias/ (8b, caso 2)', async () => {
+    await render(<TransacoesScreen />);
+
+    // Faz: toca no item do iFood, achado pelo papel de botão e pelo nome que
+    // o leitor de tela fala. Antes do 8b o item não era botão, e este passo
+    // falharia.
+    await fireEvent.press(await screen.findByRole('button', { name: ROTULO_IFOOD }));
+
+    // Verifica: o título da folha é um cabeçalho.
+    expect(await screen.findByRole('header', { name: 'Categoria' })).toBeOnTheScreen();
+
+    // Verifica: a descrição da transação aparece na folha. Ela também está no
+    // item da lista, atrás da folha, então agora "iFood" aparece duas vezes
+    // (getAllByText devolve todos; antes de abrir a folha era um só). O
+    // includeHiddenElements conta também o que estiver escondido do leitor
+    // de tela: assim a conta dá 2 mesmo que a lista de trás fique escondida
+    // enquanto a folha está aberta.
+    expect(screen.getAllByText('iFood', { includeHiddenElements: true })).toHaveLength(2);
+
+    // Verifica: as categorias que vieram do servidor viram botões com o nome
+    // em português, e a primeira opção "Usar a categoria do banco" está lá.
+    // findByRole espera a lista chegar.
+    expect(await screen.findByRole('button', { name: 'Mercado' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Restaurantes' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Saúde' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Transporte' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Usar a categoria do banco' })).toBeOnTheScreen();
+
+    // Verifica: a lista foi pedida uma vez, no endereço das categorias.
+    expect(enderecosPedidos('/api/categorias/')).toEqual([`${ENDERECO_BASE}/api/categorias/`]);
+  });
+
+  it('a categoria atual da transação vem marcada como selecionada (8b, caso 2)', async () => {
+    // Prepara: abre a folha do Pão de Açúcar, cuja categoria original é
+    // "Groceries" (Mercado na lista).
+    await abrirFolhaDe(ROTULO_PAO_DE_ACUCAR);
+
+    // Verifica: getAllByRole com selected: true acha os botões que o leitor
+    // de tela anuncia como "selecionado" (accessibilityState selected). Deve
+    // haver um só, e com o texto "Mercado". Procuramos assim, e não pelo nome
+    // exato "Mercado", porque o botão da atual também tem o ícone de check, e
+    // o texto do dublê do ícone ("check") entra no nome do botão. O /Mercado/
+    // é uma expressão regular: o texto do botão precisa conter "Mercado".
+    const selecionados = screen.getAllByRole('button', { selected: true });
+    expect(selecionados).toHaveLength(1);
+    expect(selecionados[0]).toHaveTextContent(/Mercado/);
+
+    // As outras categorias não estão selecionadas.
+    expect(screen.getByRole('button', { name: 'Restaurantes' })).not.toBeSelected();
+  });
+
+  it('buscar "merc" deixa só "Mercado" (8b, caso 3)', async () => {
+    // Prepara: abre a folha do iFood. A categoria dele ("Food delivery") não
+    // está na lista, então nenhuma opção tem o check e os nomes dos botões
+    // são exatamente os nomes das categorias.
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    // Faz: digita "merc" no campo de busca, achado pelo rótulo do leitor de
+    // tela.
+    await fireEvent.changeText(screen.getByLabelText('Buscar categoria'), 'merc');
+
+    // Verifica: só o Mercado sobrou. queryByRole devolve null quando não acha.
+    expect(screen.getByRole('button', { name: 'Mercado' })).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Restaurantes' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Saúde' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Transporte' })).toBeNull();
+  });
+
+  it('buscar "saude", sem acento, acha "Saúde" (8b, caso 3)', async () => {
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    // Faz: digita sem acento, como muita gente digita no celular.
+    await fireEvent.changeText(screen.getByLabelText('Buscar categoria'), 'saude');
+
+    // Verifica: "Saúde" aparece mesmo assim, e o filtro tirou as outras.
+    expect(screen.getByRole('button', { name: 'Saúde' })).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Mercado' })).toBeNull();
+  });
+
+  it('buscar "xyz" mostra "Nenhuma categoria encontrada." (8b, caso 3)', async () => {
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    await fireEvent.changeText(screen.getByLabelText('Buscar categoria'), 'xyz');
+
+    expect(screen.getByText('Nenhuma categoria encontrada.')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Mercado' })).toBeNull();
+  });
+
+  it('escolher "Restaurantes" manda PATCH /api/transacoes/3/ com categoria_manual "Restaurants" (8b, caso 4)', async () => {
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    // Faz: toca em Restaurantes.
+    await fireEvent.press(screen.getByRole('button', { name: 'Restaurantes' }));
+
+    // Verifica: houve um PATCH (esperamos com waitFor, porque ele é
+    // assíncrono)...
+    await waitFor(() => expect(chamadasPatch()).toHaveLength(1));
+    // ...no endereço do iFood, com o token e o aviso de que o corpo é JSON...
+    const [endereco, opcoes] = chamadasPatch()[0];
+    expect(endereco).toBe(ENDERECO_PATCH_IFOOD);
+    expect(opcoes).toMatchObject({
+      headers: { Authorization: 'Token token-falso', 'Content-Type': 'application/json' },
+    });
+    // ...e com o nome em inglês da categoria (a "descricao"), que é o que o
+    // backend guarda; o português é só para mostrar.
+    expect(corpoDoPatch()).toEqual({ categoria_manual: 'Restaurants' });
+  });
+
+  it('depois da troca, fecha a folha e relê o mesmo mês sem "Carregando as transações...", mostrando "Restaurantes" (8b, caso 4)', async () => {
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    // Prepara: o próximo GET das transações fica "segurado" até o teste
+    // liberar (como no teste do puxar para baixo), para olharmos a tela no
+    // meio da releitura. Quando chegar, traz o iFood já em Restaurantes.
+    const segurada = respostaSegurada(
+      respostaFalsa(200, [PAO_DE_ACUCAR, IFOOD_EM_RESTAURANTES, SALARIO, LOJA_X]),
+    );
+    respostaDasTransacoes = () => segurada.promessa;
+
+    // Faz: escolhe Restaurantes.
+    await fireEvent.press(screen.getByRole('button', { name: 'Restaurantes' }));
+
+    // Verifica: a lista foi pedida de novo, do mesmo mês. Filtramos por
+    // "?mes=" porque o endereço do PATCH (/api/transacoes/3/) também contém
+    // "/api/transacoes/" e não é uma releitura.
+    await waitFor(() => expect(enderecosPedidos('/api/transacoes/?mes=')).toHaveLength(2));
+    expect(enderecosPedidos('/api/transacoes/?mes=')).toEqual([
+      ENDERECO_OUTUBRO,
+      ENDERECO_OUTUBRO,
+    ]);
+
+    // Verifica: no meio da releitura, a lista de antes continua na tela (o
+    // item do iFood, com o nome de antes), sem a tela de carregamento. Neste
+    // momento a folha pode ainda estar aberta por cima (o contrato não diz se
+    // ela fecha antes ou depois da releitura); o includeHiddenElements faz a
+    // busca olhar também a tela de trás, mesmo que ela esteja escondida do
+    // leitor de tela.
+    expect(
+      screen.queryByText('Carregando as transações...', { includeHiddenElements: true }),
+    ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: ROTULO_IFOOD, includeHiddenElements: true }),
+    ).toBeOnTheScreen();
+
+    // Faz: deixa a resposta chegar (dentro do act, porque a tela muda).
+    await act(() => {
+      segurada.liberar();
+    });
+
+    // Verifica: a folha fechou (o título sumiu)...
+    await waitFor(() => expect(screen.queryByRole('header', { name: 'Categoria' })).toBeNull());
+    // ...e o item do iFood mostra a categoria nova. Com a folha fechada, o
+    // único "Restaurantes" na tela é o do item.
+    expect(await screen.findByText('Restaurantes')).toBeOnTheScreen();
+  });
+
+  it('"Usar a categoria do banco" manda categoria_manual vazio (8b, caso 5)', async () => {
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Usar a categoria do banco' }));
+
+    // Verifica: o texto vazio diz ao backend "apague a categoria manual e
+    // volte a usar a que veio da Pluggy".
+    await waitFor(() => expect(chamadasPatch()).toHaveLength(1));
+    expect(corpoDoPatch()).toEqual({ categoria_manual: '' });
+  });
+
+  it('com 400 "Categoria desconhecida.", a folha continua aberta e mostra a mensagem (8b, caso 6)', async () => {
+    // Prepara: o servidor recusa o PATCH com o formato de erro do DRF,
+    // { campo: [mensagens] }.
+    respostaDoPatch = async () =>
+      respostaFalsa(400, { categoria_manual: ['Categoria desconhecida.'] });
+
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    // Faz: escolhe uma categoria qualquer; quem decide recusar é o servidor
+    // falso.
+    await fireEvent.press(screen.getByRole('button', { name: 'Saúde' }));
+
+    // Verifica: a mensagem do backend aparece...
+    expect(await screen.findByText('Categoria desconhecida.')).toBeOnTheScreen();
+    // ...e a folha não fechou, para a pessoa escolher outra.
+    expect(screen.getByRole('header', { name: 'Categoria' })).toBeOnTheScreen();
+  });
+
+  it('"Cancelar" fecha a folha sem nenhum PATCH (8b, caso 7)', async () => {
+    await abrirFolhaDe(ROTULO_IFOOD);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
+
+    // Verifica: a folha fechou e nada foi mandado ao servidor.
+    await waitFor(() => expect(screen.queryByRole('header', { name: 'Categoria' })).toBeNull());
+    expect(chamadasPatch()).toHaveLength(0);
   });
 });

@@ -180,6 +180,8 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 ### Lista de gastos
 - Item: ícone de categoria (30x30, canto 15) à esquerda; descrição e detalhe no meio; valor à direita.
 - Divisória de 1 em `borda` entre itens.
+- Na aba Transações, o item inteiro é tocável e abre a folha "Categoria"; o ícone segue o nome
+  em inglês da categoria e o texto mostra o nome em português.
 - Quando a lista for agrupada por dia, o título do grupo ("Hoje", "Ontem", "08/10") usa `rotulo`.
 
 ### Botão
@@ -194,6 +196,13 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 - Folha "Plano de guardar": dois campos ("Quanto por mês" e "Até quando (MM/AAAA)"), cada um com
   o nome visível em `rotulo` em cima; uma mensagem de erro só, embaixo dos dois campos, e a borda
   vermelha no campo com problema.
+- Folha "Categoria" (aba Transações, tocar numa transação): título "Categoria", a descrição da
+  transação em `detalhe`, campo "Buscar categoria" (estilo do campo de texto, filtra sem
+  diferenciar maiúsculas nem acentos) e uma lista que rola: primeiro "Usar a categoria do banco",
+  depois uma linha por categoria (texto em `corpo`, altura mínima 48, divisória de 1 em `borda`).
+  A categoria atual tem o ícone `check` (20, `acento`) à direita. Sem botão "Salvar": tocar numa
+  linha já troca. Embaixo, só o botão secundário "Cancelar". A folha ocupa no máximo 85% da
+  altura da tela. Sem resultado na busca: "Nenhuma categoria encontrada." em `textoSecundario`.
 
 ### Campo de texto / número
 - Fundo `superficie`, borda 1 em `borda`, canto 12, altura mínima 48.
@@ -234,6 +243,7 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 | Estilo | contorno (linha), traço fino |
 | Ícones de categoria | ícone Lucide de 16 dentro do círculo colorido: `shopping-cart` (Mercado), `utensils` (Restaurantes), `car` (Transporte), `ellipsis` (Outras) |
 | Ícones dos cartões | 16, cor `textoSecundario`, ao lado do rótulo: `wallet` (Saldo), `credit-card` (Fatura aberta), `arrow-down-left` (Entrou, cor `positivo`), `arrow-up-right` (Saiu, cor `negativo`), `piggy-bank` (Guardado); aviso com `triangle-alert` (18, cor `aviso`) |
+| Ícone de selecionado | `check` (20, cor `acento`), na categoria atual da folha "Categoria" |
 | Ilustrações | nenhuma |
 
 ## 10. Movimento
