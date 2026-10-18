@@ -22,8 +22,8 @@ Claude no modo autônomo.
 
 Durações de 150 a 500 ms (nada passa de 500 ms); `Easing.out(Easing.cubic)` ao entrar,
 `Easing.in(Easing.cubic)` ao sair, sem mola com quique; toque instantâneo; "reduzir movimento"
-respeitado (`ReduceMotion.System`, padrão no Reanimated 4; no `Modal`, `useReducedMotion()` troca
-`slide` por `fade`); conteúdo animado acessível desde o primeiro quadro.
+respeitado (`ReduceMotion.System`, padrão no Reanimated 4; a `Folha` usa `Modal` com `fade`, e
+esmaecer não é movimento); conteúdo animado acessível desde o primeiro quadro.
 
 ## Entrega 1 (sem Reanimated)
 
