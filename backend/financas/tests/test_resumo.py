@@ -504,3 +504,82 @@ def test_guardado_com_plano_traz_previsto_e_progresso(corrente):
         "progresso": 22,
         "falta_guardar_no_mes": Decimal("0.00"),
     }
+
+
+def test_saida_marcada_como_transferencia_propria_nao_conta(conexao):
+    # Caso 1 do Módulo 11: a Pluggy mandou "Transfers", mas a categoria manual
+    # "Same person transfer" vence. Sai das saídas e dos últimos gastos, e o
+    # "posso gastar" não muda por causa dela
+    corrente = criar_conta(conexao, saldo=Decimal("1200.00"))
+    criar_transacao(
+        corrente,
+        descricao="Pix para o PicPay",
+        valor=Decimal("-500.00"),
+        categoria_pluggy="Transfers",
+        categoria_manual="Same person transfer",
+    )
+    padaria = criar_transacao(corrente, descricao="Padaria", valor=Decimal("-10.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE, valor_mensal=POR_MES, mes_alvo=JULHO_2027)
+
+    assert resumo["saidas"] == Decimal("10.00")
+    assert resumo["ultimos_gastos"] == [padaria]
+    # Não virou "guardado": falta guardar os 500 do plano, e (1200 - 500) / 24
+    # dias = 29.166..., vira 29.16
+    assert resumo["guardado"]["este_mes"] == Decimal("0.00")
+    assert resumo["posso_gastar_por_dia"] == Decimal("29.16")
+
+
+def test_entrada_marcada_como_transferencia_propria_nao_conta(corrente):
+    # Caso 2 do Módulo 11: a entrada com categoria manual "Same person
+    # transfer" sai das entradas; o salário continua
+    criar_transacao(
+        corrente,
+        descricao="Pix do PicPay",
+        valor=Decimal("500.00"),
+        categoria_pluggy="Transfers",
+        categoria_manual="Same person transfer",
+    )
+    criar_transacao(corrente, descricao="Salário", valor=Decimal("3000.00"))
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE)
+
+    assert resumo["entradas"] == Decimal("3000.00")
+
+
+def test_transferencia_propria_trocada_para_outra_categoria_volta_a_contar(
+    corrente,
+):
+    # Caso 3 do Módulo 11: a Pluggy marcou "Same person transfer - PIX", mas a
+    # categoria manual "Groceries" vence: volta a contar em saidas e nos gastos
+    mercado = criar_transacao(
+        corrente,
+        descricao="Mercado",
+        valor=Decimal("-80.00"),
+        categoria_pluggy="Same person transfer - PIX",
+        categoria_manual="Groceries",
+    )
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE)
+
+    assert resumo["saidas"] == Decimal("80.00")
+    assert resumo["ultimos_gastos"] == [mercado]
+
+
+def test_saida_marcada_como_investimento_vira_guardado(corrente):
+    # Caso 4 do Módulo 11: categoria manual "Investments" numa saída da
+    # corrente (a Pluggy mandou "Transfers"): sai das saídas e dos últimos
+    # gastos e entra no "guardado este mês"
+    criar_transacao(
+        corrente,
+        descricao="Aplicação",
+        valor=Decimal("-300.00"),
+        categoria_pluggy="Transfers",
+        categoria_manual="Investments",
+    )
+
+    resumo = resumo_do_mes(OUTUBRO, HOJE)
+
+    assert resumo["saidas"] == Decimal("0.00")
+    assert resumo["ultimos_gastos"] == []
+    assert resumo["guardado"]["este_mes"] == Decimal("300.00")

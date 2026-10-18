@@ -1,8 +1,13 @@
 from django.db.models import Q
 
-from financas.models import Conta, Transacao
+from financas.models import Conta
 from financas.services.periodo import periodo_do_mes
-from financas.services.resumo import NAO_E_GASTO, ZERO, entradas_e_saidas
+from financas.services.resumo import (
+    NAO_E_GASTO,
+    ZERO,
+    entradas_e_saidas,
+    transacoes_do_periodo,
+)
 
 # A Pluggy marca alguns pagamentos de fatura da corrente como "Transfers" (ex.:
 # "Pagamento efetuado - Pagamento Fatura - ..."). Eles repetiriam as compras do
@@ -18,7 +23,8 @@ def relatorio_do_mes(mes, dias_antes=0, traducoes=None):
     # maiores gastos; assim os testes não precisam salvar categorias no banco
     traducoes = traducoes or {}
     inicio, fim = periodo_do_mes(mes.year, mes.month, dias_antes)
-    transacoes_do_mes = Transacao.objects.filter(data__range=(inicio, fim))
+    # Com a categoria_efetiva anotada, que as regras do resumo usam
+    transacoes_do_mes = transacoes_do_periodo(inicio, fim)
     # A mesma regra do resumo, para o relatório bater com a tela Início
     entradas, saidas = entradas_e_saidas(transacoes_do_mes)
 

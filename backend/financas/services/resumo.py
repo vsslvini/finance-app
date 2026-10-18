@@ -1,20 +1,27 @@
 from decimal import ROUND_FLOOR, Decimal
 
-from django.db.models import Max, Q, Sum
+from django.db.models import Max, Q, Sum, Value
+from django.db.models.functions import Coalesce, NullIf
 
 from financas.models import Conexao, Conta, Investimento, Transacao
 from financas.services.guardado import bloco_guardado
 from financas.services.periodo import mes_atual, periodo_do_mes
 
+# As regras abaixo comparam a categoria efetiva: a manual, se o Vinicius trocou;
+# senão a da Pluggy (decidido no Módulo 11). Assim, marcar uma transação como
+# transferência própria ou investimento muda as contas. NullIf transforma a
+# manual vazia ("") em NULL, para o Coalesce pular para a da Pluggy
+CATEGORIA_EFETIVA = Coalesce(NullIf("categoria_manual", Value("")), "categoria_pluggy")
+
 # Categorias da Pluggy que não são gasto nem ganho de verdade, num lugar só:
 # dinheiro indo de uma conta minha para outra minha (Cash, PIX, TED...)
-TRANSFERENCIA_PROPRIA = Q(categoria_pluggy__startswith="Same person transfer")
-PAGAMENTO_DE_FATURA = Q(categoria_pluggy="Credit card payment")
+TRANSFERENCIA_PROPRIA = Q(categoria_efetiva__startswith="Same person transfer")
+PAGAMENTO_DE_FATURA = Q(categoria_efetiva="Credit card payment")
 # Aplicar ou resgatar é guardar ou tirar o próprio dinheiro, não gastar nem
 # ganhar. Nomes da árvore de categorias da Pluggy (grupo "Investments"), menos
 # "Proceeds interests and dividends": juros e dividendos são ganho de verdade
 INVESTIMENTO = Q(
-    categoria_pluggy__in=[
+    categoria_efetiva__in=[
         "Investments",
         "Automatic investment",
         "Fixed income",
@@ -38,7 +45,17 @@ def somar(queryset, campo):
     return queryset.aggregate(total=Sum(campo))["total"] or ZERO
 
 
+def transacoes_do_periodo(inicio, fim):
+    # As regras acima só funcionam num queryset com a categoria_efetiva
+    # anotada; o resumo e o relatório buscam as transações do mês por aqui.
+    # range inclui as duas pontas: inicio <= data <= fim
+    return Transacao.objects.filter(data__range=(inicio, fim)).annotate(
+        categoria_efetiva=CATEGORIA_EFETIVA
+    )
+
+
 def entradas_e_saidas(transacoes_do_mes):
+    # transacoes_do_mes vem de transacoes_do_periodo (com a categoria_efetiva)
     # Entradas e saidas contam só pela conta corrente (decidido em 2026-10-10, no
     # lugar da regra de 2026-10-08, que contava as compras do cartão e não o
     # pagamento da fatura). Assim o pagamento da fatura conta no mês em que é
@@ -61,8 +78,7 @@ def resumo_do_mes(
     # os testes não precisarem salvar configuração no banco. Pelo mesmo motivo,
     # valor_mensal e mes_alvo (o plano de guardar) vêm de fora, None sem plano
     inicio, fim = periodo_do_mes(mes.year, mes.month, dias_antes)
-    # range inclui as duas pontas: inicio <= data <= fim
-    transacoes_do_mes = Transacao.objects.filter(data__range=(inicio, fim))
+    transacoes_do_mes = transacoes_do_periodo(inicio, fim)
     gastos = transacoes_do_mes.filter(valor__lt=0).exclude(NAO_E_GASTO)
 
     # Cartão fica fora do saldo: o "saldo" do cartão é a fatura

@@ -207,6 +207,43 @@ def test_mes_segue_os_dias_antes(corrente):
     assert sem_dias["total_gastos"] == Decimal("0.00")
 
 
+def test_transferencia_propria_manual_sai_dos_gastos(corrente):
+    # Caso 1 do Módulo 11: a categoria manual "Same person transfer" vence a
+    # "Transfers" da Pluggy, então a transferência sai dos gastos e das saidas
+    criar_transacao(
+        corrente,
+        descricao="Pix para o PicPay",
+        valor=Decimal("-500.00"),
+        categoria_pluggy="Transfers",
+        categoria_manual="Same person transfer",
+    )
+    padaria = criar_transacao(corrente, descricao="Padaria", valor=Decimal("-10.00"))
+
+    relatorio = relatorio_do_mes(OUTUBRO)
+
+    assert relatorio["total_gastos"] == Decimal("10.00")
+    assert relatorio["maiores_gastos"] == [padaria]
+    assert relatorio["saidas"] == Decimal("10.00")
+
+
+def test_transferencia_propria_trocada_volta_a_ser_gasto(corrente):
+    # Caso 3 do Módulo 11: a Pluggy marcou "Same person transfer - PIX", mas a
+    # categoria manual "Groceries" vence: volta a ser gasto e saída
+    mercado = criar_transacao(
+        corrente,
+        descricao="Mercado",
+        valor=Decimal("-80.00"),
+        categoria_pluggy="Same person transfer - PIX",
+        categoria_manual="Groceries",
+    )
+
+    relatorio = relatorio_do_mes(OUTUBRO)
+
+    assert relatorio["total_gastos"] == Decimal("80.00")
+    assert relatorio["maiores_gastos"] == [mercado]
+    assert relatorio["saidas"] == Decimal("80.00")
+
+
 def test_sem_gastos_tudo_zero_e_listas_vazias(corrente):
     # Caso 6: só uma entrada no mês, nenhum gasto: total zero, listas vazias e
     # nenhuma divisão por zero na porcentagem

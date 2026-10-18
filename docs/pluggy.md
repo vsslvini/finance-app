@@ -146,7 +146,10 @@ PicPay). Funcionou sem erro: 3 conexões, 7 contas e 1187 transações.
 
 Fonte: guia `products/transaction-categorization`, seção "Category Tree" (conferido em
 2026-10-08 e de novo em 2026-10-10). O resumo do mês (`backend/financas/services/resumo.py`)
-compara a `categoria_pluggy` com nomes da árvore de categorias da Pluggy:
+compara a categoria com nomes da árvore de categorias da Pluggy. Desde o Módulo 11
+(2026-10-18), a comparação usa a categoria efetiva: a `categoria_manual`, se houver; senão a
+`categoria_pluggy`. Assim, trocar a categoria no app (ex.: para `Same person transfer`) muda
+entradas, saídas, gastos e guardado. Vale para o resumo, o relatório e o guardado:
 
 - `Same person transfer - Cash`, `- PIX` e `- TED`: transferência entre contas da mesma
   pessoa. Não contam como entrada nem como saída. A comparação usa "começa com
