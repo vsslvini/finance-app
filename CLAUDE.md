@@ -132,12 +132,13 @@ mas sempre mostra o texto antes e espera aprovação.
 
 (atualizar ao fim de cada sessão; vale só o estado mais recente)
 
-**Onde paramos (2026-10-17):**
+**Onde paramos (2026-10-18):**
 
-- Modo autônomo desde 2026-10-17: Claude orquestra os agentes, decide planos e casos de teste, roda testes, lint, `migrate` e sincronização e faz os commits; o Vinicius só é chamado em decisão crítica. Planos de cada módulo em `docs/planos/`.
-- Feito nesta sessão (tudo com commit): verde trocado por roxo; Módulo 5 (Guardado: investimentos, plano de guardar, desconto no "posso gastar"); 3b-2 (puxar para baixo e "Atualizado ..."); 6 (abas e telas Transações, Cartões, Contas); 7 (faturas futuras estimadas pelas parcelas); 8 (categorias em português e troca de categoria); 9 (relatório do mês); 10 (comando `sincronizar` e timer do systemd). Backend 180 testes, mobile 134; lint, `tsc` e `expo export` ok.
-- Banco de desenvolvimento em dia (migrations aplicadas, sincronização real feita: 130 categorias, investimentos do Nubank).
-- Pendente do Vinicius: instalar o timer (`deploy/systemd/README.md`) e testar o app no celular (nada das telas novas foi visto num aparelho de verdade).
+- Modo autônomo (regra 14). Planos de cada módulo em `docs/planos/`; documentos em `docs/estudos/modulos/` (guia até o item 27).
+- Feito (tudo com commit): módulos 5 a 10 da sessão de 2026-10-17 e, em 2026-10-18, o 11 (transferências entre contas próprias: as regras usam a categoria manual; atalho "Transferência entre minhas contas" na folha de categoria), o 12 (aba Dívidas: parcelas calculadas que contam como saída no mês até serem marcadas como pagas; atrasadas descontam do "posso gastar") e o 13 (embelezamento com Reanimated: toque, estados vazios, folha animada, barras, cascata, troca de mês, esqueleto; regras na seção 10 do `docs/design.md`). Backend 217 testes, mobile 182; lint, `tsc` e `expo export` ok.
+- Banco de desenvolvimento em dia (migrations aplicadas até `planejamento.0003`).
+- Sem commit, de propósito: as mudanças do Vinicius em `.claude/agents/` (`model:` e o agente `Explore`).
+- Pendente do Vinicius: testar tudo no celular (nenhuma tela nova foi vista num aparelho), instalar o timer (`deploy/systemd/README.md`), decidir as divisórias com `StyleSheet.hairlineWidth` vendo no celular.
 - Dúvidas ainda abertas (em `docs/requisitos.md`): data de fechamento não vem (RF14); parcelas futuras vêm só em parte (RF13, por isso estimativa); dúvidas 4 e 6.
 - Para recomeçar: ler `docs/inicio-de-sessao.md`; `docker compose up -d`, `cd backend && source .venv/bin/activate.fish && python manage.py runserver 0.0.0.0:8000`; em outro terminal `cd mobile && npx expo start --clear`. Para estudar: `docs/estudos/guia.md`.
 
@@ -145,7 +146,7 @@ mas sempre mostra o texto antes e espera aprovação.
 
 1. Corrigir o que aparecer no teste do app no celular.
 2. RF22 (limite de gasto mensal com aviso) e RF10 (gasto manual).
-3. Depois: RF20 e RF21 (metas e dívidas), RF26 (biometria, pede dependência `expo-local-authentication`), regra dos gastos olhando a categoria manual, "Ver todas" nos últimos gastos.
+3. Depois: editar dívida (para quem e motivo), animação ao fechar a folha, RF20 (metas), RF26 (biometria, pede `expo-local-authentication`), "Ver todas" nos últimos gastos, atualizar `jest-expo` para a versão esperada pelo Expo (~57.0.6).
 
 ## Ao fim de cada sessão
 
