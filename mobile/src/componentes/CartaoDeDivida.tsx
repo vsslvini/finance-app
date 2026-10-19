@@ -1,11 +1,12 @@
 // Cartão de uma dívida na aba Dívidas: para quem, motivo, quanto falta, barra de
 // parcelas pagas e a próxima parcela. Tocar abre a folha da dívida.
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import type { Divida } from '@/api';
 import BarraDeProgresso from '@/componentes/BarraDeProgresso';
+import Tocavel from '@/componentes/Tocavel';
 import { formatarNumero, formatarReais, mesPorExtenso } from '@/formatacao';
-import { cantos, cores, espaco, textos, toque } from '@/tema';
+import { cantos, cores, espaco, textos } from '@/tema';
 
 type CartaoDeDividaProps = {
   divida: Divida;
@@ -44,12 +45,12 @@ export default function CartaoDeDivida({ divida, aoTocar }: CartaoDeDividaProps)
     fraseDaProxima;
 
   return (
-    <Pressable
+    <Tocavel
       accessibilityRole="button"
       accessibilityLabel={rotulo}
       accessibilityHint="Toque para ver as parcelas"
       onPress={aoTocar}
-      style={({ pressed }) => [styles.cartao, pressed && toque.apertado]}
+      style={styles.cartao}
     >
       <Text style={textos.valor}>{divida.credor}</Text>
       {motivo !== '' && <Text style={textos.detalhe}>{motivo}</Text>}
@@ -63,7 +64,7 @@ export default function CartaoDeDivida({ divida, aoTocar }: CartaoDeDividaProps)
       <Text style={[textos.detalhe, proxima !== null && proxima.atrasada && styles.textoAtrasada]}>
         {ultimaLinha}
       </Text>
-    </Pressable>
+    </Tocavel>
   );
 }
 

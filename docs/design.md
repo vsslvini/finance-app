@@ -307,13 +307,17 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 - Barra fixa embaixo, fundo `superficie`, divisória de 1 em `borda` no topo, altura 64 (mais a área segura do celular).
 - Cada aba tem ícone de contorno (24) e texto curto em `rotulo` embaixo.
 - Aba ativa em `acento`; abas inativas em `textoSecundario`.
-- Abas, nesta ordem (desde 2026-10-17, Módulo 6):
+- Barra própria (`BarraDeAbas`, Módulo 19a): uma bolha `superficieElevada` (56x32, canto 24)
+  desliza atrás do ícone da aba ativa; o ícone ativo cresce para 1,1 e ganha a cor `acento` junto.
+  Cada aba tem papel `tab`, nome igual ao título e estado `selected`.
+- Abas, nesta ordem, com o Início no centro (desde 2026-10-18, Módulo 19a; o app continua abrindo
+  no Início):
 
 | Aba | Ícone Lucide | Endereço |
 |---|---|---|
-| Início | `house` | `/` |
 | Transações | `arrow-left-right` | `/transacoes` |
 | Cartões | `credit-card` | `/cartoes` |
+| Início (centro) | `house` | `/` |
 | Contas | `landmark` | `/contas` |
 | A pagar | `hand-coins` | `/dividas` |
 
@@ -348,16 +352,19 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 ## 10. Movimento
 
 O movimento ajuda a entender o que mudou; nunca enfeita à toa. Entrou no app em 2026-10-18
-(Módulo 13). A parte com a `react-native-reanimated` (4.5.1, já instalada) chega nas entregas 2 e 3
-do `docs/planos/modulo-13-embelezamento.md`; a tabela abaixo já vale como regra para elas.
+(Módulo 13) e foi ampliado no Módulo 19 (`docs/planos/modulo-19-ui-fluida.md`): molas com
+amortecimento alto, vibração leve e loops sutis. Valores em dinheiro continuam aparecendo prontos.
 
 ### Princípios
 
 | Princípio | Regra |
 |---|---|
-| Duração | de 150 a 500 ms; nada passa de 500 ms |
-| Curva | `Easing.out(Easing.cubic)` ao entrar, `Easing.in(Easing.cubic)` ao sair; sem mola com quique |
-| Toque | resposta instantânea, sem animação (ver a tabela de toque) |
+| Duração | de 150 a 500 ms; nada passa de 500 ms (exceção: os loops sutis, ver "Loops contínuos") |
+| Curva | `Easing.out(Easing.cubic)` ao entrar, `Easing.in(Easing.cubic)` ao sair |
+| Mola | `withSpring` vale para a bolha da barra de abas e para ícones e blocos que reagem ao toque, sempre com amortecimento alto (quique quase imperceptível); molas nomeadas `MOLA_SUAVE` e `MOLA_TOQUE` em `src/movimento.ts` (Módulo 19, 2026-10-18) |
+| Toque | escala 0,97 e opacidade 0,85 com `MOLA_TOQUE` em cartões tocáveis e no `Botao`; botões de ícone e linhas de lista seguem só com opacidade 0,7 imediata (ver a tabela de toque) |
+| Vibração | leve (`expo-haptics`, `src/vibrar.ts`) ao trocar de aba e no `Botao` principal; nunca lança erro (web e testes ficam sem vibração) |
+| Loops contínuos | permitidos só em destaques sutis (respiro do ícone do estado vazio, brilho do esqueleto); sempre param com "reduzir movimento" (`useMovimentoReduzido` em `src/movimento.ts`) |
 | Reduzir movimento | sempre respeitado: `ReduceMotion.System` (padrão no Reanimated 4); a `Folha` usa `Modal` com `fade` (esmaecer não é movimento) |
 | Acessibilidade | o conteúdo animado já está acessível desde o primeiro quadro (rótulos e valores reais, mesmo no meio da animação) |
 
@@ -365,16 +372,19 @@ do `docs/planos/modulo-13-embelezamento.md`; a tabela abaixo já vale como regra
 
 | Onde | Movimento | Entrega |
 |---|---|---|
-| Toque em cartão tocável e no `Botao` | opacidade 0,85 e escala 0,98, troca imediata | 1 |
+| Toque em cartão tocável e no `Botao` | escala 0,97 e opacidade 0,85 com `MOLA_TOQUE` (componente `Tocavel`); vibração leve no `Botao` principal | 19a (substitui a troca imediata da entrega 1) |
+| Barra de abas | bolha (`superficieElevada`, 56x32) desliza atrás do ícone ativo com `MOLA_SUAVE`; o ícone ativo vai a escala 1,1 e à cor `acento` na mesma mola; vibração de seleção ao trocar | 19a |
+| Estado vazio (`EstadoVazio`) | o ícone "respira": escala de 1 a 1,06 e opacidade de 1 a 0,7, ciclo de 2,4 s, em loop; parado com "reduzir movimento" | 19a |
 | Toque em botão de ícone (setas, Voltar) e em linha de lista | só opacidade 0,7, troca imediata | 1 |
 | Folhas (as 5) | fundo com `fade`; a folha sobe com `SlideInDown` de 250 ms; fechar continua instantâneo | 2 (feita) |
 | Barra de progresso | enche de 0 ao valor em 500 ms com `scaleX` (origem à esquerda), só ao aparecer | 2 (feita) |
 | Entrada em cascata (Início e cartões de Cartões, Contas e Dívidas) | `FadeInDown` de 200 ms, subida de 8, atraso de 40 ms por bloco, no máximo 6 blocos, só na primeira carga | 3 (feita) |
 | Troca de mês (Transações e Relatório) | `FadeIn` de 150 ms no conteúdo | 3 (feita) |
-| Carregamento do Início | esqueleto com blocos `superficie` e pulso de opacidade de 0,5 a 1 em 900 ms (parado com "reduzir movimento"); a frase "Carregando o resumo..." continua visível | 3 (feita) |
+| Carregamento do Início | esqueleto com blocos `superficie` por onde passa um brilho (faixa de gradiente `superficie`, `borda`, `superficie` com `expo-linear-gradient`, `translateX` em loop de 1,4 s); parado com "reduzir movimento"; a frase "Carregando o resumo..." continua visível | 19a (substitui o pulso de opacidade da entrega 3) |
 
-Não animam: valores em dinheiro (o "posso gastar" aparece pronto), puxar para baixo, troca de aba,
-itens de listas longas, régua de dias, erros e avisos.
+Não animam: valores em dinheiro (o "posso gastar" aparece pronto), puxar para baixo, o conteúdo das
+telas na troca de aba (só a bolha e o ícone da barra animam), itens de listas longas, régua de dias,
+erros e avisos.
 
 ### Folhas e barra (entrega 2)
 
@@ -401,14 +411,18 @@ itens de listas longas, régua de dias, erros e avisos.
   folha, o resumo é relido sem passar por "carregando" (função `reler`), para a cascata não repetir.
 - Troca de mês: o conteúdo de sucesso de `ListaDeTransacoes` e `RelatorioDoMes` entra com
   `ENTRADA_DO_CONTEUDO` (a `key={mes}` monta o componente de novo); setas e título ficam parados.
-- `EsqueletoDoInicio`: blocos `superficie` no formato da tela, escondidos do leitor de tela, com
-  pulso de opacidade (`withRepeat` + `withTiming`, 900 ms). Com "reduzir movimento" ligado, o
-  `withTiming` vai direto ao valor final (`ReduceMotion.System`, padrão do Reanimated 4). A frase "Carregando o resumo..." continua visível embaixo.
+- `EsqueletoDoInicio`: blocos `superficie` no formato da tela, escondidos do leitor de tela. Desde
+  o 19a o pulso de opacidade deu lugar ao brilho (`withRepeat` + `withTiming`, 1,4 s, só
+  `translateX` de uma faixa dentro de cada bloco, cortada por `overflow: 'hidden'`). Com "reduzir
+  movimento" ligado, o loop nem começa. A frase "Carregando o resumo..." continua visível embaixo.
 
 ### Toque (entrega 1)
 
-O estilo vive num lugar só, em `mobile/src/tema.ts` (`toque.apertado` e `toque.apertadoIcone`).
-Nenhuma tela escreve opacidade ou escala de toque por conta própria.
+O estilo vive num lugar só. Botões de ícone e linhas de lista usam `toque.apertadoIcone` em
+`mobile/src/tema.ts`. Cartões tocáveis e o `Botao` usam o componente `Tocavel`
+(`mobile/src/componentes/Tocavel.tsx`), que anima escala e opacidade com `MOLA_TOQUE`; o
+`toque.apertado` antigo deixou de ser usado. Nenhuma tela escreve opacidade ou escala de toque por
+conta própria.
 
 ## 11. Acessibilidade
 
@@ -432,7 +446,8 @@ Nenhuma tela escreve opacidade ou escala de toque por conta própria.
 
 ## 13. O que evitar
 
-- Gradientes, desfoque (blur), brilhos, texturas de fundo, sombras fortes, emojis como ícones.
+- Gradientes (exceção desde o 19a: o brilho do esqueleto de carregamento, em tons neutros),
+  desfoque (blur), brilhos, texturas de fundo, sombras fortes, emojis como ícones.
 - Verde ou vermelho muito vivos (cansam no fundo escuro); amarelo-limão como cor de acento.
 - Mais de um número gigante por tela.
 - Mais de um bloco com cor cheia na mesma tela.

@@ -147,50 +147,76 @@ const RELATORIO_SEM_GASTOS: Relatorio = {
 //
 // A mesma palavra aparece na aba e no título da tela (ex.: "Contas"), então
 // procurar só pelo texto acharia duas coisas. Procuramos então do jeito que o
-// leitor de tela acha a aba: pelo papel e pelo nome do botão.
+// leitor de tela acha a aba: pelo papel ("tab") e pelo nome.
 //
-// Quem desenha a barra é o React Navigation (que vem dentro do Expo Router).
-// Conferimos na fonte dele (node_modules/expo-router/build/react-navigation/
-// bottom-tabs/views/BottomTabBar.js e BottomTabItem.js): no iPhone, cada aba
-// é um botão (papel "button") e o nome que o VoiceOver fala é
-// "<rótulo>, tab, <posição> of <total>". O jest-expo simula um iPhone, por
-// isso os nomes abaixo. (No Android o papel seria "tab" e o nome, só o
-// rótulo.) A posição no nome ("2 of 4") também confere a ordem das abas.
+// Desde o módulo 19a a barra é nossa (src/componentes/BarraDeAbas.tsx): cada
+// aba tem accessibilityRole="tab" e accessibilityLabel igual ao título, sem o
+// "tab, 1 of 5" que a barra padrão acrescentava. A ordem das abas, que antes
+// aparecia na posição do nome, agora é conferida pela ordem dos rótulos.
 // ---------------------------------------------------------------------------
-// Desde o módulo 12b são cinco abas ("... of 5"). Desde o 14b a quinta se chama
-// "A pagar" (o arquivo e o endereço continuam "dividas" e "/dividas").
-const ABA_INICIO = 'Início, tab, 1 of 5';
-const ABA_TRANSACOES = 'Transações, tab, 2 of 5';
-const ABA_CARTOES = 'Cartões, tab, 3 of 5';
-const ABA_CONTAS = 'Contas, tab, 4 of 5';
-const ABA_A_PAGAR = 'A pagar, tab, 5 of 5';
+// Desde o 14b a quinta aba se chama "A pagar" (o arquivo e o endereço
+// continuam "dividas" e "/dividas").
+const ABA_INICIO = 'Início';
+const ABA_TRANSACOES = 'Transações';
+const ABA_CARTOES = 'Cartões';
+const ABA_CONTAS = 'Contas';
+const ABA_A_PAGAR = 'A pagar';
 
 describe('Rotas e abas do app', () => {
-  it('a barra mostra "Início", "Transações", "Cartões", "Contas" e "A pagar", nessa ordem (caso 1; 14b, caso 7)', async () => {
+  it('a barra mostra "Transações", "Cartões", "Início" (no centro), "Contas" e "A pagar", nessa ordem (19a, caso 1)', async () => {
     // Prepara: monta o app começando em "/". O await espera a primeira
     // tela terminar de desenhar.
     await renderRouter(ARQUIVOS_DO_APP, { initialUrl: '/' });
 
-    // Verifica: existe um botão para cada aba, na posição certa.
-    expect(screen.getByRole('button', { name: ABA_INICIO })).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: ABA_TRANSACOES })).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: ABA_CARTOES })).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: ABA_CONTAS })).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: ABA_A_PAGAR })).toBeOnTheScreen();
+    // Verifica: existe uma aba (papel "tab") para cada nome. O contêiner da
+    // barra tem o papel "tablist", mas o getByRole só acha elementos
+    // "acessíveis", e marcar o contêiner assim juntaria as 5 abas num item só
+    // para o leitor de tela; por isso ele não é conferido aqui.
+    expect(screen.getByRole('tab', { name: ABA_TRANSACOES })).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: ABA_CARTOES })).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: ABA_INICIO })).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: ABA_CONTAS })).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: ABA_A_PAGAR })).toBeOnTheScreen();
+
+    // Verifica a ordem: o getAllByRole devolve as abas na ordem em que
+    // aparecem na tela, da esquerda para a direita. O Início é a terceira
+    // de cinco, ou seja, fica no centro.
+    const abas = screen.getAllByRole('tab');
+    expect(abas).toHaveLength(5);
+    expect(abas[2]).toBe(screen.getByRole('tab', { name: ABA_INICIO }));
+    expect(abas[0]).toBe(screen.getByRole('tab', { name: ABA_TRANSACOES }));
+    expect(abas[1]).toBe(screen.getByRole('tab', { name: ABA_CARTOES }));
+    expect(abas[3]).toBe(screen.getByRole('tab', { name: ABA_CONTAS }));
+    expect(abas[4]).toBe(screen.getByRole('tab', { name: ABA_A_PAGAR }));
 
     // Verifica também os rótulos que a pessoa vê embaixo dos ícones, de
     // cima para baixo (a ordem do getAllByText é a ordem na tela). O /^...$/
     // é uma expressão regular que pega só textos exatamente iguais a um dos
-    // quatro nomes. As outras abas ainda não foram abertas (as abas só
+    // cinco nomes. As outras abas ainda não foram abertas (as abas só
     // desenham a tela quando ela é aberta pela primeira vez), então nenhum
     // título de tela entra nesta lista.
     const rotulos = screen.getAllByText(/^(Início|Transações|Cartões|Contas|A pagar)$/);
     expect(rotulos).toHaveLength(5);
-    expect(rotulos[0]).toHaveTextContent('Início');
-    expect(rotulos[1]).toHaveTextContent('Transações');
-    expect(rotulos[2]).toHaveTextContent('Cartões');
+    expect(rotulos[0]).toHaveTextContent('Transações');
+    expect(rotulos[1]).toHaveTextContent('Cartões');
+    expect(rotulos[2]).toHaveTextContent('Início');
     expect(rotulos[3]).toHaveTextContent('Contas');
     expect(rotulos[4]).toHaveTextContent('A pagar');
+  });
+
+  it('o app abre no Início: rota "/", com a aba Início selecionada e as outras não (19a, caso 1)', async () => {
+    const app = renderRouter(ARQUIVOS_DO_APP, { initialUrl: '/' });
+    await app;
+
+    // Verifica: o endereço é "/" (a tela Início)...
+    // @ts-expect-error (mesmo motivo do caso 2)
+    expect(app).toHavePathname('/');
+    // ...só a aba Início está selecionada (selected true)...
+    expect(screen.getByRole('tab', { name: ABA_INICIO })).toBeSelected();
+    // ...e as outras quatro, não (selected false).
+    for (const nome of [ABA_TRANSACOES, ABA_CARTOES, ABA_CONTAS, ABA_A_PAGAR]) {
+      expect(screen.getByRole('tab', { name: nome })).not.toBeSelected();
+    }
   });
 
   it('ao abrir, o endereço é "/" e aparece "Carregando o resumo..." (caso 2)', async () => {
@@ -216,46 +242,52 @@ describe('Rotas e abas do app', () => {
 
     // Faz: toca na aba. Na Testing Library 14 o fireEvent.press é
     // assíncrono, por isso o await.
-    await fireEvent.press(screen.getByRole('button', { name: ABA_TRANSACOES }));
+    await fireEvent.press(screen.getByRole('tab', { name: ABA_TRANSACOES }));
 
     // Verifica: a tela Transações apareceu (findByText espera até 1 s)...
     expect(await screen.findByText('Carregando as transações...')).toBeOnTheScreen();
-    // ...e o endereço mudou.
+    // ...o endereço mudou...
     // @ts-expect-error (mesmo motivo do teste anterior)
     expect(app).toHavePathname('/transacoes');
+    // ...a aba tocada passou a selected true e o Início, a false (19a, caso 2).
+    expect(screen.getByRole('tab', { name: ABA_TRANSACOES })).toBeSelected();
+    expect(screen.getByRole('tab', { name: ABA_INICIO })).not.toBeSelected();
   });
 
   it('tocar em "Cartões" leva a "/cartoes" e mostra "Carregando os cartões..." (caso 4)', async () => {
     const app = renderRouter(ARQUIVOS_DO_APP, { initialUrl: '/' });
     await app;
 
-    await fireEvent.press(screen.getByRole('button', { name: ABA_CARTOES }));
+    await fireEvent.press(screen.getByRole('tab', { name: ABA_CARTOES }));
 
     expect(await screen.findByText('Carregando os cartões...')).toBeOnTheScreen();
     // @ts-expect-error (mesmo motivo do caso 2)
     expect(app).toHavePathname('/cartoes');
+    expect(screen.getByRole('tab', { name: ABA_CARTOES })).toBeSelected();
   });
 
   it('tocar em "Contas" leva a "/contas" e mostra "Carregando as contas..." (caso 5)', async () => {
     const app = renderRouter(ARQUIVOS_DO_APP, { initialUrl: '/' });
     await app;
 
-    await fireEvent.press(screen.getByRole('button', { name: ABA_CONTAS }));
+    await fireEvent.press(screen.getByRole('tab', { name: ABA_CONTAS }));
 
     expect(await screen.findByText('Carregando as contas...')).toBeOnTheScreen();
     // @ts-expect-error (mesmo motivo do caso 2)
     expect(app).toHavePathname('/contas');
+    expect(screen.getByRole('tab', { name: ABA_CONTAS })).toBeSelected();
   });
 
   it('tocar em "A pagar" leva a "/dividas" e mostra "Carregando o que falta pagar..." (12b, caso 13; 14b, caso 7)', async () => {
     const app = renderRouter(ARQUIVOS_DO_APP, { initialUrl: '/' });
     await app;
 
-    await fireEvent.press(screen.getByRole('button', { name: ABA_A_PAGAR }));
+    await fireEvent.press(screen.getByRole('tab', { name: ABA_A_PAGAR }));
 
     expect(await screen.findByText('Carregando o que falta pagar...')).toBeOnTheScreen();
     // @ts-expect-error (mesmo motivo do caso 2)
     expect(app).toHavePathname('/dividas');
+    expect(screen.getByRole('tab', { name: ABA_A_PAGAR })).toBeSelected();
   });
 
   it('"Ver relatório do mês" no Início leva a "/relatorio", e "Voltar" volta para "/" (9b, caso 1)', async () => {
@@ -322,7 +354,7 @@ describe('Rotas e abas do app', () => {
     // Faz: vai para a aba Transações. Ela também pede o resumo ao abrir (é de
     // lá que vem o mês atual) e só depois pede as transações; por isso a
     // contagem começa quando o pedido das transações aparece.
-    await fireEvent.press(screen.getByRole('button', { name: ABA_TRANSACOES }));
+    await fireEvent.press(screen.getByRole('tab', { name: ABA_TRANSACOES }));
     expect(await screen.findByText('Carregando as transações...')).toBeOnTheScreen();
     await waitFor(() =>
       expect(
@@ -335,7 +367,7 @@ describe('Rotas e abas do app', () => {
 
     // Volta para o Início. O Início fica montado nas abas; o que muda é o
     // foco (blur e depois focus).
-    await fireEvent.press(screen.getByRole('button', { name: ABA_INICIO }));
+    await fireEvent.press(screen.getByRole('tab', { name: ABA_INICIO }));
 
     // Verifica: um novo pedido do resumo foi feito ao voltar...
     await waitFor(() => expect(pedidosDoResumo()).toBe(antes + 1));

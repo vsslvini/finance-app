@@ -1,13 +1,14 @@
 // Seção "Guardado" da tela Início: quanto há guardado nos investimentos, quanto
 // entrou neste mês e, se houver plano, a barra de progresso até o mês alvo.
 // A seção inteira é um botão, que abre a folha "Plano de guardar".
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import type { Guardado } from '@/api';
 import BarraDeProgresso from '@/componentes/BarraDeProgresso';
 import RotuloDoCartao from '@/componentes/RotuloDoCartao';
+import Tocavel from '@/componentes/Tocavel';
 import { formatarReais, rotuloEmReais, tituloDoMes } from '@/formatacao';
-import { cantos, cores, espaco, textos, toque } from '@/tema';
+import { cantos, cores, espaco, textos } from '@/tema';
 
 // "500.00" -> "+ R$ 500,00 este mês"; "-100.00" -> "- R$ 100,00 este mês"
 function textoDoMes(esteMes: string): string {
@@ -28,12 +29,12 @@ export default function SecaoGuardado({ guardado, aoTocar }: SecaoGuardadoProps)
   const mesAlvo = plano?.mes_alvo ?? null;
 
   return (
-    <Pressable
+    <Tocavel
       accessibilityRole="button"
       accessibilityLabel={rotuloEmReais('Guardado', total)}
       accessibilityHint="Toque para editar o plano de guardar"
       onPress={aoTocar}
-      style={({ pressed }) => [styles.cartao, pressed && toque.apertado]}
+      style={styles.cartao}
     >
       <RotuloDoCartao texto="Guardado" icone="piggy-bank" />
       <Text style={textos.valor}>{formatarReais(total)}</Text>
@@ -54,7 +55,7 @@ export default function SecaoGuardado({ guardado, aoTocar }: SecaoGuardadoProps)
       ) : (
         <Text style={[textos.rotulo, styles.convite]}>Toque para criar um plano de guardar</Text>
       )}
-    </Pressable>
+    </Tocavel>
   );
 }
 

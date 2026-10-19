@@ -1,68 +1,106 @@
 // Estado "carregando" da tela Início: blocos cinza com o formato da tela
-// (título, número grande, régua, dois pares de cartões) que pulsam de leve, e
-// a frase "Carregando o resumo..." embaixo. Os blocos são só desenho e ficam
-// escondidos do leitor de tela; a frase é o que ele lê.
-import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+// (título, número grande, régua, dois pares de cartões) por onde passa um brilho
+// (shimmer) em loop, e a frase "Carregando o resumo..." embaixo. Os blocos são
+// só desenho e ficam escondidos do leitor de tela; a frase é o que ele lê.
+import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 
+import { DURACAO_BRILHO, useMovimentoReduzido } from '@/movimento';
 import { cantos, cores, espaco, textos } from '@/tema';
 
-// Seção 10 do guia: o pulso vai de 0,5 a 1 de opacidade em 900 ms
-const OPACIDADE_MINIMA = 0.5;
-const DURACAO_DO_PULSO = 900;
+// A faixa de brilho tem esta fração da largura do bloco
+const LARGURA_DO_BRILHO = 0.6;
+
+type BlocoProps = {
+  style: StyleProp<ViewStyle>;
+  // 0 a 1: onde o brilho está na passada (compartilhado por todos os blocos,
+  // para a passada acontecer ao mesmo tempo em todos)
+  progresso: SharedValue<number>;
+};
+
+// Um bloco cinza com a faixa de brilho dentro. O overflow "hidden" corta a faixa
+// nas bordas arredondadas do bloco. A largura do bloco é medida com onLayout,
+// porque a faixa precisa andar do lado de fora esquerdo ao lado de fora direito.
+function Bloco({ style, progresso }: BlocoProps) {
+  const [largura, setLargura] = useState(0);
+  const larguraDaFaixa = largura * LARGURA_DO_BRILHO;
+
+  const estiloDaFaixa = useAnimatedStyle(() => ({
+    transform: [{ translateX: interpolate(progresso.value, [0, 1], [-larguraDaFaixa, largura]) }],
+  }));
+
+  return (
+    <View
+      onLayout={(evento) => setLargura(evento.nativeEvent.layout.width)}
+      style={[style, styles.recorte]}
+    >
+      <Animated.View style={[styles.faixa, { width: larguraDaFaixa }, estiloDaFaixa]}>
+        {/* Das duas pontas na cor do bloco até um cinza mais claro no meio:
+            sem transparência, a faixa some nas bordas sem corte visível */}
+        <LinearGradient
+          colors={[cores.superficie, cores.borda, cores.superficie]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+    </View>
+  );
+}
 
 export default function EsqueletoDoInicio() {
-  const opacidade = useSharedValue(1);
+  const progresso = useSharedValue(0);
+  const movimentoReduzido = useMovimentoReduzido();
 
   // useEffect porque iniciar uma animação é um efeito (acontece depois do
-  // primeiro desenho). Com "reduzir movimento" ligado no celular, o withTiming
-  // do Reanimated 4 já vai direto ao valor final (ReduceMotion.System é o
-  // padrão), então não precisamos do useReducedMotion (que, além disso, não
-  // existe na versão simulada do Reanimated usada pelo teste de rotas).
-  // Ao sair da tela, a animação é cancelada para não ficar rodando à toa.
+  // primeiro desenho). Com "reduzir movimento" ligado, o loop nem começa e os
+  // blocos ficam cinza e parados. Ao sair da tela, a animação é cancelada.
   useEffect(() => {
-    // -1 repete sem parar; true faz ir e voltar (1 até 0,5 e de volta a 1)
-    opacidade.value = withRepeat(
-      withTiming(OPACIDADE_MINIMA, {
-        duration: DURACAO_DO_PULSO,
-        easing: Easing.inOut(Easing.cubic),
-      }),
+    if (movimentoReduzido) {
+      progresso.value = 0;
+      return;
+    }
+    // -1 repete sem parar; false recomeça do início a cada passada (o brilho
+    // sempre anda da esquerda para a direita)
+    progresso.value = withRepeat(
+      withTiming(1, { duration: DURACAO_BRILHO, easing: Easing.inOut(Easing.quad) }),
       -1,
-      true,
+      false,
     );
-    return () => cancelAnimation(opacidade);
-  }, [opacidade]);
-
-  const estiloDoPulso = useAnimatedStyle(() => ({ opacity: opacidade.value }));
+    return () => cancelAnimation(progresso);
+  }, [movimentoReduzido, progresso]);
 
   return (
     <View style={styles.tela}>
-      <Animated.View
+      <View
         // Só desenho: o leitor de tela pula tudo isto
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        style={[styles.blocos, estiloDoPulso]}
+        style={styles.blocos}
       >
-        <View style={styles.titulo} />
-        <View style={styles.numero} />
-        <View style={styles.regua} />
+        <Bloco style={styles.titulo} progresso={progresso} />
+        <Bloco style={styles.numero} progresso={progresso} />
+        <Bloco style={styles.regua} progresso={progresso} />
         <View style={styles.linha}>
-          <View style={styles.cartao} />
-          <View style={styles.cartao} />
+          <Bloco style={styles.cartao} progresso={progresso} />
+          <Bloco style={styles.cartao} progresso={progresso} />
         </View>
         <View style={styles.linha}>
-          <View style={styles.cartao} />
-          <View style={styles.cartao} />
+          <Bloco style={styles.cartao} progresso={progresso} />
+          <Bloco style={styles.cartao} progresso={progresso} />
         </View>
-      </Animated.View>
+      </View>
       <Text style={[textos.corpo, styles.texto]}>Carregando o resumo...</Text>
     </View>
   );
@@ -76,6 +114,16 @@ const styles = StyleSheet.create({
   },
   blocos: {
     gap: espaco.medio,
+  },
+  recorte: {
+    // Corta o brilho nos cantos arredondados do bloco
+    overflow: 'hidden',
+  },
+  faixa: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
   },
   titulo: {
     width: 120,

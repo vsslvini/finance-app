@@ -5,12 +5,13 @@
 // Fluxo: a aba já buscou /api/a-pagar/ e passa os dados para cá. O mês em foco
 // e os textos saem de contas feitas durante a renderização, sem estado.
 import { Lucide } from '@react-native-vector-icons/lucide';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import type { APagarPorMes, MesAPagar } from '@/api';
 import BarraDeProgresso from '@/componentes/BarraDeProgresso';
+import Tocavel from '@/componentes/Tocavel';
 import { formatarReais, tituloDoMes } from '@/formatacao';
-import { cantos, cores, espaco, textos, toque } from '@/tema';
+import { cantos, cores, espaco, textos } from '@/tema';
 
 type CartaoPorMesProps = {
   dados: APagarPorMes;
@@ -58,11 +59,11 @@ export default function CartaoPorMes({ dados, aoAbrir }: CartaoPorMesProps) {
   const mes = mesEmFoco(meses);
 
   return (
-    <Pressable
+    <Tocavel
       accessibilityRole="button"
       accessibilityHint="Toque para ver os 6 meses"
       onPress={aoAbrir}
-      style={({ pressed }) => [styles.cartao, pressed && toque.apertado]}
+      style={styles.cartao}
     >
       <View style={styles.linha}>
         <Text accessibilityRole="header" style={textos.subtitulo}>
@@ -94,7 +95,7 @@ export default function CartaoPorMes({ dados, aoAbrir }: CartaoPorMesProps) {
           <LinhaDoTipo nome="Dívidas" valor={mes.dividas} percentual={mes.percentual_dividas} />
         </>
       )}
-    </Pressable>
+    </Tocavel>
   );
 }
 

@@ -1,7 +1,7 @@
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,6 +16,7 @@ import FolhaDoPlano from '@/componentes/FolhaDoPlano';
 import ReguaDeDias from '@/componentes/ReguaDeDias';
 import RotuloDoCartao from '@/componentes/RotuloDoCartao';
 import SecaoGuardado from '@/componentes/SecaoGuardado';
+import Tocavel from '@/componentes/Tocavel';
 import {
   formatarData,
   formatarNumero,
@@ -27,7 +28,7 @@ import {
 } from '@/formatacao';
 import { MENSAGENS_DE_ERRO } from '@/mensagens';
 import { entradaEmCascata } from '@/movimento';
-import { cantos, cores, espaco, fontes, textos, toque } from '@/tema';
+import { cantos, cores, espaco, fontes, textos } from '@/tema';
 
 // A tela está sempre em um destes três estados
 type Estado =
@@ -276,16 +277,16 @@ export default function InicioScreen() {
             <RotuloDoCartao texto="Saldo" icone="wallet" />
             <Text style={textos.valor}>{formatarReais(resumo.saldo_total)}</Text>
           </View>
-          <Pressable
+          <Tocavel
             accessibilityRole="button"
             accessibilityLabel={rotuloEmReais('Fatura aberta', resumo.fatura_aberta)}
             accessibilityHint="Toque para mudar o limite da fatura"
             onPress={() => setCampoAberto('limiteDaFatura')}
-            style={({ pressed }) => [styles.cartao, styles.cartaoMetade, pressed && toque.apertado]}
+            style={[styles.cartao, styles.cartaoMetade]}
           >
             <RotuloDoCartao texto="Fatura aberta" icone="credit-card" />
             <Text style={textos.valor}>{formatarReais(resumo.fatura_aberta)}</Text>
-          </Pressable>
+          </Tocavel>
         </Animated.View>
 
         {/* 5. Aviso de fatura acima do limite */}
@@ -323,18 +324,18 @@ export default function InicioScreen() {
 
         {/* 6. Entradas e saídas do mês: "Entrou" é tocável e abre a folha do início do mês */}
         <Animated.View entering={entradaEmCascata(4)} style={styles.linha}>
-          <Pressable
+          <Tocavel
             accessibilityRole="button"
             accessibilityLabel={rotuloEmReais('Entrou no mês', resumo.entradas)}
             accessibilityHint="Toque para mudar o início do mês"
             onPress={() => setCampoAberto('inicioDoMes')}
-            style={({ pressed }) => [styles.cartao, styles.cartaoMetade, pressed && toque.apertado]}
+            style={[styles.cartao, styles.cartaoMetade]}
           >
             <RotuloDoCartao texto="Entrou" icone="arrow-down-left" corDoIcone={cores.positivo} />
             <Text style={[textos.valor, styles.positivo]}>
               {`+ ${formatarReais(resumo.entradas)}`}
             </Text>
-          </Pressable>
+          </Tocavel>
           <View
             accessible
             accessibilityLabel={

@@ -3,12 +3,20 @@ import { Lucide, type LucideIconName } from '@react-native-vector-icons/lucide';
 // (@deprecated na fonte do pacote); o caminho novo é 'expo-router/js-tabs'
 import { Tabs } from 'expo-router/js-tabs';
 import type { ColorValue } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { cores, textos } from '@/tema';
+import BarraDeAbas from '@/componentes/BarraDeAbas';
+import { cores } from '@/tema';
 
-// Desenha o ícone de uma aba. A barra passa a cor certa (acento na aba ativa,
-// textoSecundario nas outras). O ícone fica escondido do leitor de tela,
+// Com as abas fora da ordem do arquivo (o Início fica no centro, e não em
+// primeiro), dizemos ao Expo Router qual é a rota inicial. Sem isto ele
+// escolheria a primeira da lista (Transações) quando abrisse sem endereço.
+// "index" é o arquivo (abas)/index.tsx, a tela Início.
+export const unstable_settings = {
+  initialRouteName: 'index',
+};
+
+// Desenha o ícone de uma aba. A barra de abas passa a cor certa (acento na aba
+// ativa, textoSecundario nas outras). O ícone fica escondido do leitor de tela,
 // porque o nome da aba já diz tudo.
 function iconeDaAba(nome: LucideIconName, color: ColorValue) {
   return (
@@ -26,45 +34,26 @@ function iconeDaAba(nome: LucideIconName, color: ColorValue) {
 // Os parênteses no nome da pasta fazem o grupo não aparecer no endereço:
 // app/(abas)/transacoes.tsx vira "/transacoes", e app/(abas)/index.tsx vira "/".
 export default function AbasLayout() {
-  // A área segura de baixo do celular (a barra de gestos ou os botões do
-  // Android). A barra de abas fica com 64 de altura mais essa área, e o
-  // próprio Tabs já põe esse espaço como respiro embaixo dos ícones.
-  const insets = useSafeAreaInsets();
-
   return (
     <Tabs
+      // A barra é nossa (BarraDeAbas): ela recebe o estado do navegador e as
+      // opções de cada tela (title e tabBarIcon) e desenha a bolha animada.
+      // Cuida também da área segura de baixo.
+      tabBar={(props) => <BarraDeAbas {...props} />}
+      // Mesma rota inicial do unstable_settings acima, também no navegador de
+      // abas; e "voltar" (botão do Android) leva ao Início, e não à primeira
+      // aba da lista, que agora é Transações.
+      initialRouteName="index"
+      backBehavior="initialRoute"
       screenOptions={{
         // Cada tela mostra o próprio título no corpo, como o Início
         headerShown: false,
-        tabBarActiveTintColor: cores.acento,
-        tabBarInactiveTintColor: cores.textoSecundario,
-        tabBarStyle: {
-          backgroundColor: cores.superficie,
-          borderTopWidth: 1,
-          borderTopColor: cores.borda,
-          height: 64 + insets.bottom,
-        },
-        // Só a fonte do estilo "rotulo", sem a cor: a cor do texto vem do
-        // tabBarActiveTintColor e do tabBarInactiveTintColor. Se o estilo
-        // levasse a cor, ela venceria e a aba ativa não ficaria roxa.
-        tabBarLabelStyle: {
-          fontFamily: textos.rotulo.fontFamily,
-          fontSize: textos.rotulo.fontSize,
-          lineHeight: textos.rotulo.lineHeight,
-        },
         // Fundo das telas, para não aparecer o branco padrão na troca de aba
         sceneStyle: { backgroundColor: cores.fundo },
       }}
     >
-      {/* A ordem aqui é a ordem das abas na barra. Sem tabBarAccessibilityLabel,
-          o leitor de tela lê o título com a posição ("Transações, aba 2 de 5") */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Início',
-          tabBarIcon: ({ color }) => iconeDaAba('house', color),
-        }}
-      />
+      {/* A ordem aqui é a ordem das abas na barra, com o Início no centro
+          (3º de 5). O título é também o nome lido pelo leitor de tela */}
       <Tabs.Screen
         name="transacoes"
         options={{
@@ -77,6 +66,13 @@ export default function AbasLayout() {
         options={{
           title: 'Cartões',
           tabBarIcon: ({ color }) => iconeDaAba('credit-card', color),
+        }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Início',
+          tabBarIcon: ({ color }) => iconeDaAba('house', color),
         }}
       />
       <Tabs.Screen
