@@ -54,6 +54,7 @@ aos pré-requisitos dele.
 | 30 | [`modulos/totais-a-pagar.md`](modulos/totais-a-pagar.md) | Módulo 16: totais da aba "A pagar", somar dinheiro em centavos inteiros, calcular na tela ou no backend | item 29 |
 | 31 | [`modulos/planejamento-por-mes.md`](modulos/planejamento-por-mes.md) | Módulo 17: planejamento por mês, % da renda, reaproveitar services, nome acessível igual ao texto visível | item 30 |
 | 32 | [`modulos/por-mes-resumido.md`](modulos/por-mes-resumido.md) | Módulo 18: cartão resumido com folha de detalhes, mês em foco, teste errado e não o código | item 31 |
+| 33 | [`modulos/ui-fluida.md`](modulos/ui-fluida.md) | Módulo 19: mola, linhas SVG que se desenham, contexto do React, layout animations, Lottie, barra de abas própria | itens 27 e 32 |
 
 ## Documentos de consulta (fora desta pasta)
 

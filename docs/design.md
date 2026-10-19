@@ -44,7 +44,7 @@ Uma linha por print ou app de referência.
 | Estilo B da página de comparação | fundo escuro, número grande do dia, régua de dias do mês, cores suaves | a definir |
 | Estilo C da página de comparação | ícones coloridos por categoria nos gastos | fundo creme, cantos muito redondos |
 | Copilot Money | calma, números em destaque, pouca informação por vez | a definir |
-| Print 1 (três telas escuras com verde: Início, Transferências, Pagamentos) | fundo quase preto com cartões em cinza um pouco mais claro e sem borda; um único verde como cor de ação; botão principal cheio e botão secundário só com contorno, ambos arredondados; lista de movimentações agrupada por dia ("Hoje", "Ontem") com valor à direita; barra fina de várias cores como resumo de gastos do mês; barra de abas embaixo com ícones de contorno e a aba ativa em verde; campo de busca arredondado com ícone à esquerda | textura de ondas e brilho no cartão de saldo (é gradiente); vidro fosco e desfoque nas folhas; fotos de rosto nos itens; muitos blocos de atalho na mesma tela |
+| Print 1 (três telas escuras com verde: Início, Transferências, Pagamentos) | fundo quase preto com cartões em cinza um pouco mais claro e sem borda; um único verde como cor de ação; botão principal cheio e botão secundário só com contorno, ambos arredondados; lista de movimentações agrupada por dia ("Hoje", "Ontem") com valor à direita; barra fina de várias cores como resumo de gastos do mês; barra de abas embaixo com ícones de contorno e a aba ativa em verde; campo de busca arredondado com ícone à esquerda | textura de ondas e brilho no cartão de saldo (é gradiente; desde o Módulo 19, o cartão do "posso gastar" usa um gradiente roxo escuro liso e um brilho radial suave, ainda sem textura de ondas); vidro fosco e desfoque nas folhas; fotos de rosto nos itens; muitos blocos de atalho na mesma tela |
 | Print 2 (três telas escuras com amarelo-limão: boas-vindas, painel, estatística) | número de saldo grande com a variação pequena logo abaixo ("+2,5% este mês"); blocos em grade de duas colunas, cada um com ícone pequeno, rótulo, valor e variação; ideia de destacar só um bloco com cor cheia; lista de transações com marca de situação à direita; cantos generosos e botões em formato de pílula | o amarelo-limão (vivo demais para o tom calmo); tela de boas-vindas com estrelas e linhas curvas; mockups inclinados; gráfico de área com preenchimento em degradê; filtro "Mês" em formato de menu |
 
 ## 3. Tema
@@ -102,6 +102,17 @@ Nomes dos campos = nomes dos tokens no código.
 | `diaHoje` | hoje | `#A78BFA` |
 | `diaFuturo` | dias que faltam | `#2A3036` |
 
+### Destaque "posso gastar" (desde 2026-10-18, Módulo 19b)
+
+| Token | Uso | Valor |
+|---|---|---|
+| `gradientes.destaque` | fundo do cartão do "posso gastar", na diagonal (de cima à esquerda para baixo à direita) | `#2A2150` para `#1A1730` (roxo do `acento` misturado ao `fundo`; exceção da seção 13) |
+| `brilhoDestaque` | brilho que respira atrás do "posso gastar" positivo | `#A78BFA` (o `acento`), com opacidade de 32% no centro até 0% na borda (gradiente radial do SVG) |
+
+Contraste no ponto mais claro do gradiente (`#2A2150`): `texto` acima de 11:1, `textoSecundario`
+6,3:1, `negativo` 5,4:1. O `textoTerciario` daria só 4,7:1, por isso a linha "já separando" usa
+`textoSecundario` dentro do cartão.
+
 ## 5. Tipografia
 
 | Campo | Valor |
@@ -141,9 +152,26 @@ Nomes dos campos = nomes dos tokens no código.
 Para cada componente: aparência e regras. O que não estiver aqui segue os tokens acima.
 
 ### Destaque "posso gastar"
-- Sem cartão (direto no fundo), número em `numeroDestaque`.
-- Embaixo, a régua de dias do mês (um traço por dia; altura 18, canto 3, espaço 3).
+- Desde o Módulo 19b, num cartão (canto 16, respiro 16) com o gradiente `gradientes.destaque`;
+  número em `numeroDestaque`. Com valor positivo, um brilho roxo (`brilhoDestaque`, círculo de
+  220 com gradiente radial, 80 para fora do canto de cima à direita, cortado pelo cartão) respira
+  atrás, longe do texto. Negativo: número em `negativo`, sem brilho. Componente `DestaqueDoDia`.
+- Embaixo, fora do cartão, a régua de dias do mês: desde o Módulo 19b uma linha SVG (altura 18,
+  espessura 6, pontas redondas) em `diaFuturo`, com a parte que já passou em `diaPassado` e uma
+  marca de hoje (círculo de raio 6 em `diaHoje`, contorno 2 em `fundo`) na ponta. Antes era um
+  traço por dia.
 - Linha de detalhe: "dia 10 de 31" (a hora da atualização fica embaixo do título do mês, ver seção 8).
+
+### Olho do Início (desde 2026-10-18, Módulo 19b)
+- À direita do título do mês, botão de ícone (44x44) com `eye` (valores visíveis) ou `eye-off`
+  (escondidos), 22, `textoSecundario`. Nome para o leitor de tela: "Esconder valores" ou "Mostrar
+  valores".
+- Escondidos, todo valor em dinheiro do Início (destaque, saldo, fatura, entrou, saiu e as linhas
+  "inclui", avisos, gasto previsto, Guardado, últimos gastos) vira `R$ ••••`; o leitor de tela fala
+  "valor escondido". O destaque perde a cor `negativo` e o brilho, e a variação do Guardado perde
+  sinal e cor, para nada contar se o valor é bom ou ruim.
+- O estado fica só na memória (volta a "visíveis" ao abrir o app). Código em
+  `mobile/src/valoresVisiveis.tsx` (`ProvedorDeValores` e `useDinheiro()`).
 
 ### Cartão de par (saldo e fatura; entradas e saídas)
 - Dois cartões lado a lado, `superficie`, canto 16, espaço 12 entre eles.
@@ -346,6 +374,7 @@ Para cada componente: aparência e regras. O que não estiver aqui segue os toke
 | Ícones de categoria | ícone Lucide de 16 dentro do círculo colorido: `shopping-cart` (Mercado), `utensils` (Restaurantes), `car` (Transporte), `ellipsis` (Outras) |
 | Ícones dos cartões | 16, cor `textoSecundario`, ao lado do rótulo: `wallet` (Saldo), `credit-card` (Fatura aberta), `arrow-down-left` (Entrou, cor `positivo`), `arrow-up-right` (Saiu, cor `negativo`), `piggy-bank` (Guardado), `scale` (Saldo do mês, no Relatório); aviso com `triangle-alert` (18, cor `aviso`) |
 | Ícone de selecionado | `check` (20, cor `acento`), na categoria atual da folha "Categoria" |
+| Olho do Início | `eye` e `eye-off` (22, `textoSecundario`), ver "Olho do Início" na seção 7 |
 | Ilustrações | nenhuma imagem; os estados vazios usam um ícone Lucide de 40 em `textoTerciario`, acima do texto, escondido do leitor de tela (componente `EstadoVazio`) |
 | Ícones dos estados vazios | `receipt` (sem gastos, no Início e no Relatório), `credit-card` (sem cartão), `landmark` (sem conta), `hand-coins` (sem dívida), `arrow-left-right` (sem transação no mês) |
 
@@ -359,12 +388,13 @@ amortecimento alto, vibração leve e loops sutis. Valores em dinheiro continuam
 
 | Princípio | Regra |
 |---|---|
-| Duração | de 150 a 500 ms; nada passa de 500 ms (exceção: os loops sutis, ver "Loops contínuos") |
+| Duração | de 150 a 500 ms; nada passa de 500 ms (exceções: os loops sutis, ver "Loops contínuos", e o check de sucesso em Lottie, de 0,8 s, que não segura a interface porque o "Pago" já está na tela) |
 | Curva | `Easing.out(Easing.cubic)` ao entrar, `Easing.in(Easing.cubic)` ao sair |
 | Mola | `withSpring` vale para a bolha da barra de abas e para ícones e blocos que reagem ao toque, sempre com amortecimento alto (quique quase imperceptível); molas nomeadas `MOLA_SUAVE` e `MOLA_TOQUE` em `src/movimento.ts` (Módulo 19, 2026-10-18) |
 | Toque | escala 0,97 e opacidade 0,85 com `MOLA_TOQUE` em cartões tocáveis e no `Botao`; botões de ícone e linhas de lista seguem só com opacidade 0,7 imediata (ver a tabela de toque) |
-| Vibração | leve (`expo-haptics`, `src/vibrar.ts`) ao trocar de aba e no `Botao` principal; nunca lança erro (web e testes ficam sem vibração) |
-| Loops contínuos | permitidos só em destaques sutis (respiro do ícone do estado vazio, brilho do esqueleto); sempre param com "reduzir movimento" (`useMovimentoReduzido` em `src/movimento.ts`) |
+| Vibração | leve (`expo-haptics`, `src/vibrar.ts`) ao trocar de aba e no `Botao` principal; de sucesso (`vibrarSucesso`) ao marcar um gasto fixo ou uma parcela como paga; nunca lança erro (web e testes ficam sem vibração) |
+| Loops contínuos | permitidos só em destaques sutis (respiro do ícone do estado vazio, brilho do esqueleto, brilho do "posso gastar" positivo); sempre param com "reduzir movimento" (`useMovimentoReduzido` em `src/movimento.ts`) |
+| Linhas que se desenham | barras e réguas em SVG (`react-native-svg`) crescem animando o `strokeDashoffset` com `useAnimatedProps`, 500 ms, `Easing.out(Easing.cubic)`; com "reduzir movimento", aparecem prontas |
 | Reduzir movimento | sempre respeitado: `ReduceMotion.System` (padrão no Reanimated 4); a `Folha` usa `Modal` com `fade` (esmaecer não é movimento) |
 | Acessibilidade | o conteúdo animado já está acessível desde o primeiro quadro (rótulos e valores reais, mesmo no meio da animação) |
 
@@ -377,14 +407,22 @@ amortecimento alto, vibração leve e loops sutis. Valores em dinheiro continuam
 | Estado vazio (`EstadoVazio`) | o ícone "respira": escala de 1 a 1,06 e opacidade de 1 a 0,7, ciclo de 2,4 s, em loop; parado com "reduzir movimento" | 19a |
 | Toque em botão de ícone (setas, Voltar) e em linha de lista | só opacidade 0,7, troca imediata | 1 |
 | Folhas (as 5) | fundo com `fade`; a folha sobe com `SlideInDown` de 250 ms; fechar continua instantâneo | 2 (feita) |
-| Barra de progresso | enche de 0 ao valor em 500 ms com `scaleX` (origem à esquerda), só ao aparecer | 2 (feita) |
+| Barra de progresso | linha SVG de pontas redondas (altura 8, `acento` sobre o trilho `diaFuturo`) que se desenha de 0 ao valor em 500 ms (`strokeDashoffset`, `Easing.out(Easing.cubic)`); mudanças de valor partem do ponto atual | 19b (substitui o `scaleX` da entrega 2) |
+| Régua de dias (Início) | a parte que já passou se desenha do dia 1 até hoje em 500 ms (`strokeDashoffset`, `Easing.out(Easing.cubic)`), com a marca de hoje andando junto na ponta | 19b |
+| Destaque "posso gastar" positivo | brilho roxo atrás respira: opacidade de 0,55 a 1 e escala de 0,9 a 1,05, 2,4 s em cada sentido (vaivém de 4,8 s), `Easing.inOut(Easing.sin)`, em loop; parado no meio do caminho com "reduzir movimento"; o número aparece pronto | 19b |
+| Olho do Início | cross-fade entre `eye` e `eye-off` em 250 ms (`Easing.out(Easing.cubic)`): o que sai vai a opacidade 0 e escala 0,6, o que entra faz o contrário; vibração de seleção ao tocar; os valores trocam na hora | 19b |
+| Listas (gastos fixos, dívidas) | ao mudar de lugar ou tamanho, `LinearTransition` de 250 ms com `Easing.out(Easing.cubic)`; ao sumir, `FadeOut` de 150 ms com `Easing.in(Easing.cubic)` (`src/movimentoDeLista.ts`); o bloco das dívidas desliza junto com o cartão dos fixos | 19b |
+| Listas longas e folhas (Transações, parcelas) | só `itemLayoutAnimation` do `Animated.FlatList` (as linhas deslizam); sem entrada nem saída | 19b |
+| Cartão "Por mês" (A pagar) | anel SVG (80, traço 7, fundo `borda`, arco `acento`) que se desenha do topo até a % da renda do mês em 500 ms com `Easing.out(Easing.cubic)` (`strokeDashoffset` por `useAnimatedProps`); número pronto no meio; sem renda, sem anel | 19b |
+| Marcar pago (gasto fixo e parcela) | o ícone parte de -45 graus e escala 0,6 e volta com `MOLA_TOQUE`; vibração de sucesso; no gasto fixo, a Lottie "sucesso" (0,8 s, uma vez) no lugar do ícone | 19b |
+| Estados vazios principais (A pagar sem dívidas, Transações sem itens) | Lottie "vazio" (moeda que flutua, loop de 2 s) no lugar do ícone que respira; parada no último quadro com "reduzir movimento" | 19b |
 | Entrada em cascata (Início e cartões de Cartões, Contas e Dívidas) | `FadeInDown` de 200 ms, subida de 8, atraso de 40 ms por bloco, no máximo 6 blocos, só na primeira carga | 3 (feita) |
 | Troca de mês (Transações e Relatório) | `FadeIn` de 150 ms no conteúdo | 3 (feita) |
 | Carregamento do Início | esqueleto com blocos `superficie` por onde passa um brilho (faixa de gradiente `superficie`, `borda`, `superficie` com `expo-linear-gradient`, `translateX` em loop de 1,4 s); parado com "reduzir movimento"; a frase "Carregando o resumo..." continua visível | 19a (substitui o pulso de opacidade da entrega 3) |
 
-Não animam: valores em dinheiro (o "posso gastar" aparece pronto), puxar para baixo, o conteúdo das
-telas na troca de aba (só a bolha e o ícone da barra animam), itens de listas longas, régua de dias,
-erros e avisos.
+Não animam: valores em dinheiro (o "posso gastar" aparece pronto, e esconder ou mostrar os valores
+troca o texto na hora), puxar para baixo, o conteúdo das telas na troca de aba (só a bolha e o
+ícone da barra animam), erros e avisos.
 
 ### Folhas e barra (entrega 2)
 
@@ -393,10 +431,35 @@ erros e avisos.
   `SlideInDown.duration(250).easing(Easing.out(Easing.cubic))`. Sem `.reduceMotion()`, vale o
   padrão `ReduceMotion.System` (conferido na fonte do Reanimated 4.5.1), então a entrada é pulada
   com "reduzir movimento". Folhas com lista ou campos que rolam passam `alturaMaxima="85%"`.
-- `BarraDeProgresso` anima um `scaleX` de 0 até `porcentagem / 100` com `withTiming` (500 ms,
-  `Easing.out(Easing.cubic)`), com `transformOrigin: 'left center'` (aceito pelo RN 0.86 e pelo
-  Reanimated 4.5.1). Mudanças de valor partem do ponto atual. O `accessibilityValue` usa o número
-  real desde o primeiro quadro.
+- `BarraDeProgresso` (até o 19a) animava um `scaleX` de 0 até `porcentagem / 100`. Desde o 19b
+  ela é SVG, ver "Linhas que se desenham, brilho e olho (19b)" abaixo. O `accessibilityValue` usa o número real
+  desde o primeiro quadro.
+
+### Linhas que se desenham, brilho e olho (19b)
+
+- O desenho usa o tracejado do SVG: `strokeDasharray={[comprimento, comprimento]}` (um traço do
+  tamanho da linha e um buraco igual) e `strokeDashoffset` de `comprimento` (nada aparece) até
+  `comprimento * (1 - fração)`. O valor é animado com `withTiming` (500 ms,
+  `Easing.out(Easing.cubic)`) e passado à forma por `useAnimatedProps`, numa `Line` criada com
+  `Animated.createAnimatedComponent` (padrão do guia "Animating SVG" do Reanimated).
+- O comprimento sai da largura medida com `onLayout`; antes da medida (e no Jest, que não faz
+  layout) só aparecem o trilho e os textos. Na barra, em 0% a linha fica com `strokeOpacity` 0,
+  porque um traço vazio com ponta redonda ainda desenharia uma bolinha.
+- Régua de dias: o mesmo desenho até `diaDoMes / diasNoMes`; a marca de hoje é um `Circle` animado
+  cujo `cx` acompanha a ponta da linha. A régua inteira fica escondida do leitor de tela; o texto
+  "dia 12 de 31" continua embaixo.
+- Brilho do destaque: `withRepeat(withTiming(1, 2,4 s, Easing.inOut(Easing.sin)), -1, true)` num
+  `Animated.View` com o SVG do gradiente radial; só existe com valor positivo e valores visíveis.
+- Olho: dois ícones empilhados e um valor de 0 a 1 animado com `withTiming` (250 ms); a opacidade e
+  a escala de cada ícone saem dele (o ícone é uma fonte e não aceita cor animada).
+
+### Lottie (19b)
+
+- Arquivos próprios em `mobile/assets/animacoes/` (`vazio.json` e `sucesso.json`), feitos no
+  projeto, com as cores do tema em RGB de 0 a 1 (sem arquivos de terceiros).
+- Tocados pelo `AnimacaoLottie` (`src/componentes/AnimacaoLottie.tsx`), sempre escondido do leitor
+  de tela; com "reduzir movimento", parado no último quadro (`progress` 1).
+- No Jest, um dublê em `mobile/testes/configurar-reanimated.ts` troca a animação por uma `View`.
 
 ### Cascata, troca de mês e esqueleto (entrega 3)
 
@@ -406,7 +469,7 @@ erros e avisos.
   `ENTRADA_DO_CONTEUDO` (`FadeIn` de 150 ms).
 - O `Animated.View` com `entering` fica por fora dos `Pressable`. No Início, os blocos são o
   destaque, a régua, Saldo/Fatura, Entrou/Saiu e Guardado; em Cartões, Contas e Dívidas, um por
-  cartão (ou grupo). Transações (FlatList) e itens de listas longas não animam.
+  cartão (ou grupo). Em Transações (FlatList) e em listas longas, a entrada e a saída de itens não animam (o deslize do `itemLayoutAnimation`, do 19b, vale).
 - Só na primeira carga: puxar para baixo não desmonta os blocos. No Início, depois de salvar numa
   folha, o resumo é relido sem passar por "carregando" (função `reler`), para a cascata não repetir.
 - Troca de mês: o conteúdo de sucesso de `ListaDeTransacoes` e `RelatorioDoMes` entra com
@@ -446,8 +509,10 @@ conta própria.
 
 ## 13. O que evitar
 
-- Gradientes (exceção desde o 19a: o brilho do esqueleto de carregamento, em tons neutros),
-  desfoque (blur), brilhos, texturas de fundo, sombras fortes, emojis como ícones.
+- Gradientes (exceções: desde o 19a, o brilho do esqueleto de carregamento, em tons neutros; desde
+  o 19b, o cartão do "posso gastar" com o gradiente roxo escuro `gradientes.destaque` e o brilho
+  radial que respira atrás dele, os únicos da tela Início), desfoque (blur), brilhos fora dessas
+  exceções, texturas de fundo, sombras fortes, emojis como ícones.
 - Verde ou vermelho muito vivos (cansam no fundo escuro); amarelo-limão como cor de acento.
 - Mais de um número gigante por tela.
 - Mais de um bloco com cor cheia na mesma tela.
