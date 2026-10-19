@@ -4,7 +4,8 @@ Roteiro escrito em 2026-10-18 para colocar o app no servidor de casa: o backend 
 rodando sozinho, 24 horas por dia, com sincronização automática e backup, e o app instalado no
 celular sem depender do Expo Go nem do computador de desenvolvimento.
 
-Ainda não foi executado. Os comandos de ferramentas de fora (Docker, Tailscale, EAS) seguem a
+A Fase 0 (código) foi feita em 2026-10-18 (Módulo 20); as fases 1 a 5 rodam no servidor e ainda não
+foram executadas. Os comandos de ferramentas de fora (Docker, Tailscale, EAS) seguem a
 documentação oficial de cada uma; os links estão em cada fase e a seção 9 junta todos. Confira lá
 antes de rodar, porque as ferramentas mudam.
 
@@ -77,8 +78,7 @@ commit). Nenhuma delas muda o comportamento em desenvolvimento.
    - Com `DEBUG=False`, ligar `SECURE_PROXY_SSL_HEADER` só se houver proxy na frente (no plano B);
      com o `tailscale serve`, conferir na documentação qual cabeçalho ele repassa.
 3. **`backend/Dockerfile`** (imagem do Django):
-   - base `python:3.13-slim` (ou a versão que o projeto usa; conferir com `python --version` no
-     `.venv`);
+   - base `python:3.14-slim` (a mesma versão do `.venv`);
    - copiar `requirements.txt`, `pip install --no-cache-dir -r requirements.txt`, copiar o código;
    - `python manage.py collectstatic --noinput` na hora de montar a imagem;
    - comando final: `gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2`.
@@ -201,15 +201,19 @@ caminho se precisar acessar o app sem o Tailscale.
 
 ## Fase 4: sincronização automática e backup
 
-1. **Sincronização a cada 3 horas**: use os arquivos de `deploy/systemd/` ajustados na Fase 0
-   (o serviço chama o comando dentro do contêiner). Como o servidor fica ligado e ninguém faz login
+1. **Sincronização a cada 3 horas**: o serviço do servidor é o
+   `deploy/systemd/app-financas-sincronizar-docker.service` (chama o comando dentro do contêiner);
+   ele é copiado com o nome sem "-docker", para o timer que já existe encontrá-lo. Como o servidor fica ligado e ninguém faz login
    nele, ative o "lingering" para os timers do usuário rodarem sem login:
    ```bash
    sudo loginctl enable-linger vinicius
    mkdir -p ~/.config/systemd/user
-   cp deploy/systemd/app-financas-sincronizar.{service,timer} ~/.config/systemd/user/
+   cp deploy/systemd/app-financas-sincronizar-docker.service \
+     ~/.config/systemd/user/app-financas-sincronizar.service
+   cp deploy/systemd/app-financas-sincronizar.timer deploy/systemd/app-financas-backup.{service,timer} \
+     ~/.config/systemd/user/
    systemctl --user daemon-reload
-   systemctl --user enable --now app-financas-sincronizar.timer
+   systemctl --user enable --now app-financas-sincronizar.timer app-financas-backup.timer
    systemctl --user list-timers
    ```
 2. **Backup diário do banco** com `pg_dump`, guardando 14 dias:
@@ -219,8 +223,8 @@ caminho se precisar acessar o app sem o Tailscale.
      pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB" > ~/backups/financas-$(date +%F).dump
    find ~/backups -name 'financas-*.dump' -mtime +14 -delete
    ```
-   Coloque esses comandos num script (`deploy/backup.sh`) e rode por um timer diário igual ao da
-   sincronização (`OnCalendar=daily`, com `Persistent=true`, que funciona com `OnCalendar`).
+   Esses comandos já estão no `deploy/backup.sh`, que o `app-financas-backup.timer` roda todo dia
+   (`OnCalendar=daily` com `Persistent=true`); ele é ligado junto no passo 1.
 3. **Cópia fora do servidor**: um backup no mesmo disco não protege contra o disco queimar.
    Copie a pasta `~/backups` para outro lugar (o computador, por `rsync` pelo Tailscale, ou um
    serviço de nuvem com criptografia). O backup tem dados financeiros: guarde criptografado.

@@ -55,6 +55,7 @@ aos pré-requisitos dele.
 | 31 | [`modulos/planejamento-por-mes.md`](modulos/planejamento-por-mes.md) | Módulo 17: planejamento por mês, % da renda, reaproveitar services, nome acessível igual ao texto visível | item 30 |
 | 32 | [`modulos/por-mes-resumido.md`](modulos/por-mes-resumido.md) | Módulo 18: cartão resumido com folha de detalhes, mês em foco, teste errado e não o código | item 31 |
 | 33 | [`modulos/ui-fluida.md`](modulos/ui-fluida.md) | Módulo 19: mola, linhas SVG que se desenham, contexto do React, layout animations, Lottie, barra de abas própria | itens 27 e 32 |
+| 34 | [`modulos/deploy-fase-0.md`](modulos/deploy-fase-0.md) | Módulo 20: Dockerfile, Docker Compose de produção, Gunicorn, WhiteNoise, timers do servidor, perfil do EAS | item 24 |
 
 ## Documentos de consulta (fora desta pasta)
 
