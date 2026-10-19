@@ -1,0 +1,11 @@
+# Versão do servidor (Docker) do app-financas-sincronizar.service: roda o
+# comando dentro do contêiner web. No servidor, copie com o nome sem "-docker"
+# (ver deploy/systemd/README.md). Supõe o projeto em ~/app-financas.
+
+[Unit]
+Description=Sincronização do app de finanças com a Pluggy (Docker)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/app-financas
+ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml exec -T web python manage.py sincronizar

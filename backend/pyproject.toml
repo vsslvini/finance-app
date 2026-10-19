@@ -1,6 +1,9 @@
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
+# O WhiteNoise avisa que a pasta staticfiles/ não existe; ela só é criada pelo
+# collectstatic no Docker, então nos testes o aviso é esperado
+filterwarnings = ["ignore:No directory at:UserWarning"]
 
 [tool.ruff]
 line-length = 88

@@ -29,3 +29,6 @@ web-build/
 
 # Grafo do graphify (gerado localmente)
 graphify-out/
+
+# Arquivos do admin juntados pelo collectstatic (gerados no Docker)
+backend/staticfiles/

@@ -39,6 +39,17 @@ PLUGGY_CLIENT_SECRET = env("PLUGGY_CLIENT_SECRET")
 # celular acessar pela rede local, incluir o IP do computador no .env
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
+# Endereços HTTPS de onde o admin pode receber formulários (login). No servidor,
+# o endereço do Tailscale (ex.: https://servidor.rede.ts.net); vazio no
+# desenvolvimento, onde o admin é aberto por http://127.0.0.1
+CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
+
+# No servidor (DEBUG=False) os cookies do admin só viajam por HTTPS, que o
+# Tailscale garante. Sem redirecionar para HTTPS aqui: o "tailscale serve" fala
+# com o Django por HTTP, e o redirecionamento entraria em laço
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
 
 # Application definition
 
@@ -59,6 +70,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise: com DEBUG=False, serve o CSS e o JS do admin sem precisar de
+    # Nginx. Fica logo depois do SecurityMiddleware, como pede a documentação
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -137,6 +151,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = "static/"
+# Onde o collectstatic junta os arquivos do admin (só usado no Docker)
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
 # Django REST Framework

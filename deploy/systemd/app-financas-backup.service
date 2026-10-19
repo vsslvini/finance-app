@@ -1,0 +1,8 @@
+# Roda o deploy/backup.sh uma vez; quem chama é o app-financas-backup.timer.
+
+[Unit]
+Description=Backup do banco do app de finanças
+
+[Service]
+Type=oneshot
+ExecStart=%h/app-financas/deploy/backup.sh

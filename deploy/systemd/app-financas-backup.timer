@@ -1,0 +1,12 @@
+# Backup uma vez por dia. Persistent=true: se o servidor estava desligado na
+# hora, o backup roda assim que ele ligar.
+
+[Unit]
+Description=Backup diário do banco do app de finanças
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

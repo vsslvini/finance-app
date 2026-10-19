@@ -1,0 +1,37 @@
+# Produção no servidor caseiro (docs/deploy.md). Sobe o banco e o Django com
+# Gunicorn: docker compose -f docker-compose.prod.yml up -d --build
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?defina POSTGRES_DB no .env}
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    # Sem "ports": o banco só é alcançado pelo web, pela rede interna do Docker
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Dentro do Docker, o banco se chama "db" e escuta na porta padrão
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    depends_on:
+      db:
+        condition: service_healthy
+    # Só o próprio servidor alcança; o "tailscale serve" publica para os seus
+    # aparelhos, com HTTPS
+    ports:
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  postgres_data:
