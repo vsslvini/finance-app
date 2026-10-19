@@ -4,12 +4,14 @@ Roteiro escrito em 2026-10-18 para colocar o app no servidor de casa: o backend 
 rodando sozinho, 24 horas por dia, com sincronização automática e backup, e o app instalado no
 celular sem depender do Expo Go nem do computador de desenvolvimento.
 
-A Fase 0 (código) foi feita em 2026-10-18 (Módulo 20); as fases 1 a 5 rodam no servidor e ainda não
-foram executadas. Os comandos de ferramentas de fora (Docker, Tailscale, EAS) seguem a
+A Fase 0 (código) foi feita em 2026-10-18 (Módulo 20); as fases 1 a 4 foram feitas no servidor
+caseiro na mesma noite (estado na seção "Estado do servidor", logo abaixo); falta a
+Fase 5, no computador de desenvolvimento. Os comandos de ferramentas de fora (Docker, Tailscale, EAS) seguem a
 documentação oficial de cada uma; os links estão em cada fase e a seção 9 junta todos. Confira lá
 antes de rodar, porque as ferramentas mudam.
 
 - [Deploy no servidor caseiro](#deploy-no-servidor-caseiro)
+  - [Estado do servidor (2026-10-18)](#estado-do-servidor-2026-10-18)
   - [1. Como fica no final](#1-como-fica-no-final)
   - [2. Decisões e por quê](#2-decisões-e-por-quê)
   - [Fase 0: preparar o código (no computador de desenvolvimento)](#fase-0-preparar-o-código-no-computador-de-desenvolvimento)
@@ -22,6 +24,72 @@ antes de rodar, porque as ferramentas mudam.
   - [7. Checklist de segurança](#7-checklist-de-segurança)
   - [8. Quando der problema](#8-quando-der-problema)
   - [9. Fontes](#9-fontes)
+
+## Estado do servidor (2026-10-18)
+
+Para quem for fazer a Fase 5 (o APK) no computador de desenvolvimento.
+
+**O `mobile/.env` pronto está no servidor**, em `~/mobile.env.producao` (`chmod 600`), com o
+endereço real e o token de produção. Ele não fica no repositório porque o repositório é público.
+No computador de desenvolvimento, na raiz do projeto:
+
+```bash
+cp mobile/.env mobile/.env.dev        # guarda o .env de desenvolvimento (o .gitignore cobre .env.*)
+scp vinicius@<servidor>:mobile.env.producao mobile/.env
+grep -c '^EXPO_PUBLIC_API_TOKEN=.' mobile/.env    # 1 = token preenchido; 0 = ainda falta no servidor
+```
+
+`<servidor>` é o nome do servidor na rede Tailscale (`tailscale status` no computador mostra). Não
+abra o arquivo na conversa: ele tem o token.
+
+O que tem dentro, para entender:
+
+- `EXPO_PUBLIC_API_URL=https://<servidor>.<sua-rede>.ts.net`, **sem barra no fim**, porque o
+  `mobile/src/api.ts` junta `${url}${caminho}` e os caminhos já começam com `/api/`. É HTTPS (pelo
+  `tailscale serve`), o que importa porque o Android bloqueia HTTP comum em app instalado.
+- `EXPO_PUBLIC_API_TOKEN`: o token de produção, diferente do de desenvolvimento (cópia em
+  `~/token-do-app.txt` no servidor).
+
+**Conferir antes do build** (do computador, com o Tailscale ligado):
+
+```bash
+URL=$(sed -n 's/^EXPO_PUBLIC_API_URL=//p' mobile/.env)
+curl -s "$URL/api/health/"                                            # {"status":"ok"}
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Token $(sed -n 's/^EXPO_PUBLIC_API_TOKEN=//p' mobile/.env)" \
+  "$URL/api/resumo/"                                                  # 200
+```
+
+Se o primeiro falhar, o `tailscale serve` ainda não está ligado no servidor; se o segundo der
+401, o token está errado ou vazio.
+
+**Para o build em si:** o perfil `pessoal` do `mobile/eas.json` gera APK; o `app.json` já tem o
+nome "Finanças" e o `package` definitivo. Antes do `eas build`, conferir o aviso do fim da Fase 5:
+o `mobile/.env` está no `.gitignore`, e é preciso confirmar na documentação do EAS se ele é enviado
+ao build na nuvem ou se as variáveis vão por `eas env:create` (ou usar `--local`). Depois do build,
+voltar o `.env` de desenvolvimento (`cp mobile/.env.dev mobile/.env`). O celular já está na rede
+Tailscale; com ele ligado, o Início deve carregar os dados do servidor.
+
+**Como ficou o servidor** (diferente do plano original em dois pontos):
+
+- O backend foi montado **no próprio servidor**, pelo roteiro (`~/app-financas`, `docker compose
+  -f docker-compose.prod.yml up -d --build`). O servidor tem a regra de não guardar código; levar
+  o app para o padrão dele (imagem no GHCR) está em
+  [`planos/deploy-automatico.md`](planos/deploy-automatico.md), para depois.
+- `.env` de produção com `DJANGO_DEBUG=False`, chave e senha novas (`chmod 600`); banco sem porta
+  publicada; Django só em `127.0.0.1:8000`.
+- Banco começou **vazio** (os dados do desenvolvimento não vieram); as conexões da Pluggy são
+  cadastradas no admin ou vêm de um dump do computador.
+- Timers do systemd do usuário ligados: sincronização a cada 3 horas e backup diário em
+  `~/backups` (testado; restauração testada num banco à parte).
+- `manage.py check --deploy`: avisos conhecidos e aceitos (`mail.E001`, o app não manda e-mail;
+  `W008`, sem `SECURE_SSL_REDIRECT` de propósito; `W004`, HSTS fica para depois).
+
+**Pendências no servidor** (com o Vinicius, precisam de `sudo` ou são interativas):
+`sudo tailscale serve --bg 8000`, `sudo loginctl enable-linger vinicius`, conferir
+`sudo ufw status verbose`, `createsuperuser`, gerar o token (vai para `~/token-do-app.txt` e para
+a linha `EXPO_PUBLIC_API_TOKEN` do `~/mobile.env.producao`), cadastrar as conexões e cópia do
+backup fora do servidor.
 
 ## 1. Como fica no final
 
@@ -237,8 +305,9 @@ caminho se precisar acessar o app sem o Tailscale.
 ## Fase 5: o app no celular (APK)
 
 1. No `mobile/.env` usado para o build:
-   - `EXPO_PUBLIC_API_URL=https://servidor.<sua-rede>.ts.net`
-   - `EXPO_PUBLIC_API_TOKEN=<token de produção>`
+   - `EXPO_PUBLIC_API_URL=https://<servidor>.<sua-rede>.ts.net` (sem barra no fim)
+   - `EXPO_PUBLIC_API_TOKEN=<token de produção>` (em `~/token-do-app.txt` no servidor; ver
+     "Estado do servidor")
 
    As variáveis `EXPO_PUBLIC_` entram dentro do app na hora do build. Trocar o endereço ou o token
    exige um build novo. (Risco já aceito para uso pessoal: quem tiver o APK consegue ler o token.
