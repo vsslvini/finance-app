@@ -159,7 +159,7 @@ mas sempre mostra o texto antes e espera aprovação.
 **Próximos passos, em ordem:**
 
 1. Corrigir o que aparecer no teste do Módulo 14 no celular.
-2. Deploy: fases 1 a 4 feitas no servidor em 2026-10-18 (estado em `docs/deploy.md`, seção "Estado do servidor"); falta a Fase 5 (APK) no computador de desenvolvimento, depois das pendências do servidor (`tailscale serve`, lingering, `createsuperuser` e token). O `mobile/.env` de produção, com o endereço real e o token, fica só no servidor (`~/mobile.env.producao`), porque o repositório é público; a seção "Estado do servidor" diz como copiar e conferir. Automatizar o deploy fica em `docs/planos/deploy-automatico.md`.
+2. Deploy: fases 1 a 4 feitas no servidor em 2026-10-18 (estado em `docs/deploy.md`, seção "Estado do servidor"); falta a Fase 5 (APK) no computador de desenvolvimento, depois das pendências do servidor (`tailscale serve`, lingering, `createsuperuser` e token). O `mobile/.env` de produção, com o endereço real e o token, fica só no servidor (`~/mobile.env.producao`), porque o repositório é público; a seção "Estado do servidor" diz como copiar e conferir. Automatizar o deploy fica em `docs/planos/deploy-automatico.md`. Tudo o que falta está em `docs/pendencias.md`.
 3. Depois: RF22 (limite mensal com aviso), RF10 (gasto manual), editar dívida, animação ao fechar a folha, RF20 (metas), RF26 (biometria), atualizar `jest-expo` para ~57.0.6.
 
 ## Ao fim de cada sessão
