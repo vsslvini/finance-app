@@ -10,8 +10,15 @@
 // Tocar numa transação abre a FolhaDeCategoria. Quando a troca dá certo, a
 // folha fecha e a lista é relida com o mesmo "atualizar" do puxar para baixo:
 // a lista de antes fica na tela até a nova chegar, sem "Carregando...".
+//
+// Módulo 19b: a lista é um Animated.FlatList com "itemLayoutAnimation": quando
+// a lista relida traz uma transação nova no meio, as linhas de baixo deslizam
+// para abrir espaço, em vez de pular. As linhas não têm entrada nem saída
+// animadas: um mês pode ter centenas delas (seção 10 do guia), e ao trocar de
+// mês a lista inteira é trocada (key={mes}); uma saída animada deixaria as
+// linhas antigas esmaecendo por cima do "Carregando...".
 import { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { buscarTransacoes, type Transacao } from '@/api';
@@ -22,6 +29,7 @@ import ItemDeTransacao from '@/componentes/ItemDeTransacao';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
 import { tituloDoMes } from '@/formatacao';
 import { ENTRADA_DO_CONTEUDO } from '@/movimento';
+import { TRANSICAO_DE_LISTA } from '@/movimentoDeLista';
 import { cantos, cores, espaco, textos } from '@/tema';
 import { useCarga } from '@/useCarga';
 
@@ -66,11 +74,13 @@ export default function ListaDeTransacoes({ mes }: ListaDeTransacoesProps) {
         </Text>
       )}
       {/* FlatList (e não map) porque um mês pode ter centenas de transações:
-          ela só desenha as linhas que cabem na tela */}
-      <FlatList
+          ela só desenha as linhas que cabem na tela. <Transacao> diz ao
+          TypeScript o tipo de cada item */}
+      <Animated.FlatList<Transacao>
         testID="rolagem-transacoes"
         data={transacoes}
         keyExtractor={(transacao) => String(transacao.id)}
+        itemLayoutAnimation={TRANSICAO_DE_LISTA}
         renderItem={({ item, index }) => (
           <ItemDeTransacao
             transacao={item}
@@ -82,7 +92,9 @@ export default function ListaDeTransacoes({ mes }: ListaDeTransacoesProps) {
         )}
         ListEmptyComponent={
           <View style={styles.vazio}>
+            {/* O vazio principal da tela ganha a animação Lottie da moeda */}
             <EstadoVazio
+              animacao
               icone="arrow-left-right"
               texto={`Nenhuma transação em ${tituloDoMes(mes)}.`}
             />

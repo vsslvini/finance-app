@@ -5,8 +5,9 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { MesAtualPrevisto, MesPrevisto, Previsto } from '@/api';
-import { formatarReais, nomeCurtoDoMes, rotuloEmReais } from '@/formatacao';
+import { nomeCurtoDoMes } from '@/formatacao';
 import { cantos, cores, espaco, textos } from '@/tema';
+import { useDinheiro } from '@/valoresVisiveis';
 
 type CartaoDoPrevistoProps = {
   previsto: Previsto;
@@ -60,13 +61,17 @@ type BlocoProps = {
 };
 
 function Bloco({ titulo, total, linhas, textoVazio, comDivisoria }: BlocoProps) {
+  // Formata os valores ou mostra "R$ ••••", conforme o olho do Início
+  // (Módulo 19b; ver valoresVisiveis.tsx)
+  const { reais, rotulo: rotuloDoValor } = useDinheiro();
+
   // O rótulo lê o bloco inteiro de uma vez, com "reais" em vez de "R$"
-  const frases = [rotuloEmReais(titulo, total)];
+  const frases = [rotuloDoValor(titulo, total)];
   if (linhas.length === 0) {
     frases.push(textoVazio.replace(/\.$/, ''));
   } else {
     for (const linha of linhas) {
-      frases.push(rotuloEmReais(linha.nome, linha.valor));
+      frases.push(rotuloDoValor(linha.nome, linha.valor));
     }
   }
   const rotulo = `${frases.join('. ')}.`;
@@ -78,13 +83,13 @@ function Bloco({ titulo, total, linhas, textoVazio, comDivisoria }: BlocoProps) 
       style={[styles.bloco, comDivisoria && styles.blocoComDivisoria]}
     >
       <Text style={textos.rotulo}>{titulo}</Text>
-      <Text style={textos.valor}>{formatarReais(total)}</Text>
+      <Text style={textos.valor}>{reais(total)}</Text>
       {linhas.length === 0 ? (
         <Text style={textos.detalhe}>{textoVazio}</Text>
       ) : (
         linhas.map((linha) => (
           <Text key={linha.chave} style={[textos.detalhe, linha.aviso && styles.textoAviso]}>
-            {`${linha.nome}: ${formatarReais(linha.valor)}`}
+            {`${linha.nome}: ${reais(linha.valor)}`}
           </Text>
         ))
       )}

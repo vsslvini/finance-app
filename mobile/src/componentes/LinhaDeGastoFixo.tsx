@@ -1,13 +1,24 @@
 // Uma linha da lista de gastos fixos na aba "A pagar". Tem dois alvos de toque
 // lado a lado: a parte da esquerda abre a folha do gasto (editar ou apagar) e o
 // botão da direita marca ou desmarca o pagamento do mês.
+//
+// Módulo 19b: quando o gasto passa a pago, o ícone da situação dá um giro curto
+// (IconeAoMarcar). Se foi a pessoa que acabou de marcar ("comemorar"), no lugar
+// do ícone toca uma vez a animação de sucesso (um check que se desenha, 0,8 s);
+// quando ela termina, o ícone normal volta.
 import { Lucide, type LucideIconName } from '@react-native-vector-icons/lucide';
 import { Pressable, StyleSheet, Text, View, type ColorValue } from 'react-native';
 
 import type { GastoFixo } from '@/api';
+import AnimacaoLottie from '@/componentes/AnimacaoLottie';
 import Botao from '@/componentes/Botao';
+import IconeAoMarcar from '@/componentes/IconeAoMarcar';
 import { formatarNumero, formatarReais, mesPorExtenso, nomeCurtoDoMes } from '@/formatacao';
+import { useMovimentoReduzido } from '@/movimento';
 import { cores, espaco, textos, toque } from '@/tema';
+
+// Mesmo tamanho do ícone da situação, para a linha não mudar de altura
+const TAMANHO_DO_ICONE = 14;
 
 type LinhaDeGastoFixoProps = {
   gasto: GastoFixo;
@@ -15,6 +26,11 @@ type LinhaDeGastoFixoProps = {
   ocupado: boolean; // true enquanto um pedido de marcar está em andamento
   aoAbrir: () => void;
   aoAlternarPagamento: () => void;
+  // true logo depois de a pessoa marcar este gasto como pago (quem decide é a
+  // aba, que sabe qual botão foi tocado). Padrão: false
+  comemorar?: boolean;
+  // A animação de sucesso terminou: a aba volta "comemorar" para false
+  aoTerminarComemoracao?: () => void;
 };
 
 export default function LinhaDeGastoFixo({
@@ -23,9 +39,16 @@ export default function LinhaDeGastoFixo({
   ocupado,
   aoAbrir,
   aoAlternarPagamento,
+  comemorar = false,
+  aoTerminarComemoracao,
 }: LinhaDeGastoFixoProps) {
   const { situacao, mes } = gasto.este_mes;
   const nomeDoMes = nomeCurtoDoMes(mes);
+  const movimentoReduzido = useMovimentoReduzido();
+  const pago = situacao === 'pago_manual' || situacao === 'pago_automatico';
+  // A animação de sucesso só aparece com o gasto já pago na tela (depois de a
+  // lista ser relida) e nunca com "reduzir movimento" (aí fica o ícone parado)
+  const mostrarSucesso = comemorar && pago && !movimentoReduzido;
 
   // Situação com ícone e texto (a cor sozinha não basta para quem não enxerga bem)
   let icone: LucideIconName;
@@ -88,13 +111,23 @@ export default function LinhaDeGastoFixo({
         <Text style={textos.detalhe}>{valorEDia}</Text>
         <View style={styles.situacao}>
           {/* Só desenho: o texto ao lado já diz a situação */}
-          <Lucide
-            name={icone}
-            size={14}
-            color={cor}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          />
+          <IconeAoMarcar marcado={pago}>
+            {mostrarSucesso ? (
+              <AnimacaoLottie
+                animacao="sucesso"
+                tamanho={TAMANHO_DO_ICONE}
+                aoTerminar={aoTerminarComemoracao}
+              />
+            ) : (
+              <Lucide
+                name={icone}
+                size={TAMANHO_DO_ICONE}
+                color={cor}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
+            )}
+          </IconeAoMarcar>
           <Text style={[textos.rotulo, { color: cor }]}>{textoDaSituacao}</Text>
         </View>
       </Pressable>

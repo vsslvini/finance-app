@@ -4,10 +4,15 @@
 //
 // Fluxo: a aba já buscou /api/a-pagar/ e passa os dados para cá. O mês em foco
 // e os textos saem de contas feitas durante a renderização, sem estado.
+//
+// Módulo 19b: com renda, ao lado do mês em foco aparece um anel que se desenha
+// até a % da renda que o mês todo (fixos e dívidas) tira; o número no meio já
+// vem pronto. Sem renda, não há anel (e o mês fica como antes).
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { APagarPorMes, MesAPagar } from '@/api';
+import AnelDeProgresso from '@/componentes/AnelDeProgresso';
 import BarraDeProgresso from '@/componentes/BarraDeProgresso';
 import Tocavel from '@/componentes/Tocavel';
 import { formatarReais, tituloDoMes } from '@/formatacao';
@@ -87,9 +92,21 @@ export default function CartaoPorMes({ dados, aoAbrir }: CartaoPorMesProps) {
 
       {mes !== undefined && (
         <>
-          <View style={styles.linha}>
-            <Text style={textos.corpo}>{tituloDoMes(mes.mes)}</Text>
-            <Text style={textos.valor}>{formatarReais(mes.total)}</Text>
+          <View style={styles.resumoDoMes}>
+            {mes.percentual_da_renda !== null && (
+              // O anel nunca passa de 100; o número do meio mostra o real.
+              // "38,7%" fica separado de "da renda" (duas linhas no meio do
+              // anel); a frase "38,7% da renda" inteira continua só na folha
+              <AnelDeProgresso
+                porcentagem={Number(mes.percentual_da_renda)}
+                texto={`${mes.percentual_da_renda.replace('.', ',')}%`}
+                legenda="da renda"
+              />
+            )}
+            <View style={[styles.linha, styles.linhaDoMes]}>
+              <Text style={textos.corpo}>{tituloDoMes(mes.mes)}</Text>
+              <Text style={textos.valor}>{formatarReais(mes.total)}</Text>
+            </View>
           </View>
           <LinhaDoTipo nome="Gastos fixos" valor={mes.fixos} percentual={mes.percentual_fixos} />
           <LinhaDoTipo nome="Dívidas" valor={mes.dividas} percentual={mes.percentual_dividas} />
@@ -117,5 +134,14 @@ const styles = StyleSheet.create({
   },
   tipo: {
     gap: espaco.minimo,
+  },
+  // O anel (quando existe) à esquerda e a linha do mês ocupando o resto
+  resumoDoMes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaco.grande,
+  },
+  linhaDoMes: {
+    flex: 1,
   },
 });

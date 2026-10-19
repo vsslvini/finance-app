@@ -799,3 +799,22 @@ describe('Transferência entre minhas contas (11b)', () => {
     expect(screen.getByRole('button', { name: TRANSFERENCIA_PROPRIA })).toBeOnTheScreen();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Módulo 19b: animação Lottie no vazio (caso 6 do pedido do 19b). O dublê do
+// Lottie (testes/configurar-reanimated.ts) desenha uma View com o testID; ela
+// fica escondida do leitor de tela, por isso o includeHiddenElements.
+// ---------------------------------------------------------------------------
+describe('Vazio animado (19b)', () => {
+  it('sem transações no mês, mostra a animação de vazio com "Nenhuma transação em Outubro de 2026." (caso 6)', async () => {
+    // Prepara: o servidor falso devolve a lista vazia para qualquer mês.
+    respostaDasTransacoes = async () => respostaFalsa(200, []);
+
+    await render(<TransacoesScreen />);
+
+    expect(await screen.findByText('Nenhuma transação em Outubro de 2026.')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('animacao-vazio', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
+  });
+});

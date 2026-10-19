@@ -1421,6 +1421,74 @@ describe('Folha "Por mês" (módulo 18b, casos 4 a 6)', () => {
   });
 });
 
+// ===========================================================================
+// Módulo 19b: anel da % da renda e animações Lottie na aba "A pagar"
+//
+// As animações Lottie não rodam no Jest: o dublê do lottie-react-native (em
+// testes/configurar-reanimated.ts) desenha uma View vazia com o mesmo testID
+// ("animacao-vazio" ou "animacao-sucesso"). A animação fica escondida do
+// leitor de tela (é só enfeite), e a Testing Library ignora o que está
+// escondido; por isso o includeHiddenElements: "procure também nos escondidos".
+// ===========================================================================
+describe('Anel e animações da aba A pagar (19b)', () => {
+  it('com renda, o cartão "Por mês" mostra "30,7%" e "da renda" no meio do anel (caso 3)', async () => {
+    // Prepara: o mês em foco é novembro, que tira 30,7% da renda.
+    respostaDoAPagar = async () => respostaFalsa(200, A_PAGAR_COMECA_EM_NOVEMBRO);
+
+    await render(<DividasScreen />);
+
+    // Verifica: o número e a legenda do anel (dois textos separados).
+    expect(await screen.findByText('30,7%')).toBeOnTheScreen();
+    expect(screen.getByText('da renda')).toBeOnTheScreen();
+  });
+
+  it('sem renda, o anel não aparece (nem a % nem "da renda") (caso 3)', async () => {
+    // O servidor padrão responde sem renda e com os percentuais null.
+    await render(<DividasScreen />);
+    await screen.findByText('Informe sua renda para ver quanto isso tira dela.');
+
+    // Nenhum texto no formato "30,7%" e nenhuma legenda "da renda".
+    expect(screen.queryByText(/^\d+,\d%$/)).toBeNull();
+    expect(screen.queryByText('da renda')).toBeNull();
+  });
+
+  it('sem dívidas, mostra a animação de vazio junto com "Nenhuma dívida cadastrada." (caso 4)', async () => {
+    respostaDasDividas = async () => respostaFalsa(200, []);
+
+    await render(<DividasScreen />);
+
+    expect(await screen.findByText('Nenhuma dívida cadastrada.')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('animacao-vazio', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
+  });
+
+  it('depois de "Marcar pago" e da lista relida com o gasto pago, mostra a animação de sucesso (caso 5)', async () => {
+    // Prepara: o Apartamento começa a pagar.
+    respostaDosFixos = async () => respostaFalsa(200, [FIXO_A_PAGAR]);
+    await render(<DividasScreen />);
+    const marcar = await screen.findByRole('button', { name: MARCAR_APARTAMENTO });
+    // Antes do toque, nada de animação de sucesso.
+    expect(screen.queryByTestId('animacao-sucesso', { includeHiddenElements: true })).toBeNull();
+
+    // O servidor passa a responder o gasto pago (no PUT e na releitura).
+    respostaDoPagamento = async () => respostaFalsa(200, FIXO_PAGO_MANUAL);
+    respostaDosFixos = async () => respostaFalsa(200, [FIXO_PAGO_MANUAL]);
+
+    // Faz: toca em "Marcar pago".
+    await fireEvent.press(marcar);
+
+    // Verifica: a linha foi relida já paga...
+    expect(
+      await screen.findByRole('button', { name: ROTULO_FIXO_PAGO_MANUAL }),
+    ).toBeOnTheScreen();
+    // ...e no lugar do ícone aparece a animação de sucesso.
+    expect(
+      await screen.findByTestId('animacao-sucesso', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
+  });
+});
+
 describe('Folha "Novo gasto fixo" (14b, caso 13)', () => {
   it('mostra a explicação "Conta como saída todo mês até ser pago. Vale até você apagar." (caso 13)', async () => {
     await abrirNovoFixo();

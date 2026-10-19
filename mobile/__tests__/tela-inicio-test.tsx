@@ -1346,6 +1346,69 @@ describe('Gastos fixos no Início', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Módulo 19b: o olho que esconde os valores (casos 1 e 2 do pedido do 19b;
+// caso 5 do plano em docs/planos/modulo-19-ui-fluida.md)
+//
+// Com os valores escondidos, todo valor em dinheiro do Início vira "R$ ••••"
+// e o leitor de tela fala "valor escondido" no lugar do número.
+// ---------------------------------------------------------------------------
+describe('Olho do Início (19b)', () => {
+  it('tocar em "Esconder valores" troca o botão para "Mostrar valores" e esconde os valores (caso 1)', async () => {
+    // Prepara: o resumo de exemplo (saldo 1.250,50 e fatura 499,90).
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+    await render(<InicioScreen />);
+
+    // Faz: acha o botão do olho pelo nome que o leitor de tela fala e toca nele.
+    await fireEvent.press(await screen.findByRole('button', { name: 'Esconder valores' }));
+
+    // Verifica: o botão agora diz o que o próximo toque fará...
+    expect(screen.getByRole('button', { name: 'Mostrar valores' })).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Esconder valores' })).toBeNull();
+    // ...os valores viraram "R$ ••••" (getAllByText porque são vários)...
+    expect(screen.getAllByText('R$ ••••').length).toBeGreaterThan(0);
+    expect(screen.getByText('+ R$ ••••')).toBeOnTheScreen();
+    expect(screen.getByText('- R$ ••••')).toBeOnTheScreen();
+    // ...os valores conhecidos do resumo sumiram da tela...
+    expect(screen.queryByText('R$ 1.250,50')).toBeNull();
+    expect(screen.queryByText('R$ 499,90')).toBeNull();
+    // ...e o leitor de tela também não fala mais o saldo.
+    expect(screen.getByLabelText('Saldo: valor escondido')).toBeOnTheScreen();
+    expect(screen.queryByLabelText(ROTULO_SALDO)).toBeNull();
+  });
+
+  it('tocar de novo em "Mostrar valores" volta os valores de antes (caso 1)', async () => {
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+    await render(<InicioScreen />);
+
+    // Faz: esconde e depois mostra de novo.
+    await fireEvent.press(await screen.findByRole('button', { name: 'Esconder valores' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Mostrar valores' }));
+
+    // Verifica: o saldo e a fatura voltaram, nenhum "R$ ••••" sobrou e o
+    // botão voltou a se chamar "Esconder valores".
+    expect(screen.getByText('R$ 1.250,50')).toBeOnTheScreen();
+    expect(screen.getByText('R$ 499,90')).toBeOnTheScreen();
+    expect(screen.queryAllByText(/••••/)).toHaveLength(0);
+    expect(screen.getByLabelText(ROTULO_SALDO)).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Esconder valores' })).toBeOnTheScreen();
+  });
+
+  it('com os valores escondidos, o "posso gastar por dia" também fica escondido (caso 2)', async () => {
+    // O resumo de exemplo tem posso_gastar_por_dia "31.31".
+    fetchFalso.mockResolvedValue(respostaFalsa(200, criarResumo()));
+    await render(<InicioScreen />);
+    // Antes do toque, o número grande está na tela.
+    expect(await screen.findByText('R$ 31,31')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Esconder valores' }));
+
+    // Verifica: o número sumiu, e o bloco do destaque fala "valor escondido".
+    expect(screen.queryByText('R$ 31,31')).toBeNull();
+    expect(screen.getByLabelText('Posso gastar por dia: valor escondido')).toBeOnTheScreen();
+  });
+});
+
 describe('buscarResumo', () => {
   // Testamos a função direto (sem tela), porque o limite de tempo mora nela e
   // fica mais simples: não precisamos esperar nada aparecer na tela.

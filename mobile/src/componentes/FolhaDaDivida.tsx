@@ -2,16 +2,24 @@
 // botão "Editar dívida" (a aba abre a folha do cadastro) e o de apagar, que pede
 // dois toques. A folha parte da dívida que a aba já tem e a troca pela resposta
 // do backend a cada parcela marcada.
+//
+// Módulo 19b: a lista é um Animated.FlatList, para as linhas deslizarem se
+// mudarem de tamanho ou de lugar; marcar uma parcela como paga vibra e o ícone
+// dá um giro curto (IconeAoMarcar).
 import { Lucide, type LucideIconName } from '@react-native-vector-icons/lucide';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, type ColorValue } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type ColorValue } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { apagarDivida, marcarParcela, type Divida, type ParcelaDaDivida } from '@/api';
 import Botao from '@/componentes/Botao';
 import Folha from '@/componentes/Folha';
+import IconeAoMarcar from '@/componentes/IconeAoMarcar';
 import { formatarNumero, formatarReais, mesPorExtenso, tituloDoMes } from '@/formatacao';
 import { mensagemDoErro } from '@/mensagens';
+import { TRANSICAO_DE_LISTA } from '@/movimentoDeLista';
 import { cores, espaco, textos, toque } from '@/tema';
+import { vibrarSucesso } from '@/vibrar';
 
 type FolhaDaDividaProps = {
   divida: Divida;
@@ -51,6 +59,10 @@ export default function FolhaDaDivida({
       const nova = await marcarParcela(parcela.id, !parcela.paga);
       setDivida(nova);
       setMudou(true);
+      // Vibra só ao marcar como paga (desmarcar não é uma conquista)
+      if (!parcela.paga) {
+        vibrarSucesso();
+      }
     } catch (erroDaApi) {
       setErro(mensagemDoErro(erroDaApi));
     } finally {
@@ -93,11 +105,17 @@ export default function FolhaDaDivida({
         {`${formatarReais(divida.valor_total)} em ${divida.total_parcelas}x · falta ${formatarReais(divida.valor_restante)}`}
       </Text>
 
-      {/* extraData: a lista precisa redesenhar as linhas quando "salvando" muda */}
-      <FlatList
+      {/* extraData: a lista precisa redesenhar as linhas quando "salvando" muda.
+          itemLayoutAnimation: cada linha desliza se mudar de lugar ou de altura.
+          Sem "exiting" nas linhas: as parcelas não somem desta folha (só são
+          marcadas), e uma saída animada dentro do Modal poderia deixar a linha
+          "fantasma" na tela por um instante ao fechar a folha */}
+      {/* <ParcelaDaDivida> diz ao TypeScript o tipo de cada item da lista */}
+      <Animated.FlatList<ParcelaDaDivida>
         data={divida.parcelas}
         extraData={salvando}
         keyExtractor={(parcela) => String(parcela.id)}
+        itemLayoutAnimation={TRANSICAO_DE_LISTA}
         style={styles.lista}
         renderItem={({ item }) => (
           <LinhaDeParcela
@@ -187,14 +205,17 @@ function LinhaDeParcela({ parcela, total, salvando, aoTocar }: LinhaDeParcelaPro
       <View style={styles.linhaDireita}>
         <Text style={textos.valor}>{formatarReais(parcela.valor)}</Text>
         <View style={styles.situacao}>
-          {/* Só desenho: o texto ao lado já diz a situação */}
-          <Lucide
-            name={icone}
-            size={14}
-            color={cor}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          />
+          {/* Só desenho: o texto ao lado já diz a situação. Ao virar "Paga",
+              o ícone gira e cresce com uma mola curta */}
+          <IconeAoMarcar marcado={parcela.paga}>
+            <Lucide
+              name={icone}
+              size={14}
+              color={cor}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            />
+          </IconeAoMarcar>
           <Text style={[textos.rotulo, { color: cor }]}>{situacao}</Text>
         </View>
       </View>

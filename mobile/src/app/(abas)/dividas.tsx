@@ -28,9 +28,11 @@ import LinhaDeGastoFixo from '@/componentes/LinhaDeGastoFixo';
 import MensagemDeErro from '@/componentes/MensagemDeErro';
 import { formatarReais, somarReais } from '@/formatacao';
 import { mensagemDoErro } from '@/mensagens';
-import { entradaEmCascata } from '@/movimento';
+import { ENTRADA_DO_CONTEUDO, entradaEmCascata } from '@/movimento';
+import { SAIDA_DE_LISTA, TRANSICAO_DE_LISTA } from '@/movimentoDeLista';
 import { cantos, cores, espaco, textos } from '@/tema';
 import { useCarga } from '@/useCarga';
+import { vibrarSucesso } from '@/vibrar';
 
 // Busca os três pedidos juntos. Fica fora do componente para ser sempre a mesma
 // função entre renderizações (o useCarga depende disso). Se um falhar, o
@@ -53,6 +55,11 @@ function buscarAPagar(): Promise<[GastoFixo[], Divida[], APagarPorMes]> {
 // com os campos preenchidos. Depois de qualquer mudança, tudo é lido de novo.
 // Embaixo do título de cada seção, uma linha soma os valores (calculada na
 // renderização).
+//
+// Módulo 19b: as linhas de gasto fixo e os cartões de dívida deslizam quando
+// mudam de lugar e esmaecem quando somem (TRANSICAO_DE_LISTA e SAIDA_DE_LISTA);
+// o bloco das dívidas desliza junto, para nada "pular" quando a lista de fixos
+// muda de tamanho. Marcar um fixo como pago vibra e toca o check de sucesso.
 export default function DividasScreen() {
   const { estado, recarregar, atualizar, atualizando, falhouAoAtualizar } =
     useCarga(buscarAPagar);
@@ -71,6 +78,9 @@ export default function DividasScreen() {
   const [rendaAberta, setRendaAberta] = useState(false);
   // true enquanto a folha "Por mês" (os 6 meses) está aberta
   const [porMesAberto, setPorMesAberto] = useState(false);
+  // O gasto fixo que a pessoa acabou de marcar como pago (null = nenhum): a
+  // linha dele toca a animação de sucesso uma vez
+  const [recemPago, setRecemPago] = useState<number | null>(null);
 
   // A borda de baixo fica com a barra de abas, que já cuida da área segura
   if (estado.tipo === 'carregando') {
@@ -103,16 +113,24 @@ export default function DividasScreen() {
 
   // Marca (a pagar) ou desmarca (pago manual) o pagamento do mês do gasto. Se o
   // pedido falhar, a linha continua como estava e aparece a mensagem.
+  // Ao marcar, a linha comemora (check de sucesso) e o celular vibra, só depois
+  // de a lista ser relida: assim o check e a vibração chegam juntos com o
+  // "Pago" na tela.
   async function alternarPagamento(gasto: GastoFixo) {
     setErroDoPagamento(null);
     setMarcando(true);
+    const marcar = gasto.este_mes.situacao === 'a_pagar';
     try {
-      if (gasto.este_mes.situacao === 'a_pagar') {
+      if (marcar) {
         await marcarGastoFixoPago(gasto.id, gasto.este_mes.mes);
       } else {
         await desmarcarGastoFixoPago(gasto.id, gasto.este_mes.mes);
       }
+      setRecemPago(marcar ? gasto.id : null);
       await atualizar();
+      if (marcar) {
+        vibrarSucesso();
+      }
     } catch (erroDaApi) {
       setErroDoPagamento(mensagemDoErro(erroDaApi));
     } finally {
@@ -238,52 +256,79 @@ export default function DividasScreen() {
           aoTocar={() => setNovoFixoAberto(true)}
         />
 
-        <Animated.View entering={entradaEmCascata(1)} style={styles.cartaoDosFixos}>
+        {/* "layout": quando uma linha entra ou sai, o cartão muda de altura
+            deslizando, em vez de encolher de repente */}
+        <Animated.View
+          entering={entradaEmCascata(1)}
+          layout={TRANSICAO_DE_LISTA}
+          style={styles.cartaoDosFixos}
+        >
           {gastosFixos.length === 0 ? (
-            <EstadoVazio icone="repeat" texto="Nenhum gasto fixo cadastrado." />
+            // O vazio aparece com um fade curto (ex.: depois de apagar o último)
+            <Animated.View entering={ENTRADA_DO_CONTEUDO}>
+              <EstadoVazio icone="repeat" texto="Nenhum gasto fixo cadastrado." />
+            </Animated.View>
           ) : (
             gastosFixos.map((gasto, indice) => (
-              <LinhaDeGastoFixo
-                key={gasto.id}
-                gasto={gasto}
-                comDivisoria={indice > 0}
-                ocupado={marcando}
-                aoAbrir={() => setFixoAberto(gasto)}
-                aoAlternarPagamento={() => alternarPagamento(gasto)}
-              />
+              // Cada linha desliza se mudar de lugar e esmaece ao ser apagada.
+              // Sem "entering": a lista é curta, mas a linha nova aparece no
+              // lugar, sem atrasar a leitura (seção 10 do guia)
+              <Animated.View key={gasto.id} layout={TRANSICAO_DE_LISTA} exiting={SAIDA_DE_LISTA}>
+                <LinhaDeGastoFixo
+                  gasto={gasto}
+                  comDivisoria={indice > 0}
+                  ocupado={marcando}
+                  aoAbrir={() => setFixoAberto(gasto)}
+                  aoAlternarPagamento={() => alternarPagamento(gasto)}
+                  comemorar={recemPago === gasto.id}
+                  aoTerminarComemoracao={() => setRecemPago(null)}
+                />
+              </Animated.View>
             ))
           )}
         </Animated.View>
-        {erroDoPagamento !== null && (
-          <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.erro]}>
-            {erroDoPagamento}
-          </Text>
-        )}
 
-        <Text accessibilityRole="header" style={[textos.subtitulo, styles.secao]}>
-          Dívidas
-        </Text>
-        {dividas.length > 0 && (
-          <Text style={[textos.corpo, styles.resumo]}>
-            {`Falta ${formatarReais(faltaDasDividas)} no total (de ${formatarReais(totalDasDividas)})`}
-          </Text>
-        )}
-        <Botao titulo="Nova dívida" tipo="secundario" aoTocar={() => setNovaAberta(true)} />
+        {/* Tudo daqui para baixo fica num bloco só com "layout": quando o cartão
+            dos fixos muda de altura, o bloco desliza junto, em vez de pular */}
+        <Animated.View layout={TRANSICAO_DE_LISTA} style={styles.blocoDasDividas}>
+          {erroDoPagamento !== null && (
+            <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.erro]}>
+              {erroDoPagamento}
+            </Text>
+          )}
 
-        {dividas.length === 0 ? (
-          <View style={styles.vazio}>
-            <EstadoVazio icone="hand-coins" texto="Nenhuma dívida cadastrada." />
-          </View>
-        ) : (
-          // Poucas dívidas, então um map simples basta; FlatList dentro de
-          // ScrollView não é recomendado
-          // Cada cartão entra em cascata (seção 10 do guia), só na primeira carga
-          dividas.map((divida, indice) => (
-            <Animated.View key={divida.id} entering={entradaEmCascata(indice + 2)}>
-              <CartaoDeDivida divida={divida} aoTocar={() => setAberta(divida)} />
+          <Text accessibilityRole="header" style={[textos.subtitulo, styles.secao]}>
+            Dívidas
+          </Text>
+          {dividas.length > 0 && (
+            <Text style={[textos.corpo, styles.resumo]}>
+              {`Falta ${formatarReais(faltaDasDividas)} no total (de ${formatarReais(totalDasDividas)})`}
+            </Text>
+          )}
+          <Botao titulo="Nova dívida" tipo="secundario" aoTocar={() => setNovaAberta(true)} />
+
+          {dividas.length === 0 ? (
+            <Animated.View entering={ENTRADA_DO_CONTEUDO} style={styles.vazio}>
+              {/* O vazio principal da aba ganha a animação Lottie da moeda */}
+              <EstadoVazio animacao icone="hand-coins" texto="Nenhuma dívida cadastrada." />
             </Animated.View>
-          ))
-        )}
+          ) : (
+            // Poucas dívidas, então um map simples basta; FlatList dentro de
+            // ScrollView não é recomendado
+            // Cada cartão entra em cascata (seção 10 do guia), só na primeira
+            // carga; depois desliza se mudar de lugar e esmaece ao ser apagado
+            dividas.map((divida, indice) => (
+              <Animated.View
+                key={divida.id}
+                entering={entradaEmCascata(indice + 2)}
+                layout={TRANSICAO_DE_LISTA}
+                exiting={SAIDA_DE_LISTA}
+              >
+                <CartaoDeDivida divida={divida} aoTocar={() => setAberta(divida)} />
+              </Animated.View>
+            ))
+          )}
+        </Animated.View>
       </ScrollView>
 
       {porMesAberto && (
@@ -381,6 +426,10 @@ const styles = StyleSheet.create({
   },
   erro: {
     color: cores.erro,
+  },
+  // Mesmo espaço entre os itens do ScrollView, agora dentro do bloco
+  blocoDasDividas: {
+    gap: espaco.medio,
   },
   vazio: {
     backgroundColor: cores.superficie,

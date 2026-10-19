@@ -8,7 +8,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { buscarResumo, ErroApi, sincronizar, type Resumo, type TipoErroApi } from '@/api';
 import { iconeDaCategoria } from '@/categorias';
 import Botao from '@/componentes/Botao';
+import BotaoDoOlho from '@/componentes/BotaoDoOlho';
 import CartaoDoPrevisto from '@/componentes/CartaoDoPrevisto';
+import DestaqueDoDia from '@/componentes/DestaqueDoDia';
 import EsqueletoDoInicio from '@/componentes/EsqueletoDoInicio';
 import EstadoVazio from '@/componentes/EstadoVazio';
 import FolhaDeEdicao, { type CampoEditavel } from '@/componentes/FolhaDeEdicao';
@@ -17,18 +19,11 @@ import ReguaDeDias from '@/componentes/ReguaDeDias';
 import RotuloDoCartao from '@/componentes/RotuloDoCartao';
 import SecaoGuardado from '@/componentes/SecaoGuardado';
 import Tocavel from '@/componentes/Tocavel';
-import {
-  formatarData,
-  formatarNumero,
-  formatarReais,
-  hojeNoCelular,
-  rotuloEmReais,
-  textoDaAtualizacao,
-  tituloDoMes,
-} from '@/formatacao';
+import { formatarData, hojeNoCelular, textoDaAtualizacao, tituloDoMes } from '@/formatacao';
 import { MENSAGENS_DE_ERRO } from '@/mensagens';
 import { entradaEmCascata } from '@/movimento';
-import { cantos, cores, espaco, fontes, textos } from '@/tema';
+import { cantos, cores, espaco, textos } from '@/tema';
+import { criarDinheiro, ProvedorDeValores } from '@/valoresVisiveis';
 
 // A tela está sempre em um destes três estados
 type Estado =
@@ -48,12 +43,6 @@ async function carregarEstado(): Promise<Estado> {
   }
 }
 
-// "R$ 31,31" -> ["R$ 31", "31"], para desenhar os centavos menores
-function separarCentavos(textoEmReais: string): [string, string] {
-  const virgula = textoEmReais.lastIndexOf(',');
-  return [textoEmReais.slice(0, virgula), textoEmReais.slice(virgula + 1)];
-}
-
 export default function InicioScreen() {
   const [estado, setEstado] = useState<Estado>({ tipo: 'carregando' });
   // Qual folha de edição está aberta (null = nenhuma)
@@ -65,6 +54,9 @@ export default function InicioScreen() {
   const [atualizando, setAtualizando] = useState(false);
   // true quando a última tentativa de puxar para baixo falhou (mostra o aviso)
   const [falhouAoAtualizar, setFalhouAoAtualizar] = useState(false);
+  // Olho do cabeçalho (Módulo 19b): false esconde os valores em dinheiro.
+  // Fica só na memória: ao abrir o app de novo, os valores voltam a aparecer
+  const [valoresVisiveis, setValoresVisiveis] = useState(true);
 
   // useEffect porque buscar dados no servidor é um efeito externo: precisa
   // acontecer uma vez, quando a tela aparece, e não a cada renderização.
@@ -206,271 +198,244 @@ export default function InicioScreen() {
   // Gastos fixos a pagar no mês (Módulo 14): null quando não há nada
   const fixosDoMes =
     resumo.fixos_do_mes && resumo.fixos_do_mes !== '0.00' ? resumo.fixos_do_mes : null;
+  // As funções de formatar dinheiro desta tela, que obedecem ao olho (Módulo
+  // 19b): reais("1250.50") dá "R$ 1.250,50" ou "R$ ••••". A tela guarda o
+  // estado e fica por fora do próprio provedor, por isso usa criarDinheiro
+  // direto; os componentes de dentro do ProvedorDeValores (destaque, previsto,
+  // Guardado) leem o mesmo estado pelo useDinheiro()
+  const { reais, rotulo, emReais } = criarDinheiro(valoresVisiveis);
 
   return (
-    <SafeAreaView style={styles.tela}>
-      <ScrollView
-        testID="rolagem-inicio"
-        style={styles.tela}
-        contentContainerStyle={styles.conteudo}
-        // Puxar para baixo chama atualizar(). tintColor pinta o indicador no
-        // iOS; colors e progressBackgroundColor pintam o círculo no Android
-        refreshControl={
-          <RefreshControl
-            refreshing={atualizando}
-            onRefresh={atualizar}
-            tintColor={cores.acento}
-            colors={[cores.acento]}
-            progressBackgroundColor={cores.superficie}
-          />
-        }
-      >
-        {/* 1. Título: o nome do mês (as maiúsculas vêm do estilo), a hora da
-            última sincronização e, se o puxar para baixo falhou, o aviso */}
-        <View style={styles.cabecalho}>
-          <Text accessibilityRole="header" style={textos.titulo}>
-            {tituloDoMes(resumo.mes)}
-          </Text>
-          <Text style={textos.detalhe}>
-            {textoDaAtualizacao(resumo.ultima_atualizacao, hojeNoCelular())}
-          </Text>
-          {falhouAoAtualizar && (
-            // accessibilityLiveRegion faz o leitor de tela do Android ler o
-            // aviso assim que ele aparece, sem a pessoa precisar procurar
-            <Text accessibilityLiveRegion="polite" style={[textos.detalhe, styles.textoAvisoCurto]}>
-              Não foi possível atualizar agora.
-            </Text>
-          )}
-        </View>
-
-        {/* 2. Destaque: posso gastar por dia, direto no fundo, sem cartão */}
-        {/* Os cinco blocos principais entram em cascata (seção 10 do guia). O
-            Animated.View fica por fora dos Pressables. Os índices são fixos,
-            mesmo quando um bloco não aparece */}
-        {posso !== null && (
-          <Animated.View entering={entradaEmCascata(0)}>
-            <Destaque valor={posso} separando={separando} />
-          </Animated.View>
-        )}
-
-        {/* 3. Régua de dias do mês */}
-        {resumo.dia_do_mes !== null && resumo.dias_no_mes !== null && (
-          <Animated.View entering={entradaEmCascata(1)}>
-            <ReguaDeDias diaDoMes={resumo.dia_do_mes} diasNoMes={resumo.dias_no_mes} />
-          </Animated.View>
-        )}
-
-        {/* 3b. Gasto previsto (só leitura); sem o bloco no resumo, não aparece */}
-        {resumo.previsto !== undefined && (
-          <Animated.View entering={entradaEmCascata(2)}>
-            <CartaoDoPrevisto previsto={resumo.previsto} />
-          </Animated.View>
-        )}
-
-        {/* 4. Saldo (só leitura) e fatura (tocável, abre a folha do limite) */}
-        <Animated.View entering={entradaEmCascata(3)} style={styles.linha}>
-          <View
-            accessible
-            accessibilityLabel={rotuloEmReais('Saldo', resumo.saldo_total)}
-            style={[styles.cartao, styles.cartaoMetade]}
-          >
-            <RotuloDoCartao texto="Saldo" icone="wallet" />
-            <Text style={textos.valor}>{formatarReais(resumo.saldo_total)}</Text>
-          </View>
-          <Tocavel
-            accessibilityRole="button"
-            accessibilityLabel={rotuloEmReais('Fatura aberta', resumo.fatura_aberta)}
-            accessibilityHint="Toque para mudar o limite da fatura"
-            onPress={() => setCampoAberto('limiteDaFatura')}
-            style={[styles.cartao, styles.cartaoMetade]}
-          >
-            <RotuloDoCartao texto="Fatura aberta" icone="credit-card" />
-            <Text style={textos.valor}>{formatarReais(resumo.fatura_aberta)}</Text>
-          </Tocavel>
-        </Animated.View>
-
-        {/* 5. Aviso de fatura acima do limite */}
-        {resumo.fatura_acima_do_limite && resumo.limite_fatura !== null && (
-          <View style={styles.aviso}>
-            {/* Ícone só de enfeite: o texto do aviso já explica tudo */}
-            <Lucide
-              name="triangle-alert"
-              size={18}
-              color={cores.aviso}
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
+    <ProvedorDeValores visiveis={valoresVisiveis}>
+      <SafeAreaView style={styles.tela}>
+        <ScrollView
+          testID="rolagem-inicio"
+          style={styles.tela}
+          contentContainerStyle={styles.conteudo}
+          // Puxar para baixo chama atualizar(). tintColor pinta o indicador no
+          // iOS; colors e progressBackgroundColor pintam o círculo no Android
+          refreshControl={
+            <RefreshControl
+              refreshing={atualizando}
+              onRefresh={atualizar}
+              tintColor={cores.acento}
+              colors={[cores.acento]}
+              progressBackgroundColor={cores.superficie}
             />
-            <Text style={[textos.corpo, styles.textoAviso]}>
-              {`A fatura passou do limite de ${formatarReais(resumo.limite_fatura)}.`}
-            </Text>
-          </View>
-        )}
-
-        {/* 5b. Aviso de parcelas de dívidas atrasadas */}
-        {dividasAtrasadas !== null && (
-          <View style={styles.aviso}>
-            <Lucide
-              name="triangle-alert"
-              size={18}
-              color={cores.aviso}
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-            />
-            <Text style={[textos.corpo, styles.textoAviso]}>
-              {`Há ${formatarReais(dividasAtrasadas)} em parcelas de dívidas atrasadas.`}
-            </Text>
-          </View>
-        )}
-
-        {/* 6. Entradas e saídas do mês: "Entrou" é tocável e abre a folha do início do mês */}
-        <Animated.View entering={entradaEmCascata(4)} style={styles.linha}>
-          <Tocavel
-            accessibilityRole="button"
-            accessibilityLabel={rotuloEmReais('Entrou no mês', resumo.entradas)}
-            accessibilityHint="Toque para mudar o início do mês"
-            onPress={() => setCampoAberto('inicioDoMes')}
-            style={[styles.cartao, styles.cartaoMetade]}
-          >
-            <RotuloDoCartao texto="Entrou" icone="arrow-down-left" corDoIcone={cores.positivo} />
-            <Text style={[textos.valor, styles.positivo]}>
-              {`+ ${formatarReais(resumo.entradas)}`}
-            </Text>
-          </Tocavel>
-          <View
-            accessible
-            accessibilityLabel={
-              rotuloEmReais('Saiu no mês', resumo.saidas) +
-              (dividasDoMes === null
-                ? ''
-                : `, inclui ${formatarNumero(dividasDoMes)} reais de dívidas`) +
-              (fixosDoMes === null
-                ? ''
-                : `, inclui ${formatarNumero(fixosDoMes)} reais de gastos fixos`)
-            }
-            style={[styles.cartao, styles.cartaoMetade]}
-          >
-            <RotuloDoCartao texto="Saiu" icone="arrow-up-right" corDoIcone={cores.negativo} />
-            <Text style={[textos.valor, styles.negativo]}>
-              {`- ${formatarReais(resumo.saidas)}`}
-            </Text>
-            {dividasDoMes !== null && (
-              <Text style={textos.detalhe}>{`inclui ${formatarReais(dividasDoMes)} de dívidas`}</Text>
-            )}
-            {fixosDoMes !== null && (
-              <Text style={textos.detalhe}>
-                {`inclui ${formatarReais(fixosDoMes)} de gastos fixos`}
+          }
+        >
+          {/* 1. Título: o nome do mês (as maiúsculas vêm do estilo), a hora da
+              última sincronização e, se o puxar para baixo falhou, o aviso.
+              À direita, o olho que esconde e mostra os valores */}
+          <View style={styles.cabecalho}>
+            <View style={styles.cabecalhoTextos}>
+              <Text accessibilityRole="header" style={textos.titulo}>
+                {tituloDoMes(resumo.mes)}
               </Text>
+              <Text style={textos.detalhe}>
+                {textoDaAtualizacao(resumo.ultima_atualizacao, hojeNoCelular())}
+              </Text>
+              {falhouAoAtualizar && (
+                // accessibilityLiveRegion faz o leitor de tela do Android ler o
+                // aviso assim que ele aparece, sem a pessoa precisar procurar
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={[textos.detalhe, styles.textoAvisoCurto]}
+                >
+                  Não foi possível atualizar agora.
+                </Text>
+              )}
+            </View>
+            <BotaoDoOlho
+              visiveis={valoresVisiveis}
+              aoTocar={() => setValoresVisiveis((antes) => !antes)}
+            />
+          </View>
+
+          {/* 2. Destaque: posso gastar por dia, num cartão com gradiente roxo */}
+          {/* Os cinco blocos principais entram em cascata (seção 10 do guia). O
+              Animated.View fica por fora dos Pressables. Os índices são fixos,
+              mesmo quando um bloco não aparece */}
+          {posso !== null && (
+            <Animated.View entering={entradaEmCascata(0)}>
+              <DestaqueDoDia valor={posso} separando={separando} />
+            </Animated.View>
+          )}
+
+          {/* 3. Régua de dias do mês */}
+          {resumo.dia_do_mes !== null && resumo.dias_no_mes !== null && (
+            <Animated.View entering={entradaEmCascata(1)}>
+              <ReguaDeDias diaDoMes={resumo.dia_do_mes} diasNoMes={resumo.dias_no_mes} />
+            </Animated.View>
+          )}
+
+          {/* 3b. Gasto previsto (só leitura); sem o bloco no resumo, não aparece */}
+          {resumo.previsto !== undefined && (
+            <Animated.View entering={entradaEmCascata(2)}>
+              <CartaoDoPrevisto previsto={resumo.previsto} />
+            </Animated.View>
+          )}
+
+          {/* 4. Saldo (só leitura) e fatura (tocável, abre a folha do limite) */}
+          <Animated.View entering={entradaEmCascata(3)} style={styles.linha}>
+            <View
+              accessible
+              accessibilityLabel={rotulo('Saldo', resumo.saldo_total)}
+              style={[styles.cartao, styles.cartaoMetade]}
+            >
+              <RotuloDoCartao texto="Saldo" icone="wallet" />
+              <Text style={textos.valor}>{reais(resumo.saldo_total)}</Text>
+            </View>
+            <Tocavel
+              accessibilityRole="button"
+              accessibilityLabel={rotulo('Fatura aberta', resumo.fatura_aberta)}
+              accessibilityHint="Toque para mudar o limite da fatura"
+              onPress={() => setCampoAberto('limiteDaFatura')}
+              style={[styles.cartao, styles.cartaoMetade]}
+            >
+              <RotuloDoCartao texto="Fatura aberta" icone="credit-card" />
+              <Text style={textos.valor}>{reais(resumo.fatura_aberta)}</Text>
+            </Tocavel>
+          </Animated.View>
+
+          {/* 5. Aviso de fatura acima do limite */}
+          {resumo.fatura_acima_do_limite && resumo.limite_fatura !== null && (
+            <View style={styles.aviso}>
+              {/* Ícone só de enfeite: o texto do aviso já explica tudo */}
+              <Lucide
+                name="triangle-alert"
+                size={18}
+                color={cores.aviso}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
+              <Text style={[textos.corpo, styles.textoAviso]}>
+                {`A fatura passou do limite de ${reais(resumo.limite_fatura)}.`}
+              </Text>
+            </View>
+          )}
+
+          {/* 5b. Aviso de parcelas de dívidas atrasadas */}
+          {dividasAtrasadas !== null && (
+            <View style={styles.aviso}>
+              <Lucide
+                name="triangle-alert"
+                size={18}
+                color={cores.aviso}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
+              <Text style={[textos.corpo, styles.textoAviso]}>
+                {`Há ${reais(dividasAtrasadas)} em parcelas de dívidas atrasadas.`}
+              </Text>
+            </View>
+          )}
+
+          {/* 6. Entradas e saídas do mês: "Entrou" é tocável e abre a folha do início do mês */}
+          <Animated.View entering={entradaEmCascata(4)} style={styles.linha}>
+            <Tocavel
+              accessibilityRole="button"
+              accessibilityLabel={rotulo('Entrou no mês', resumo.entradas)}
+              accessibilityHint="Toque para mudar o início do mês"
+              onPress={() => setCampoAberto('inicioDoMes')}
+              style={[styles.cartao, styles.cartaoMetade]}
+            >
+              <RotuloDoCartao texto="Entrou" icone="arrow-down-left" corDoIcone={cores.positivo} />
+              <Text style={[textos.valor, styles.positivo]}>{`+ ${reais(resumo.entradas)}`}</Text>
+            </Tocavel>
+            <View
+              accessible
+              accessibilityLabel={
+                rotulo('Saiu no mês', resumo.saidas) +
+                (dividasDoMes === null ? '' : `, inclui ${emReais(dividasDoMes)} de dívidas`) +
+                (fixosDoMes === null ? '' : `, inclui ${emReais(fixosDoMes)} de gastos fixos`)
+              }
+              style={[styles.cartao, styles.cartaoMetade]}
+            >
+              <RotuloDoCartao texto="Saiu" icone="arrow-up-right" corDoIcone={cores.negativo} />
+              <Text style={[textos.valor, styles.negativo]}>{`- ${reais(resumo.saidas)}`}</Text>
+              {dividasDoMes !== null && (
+                <Text style={textos.detalhe}>{`inclui ${reais(dividasDoMes)} de dívidas`}</Text>
+              )}
+              {fixosDoMes !== null && (
+                <Text style={textos.detalhe}>{`inclui ${reais(fixosDoMes)} de gastos fixos`}</Text>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* 6b. Abre a tela Relatório por cima das abas (ela mora na pilha da
+              raiz, fora do grupo (abas)); o push empilha, e o "Voltar" de lá
+              desempilha e volta para cá */}
+          <Botao
+            titulo="Ver relatório do mês"
+            tipo="secundario"
+            aoTocar={() => router.push('/relatorio')}
+          />
+
+          {/* 7. Guardado: investimentos e plano (tocável, abre a folha do plano) */}
+          <Animated.View entering={entradaEmCascata(5)}>
+            <SecaoGuardado guardado={resumo.guardado} aoTocar={() => setPlanoAberto(true)} />
+          </Animated.View>
+
+          {/* 8. Últimos gastos */}
+          <Text accessibilityRole="header" style={[textos.subtitulo, styles.subtitulo]}>
+            Últimos gastos
+          </Text>
+
+          <View style={styles.cartao}>
+            {resumo.ultimos_gastos.length === 0 ? (
+              <EstadoVazio icone="receipt" texto="Nenhum gasto neste mês ainda." />
+            ) : (
+              // Poucos itens (os últimos gastos), então um map simples basta;
+              // FlatList dentro de ScrollView não é recomendado
+              resumo.ultimos_gastos.map((gasto, indice) => {
+                // O ícone vem do nome em inglês (categoria_original), que não
+                // muda com a tradução; o texto mostrado é a categoria em português
+                const icone = iconeDaCategoria(gasto.categoria_original);
+                return (
+                  <View
+                    key={gasto.id}
+                    accessible
+                    accessibilityLabel={`${gasto.descricao}, gasto de ${emReais(gasto.valor)}, ${formatarData(gasto.data)}, ${gasto.nome_banco}, categoria ${gasto.categoria}`}
+                    // Divisória só entre itens (o primeiro não tem linha em cima)
+                    style={[styles.gasto, indice > 0 && styles.gastoComDivisoria]}
+                  >
+                    {/* Círculo da categoria: só desenho, escondido do leitor de tela */}
+                    <View
+                      testID={`icone-categoria-${icone.icone}`}
+                      importantForAccessibility="no-hide-descendants"
+                      accessibilityElementsHidden
+                      style={[styles.icone, { backgroundColor: icone.fundo }]}
+                    >
+                      <Lucide name={icone.icone} size={16} color={icone.cor} />
+                    </View>
+                    <View style={styles.gastoMeio}>
+                      <Text style={textos.corpo}>{gasto.descricao}</Text>
+                      <Text style={textos.detalhe}>
+                        {`${formatarData(gasto.data)} · ${gasto.nome_banco} · ${gasto.categoria}`}
+                      </Text>
+                    </View>
+                    <Text style={[textos.valor, styles.negativo]}>{reais(gasto.valor)}</Text>
+                  </View>
+                );
+              })
             )}
           </View>
-        </Animated.View>
+        </ScrollView>
 
-        {/* 6b. Abre a tela Relatório por cima das abas (ela mora na pilha da
-            raiz, fora do grupo (abas)); o push empilha, e o "Voltar" de lá
-            desempilha e volta para cá */}
-        <Botao
-          titulo="Ver relatório do mês"
-          tipo="secundario"
-          aoTocar={() => router.push('/relatorio')}
-        />
+        {campoAberto !== null && (
+          <FolhaDeEdicao
+            campo={campoAberto}
+            aoCancelar={() => setCampoAberto(null)}
+            aoSalvar={aoSalvarNaFolha}
+          />
+        )}
 
-        {/* 7. Guardado: investimentos e plano (tocável, abre a folha do plano) */}
-        <Animated.View entering={entradaEmCascata(5)}>
-          <SecaoGuardado guardado={resumo.guardado} aoTocar={() => setPlanoAberto(true)} />
-        </Animated.View>
-
-        {/* 8. Últimos gastos */}
-        <Text accessibilityRole="header" style={[textos.subtitulo, styles.subtitulo]}>
-          Últimos gastos
-        </Text>
-
-        <View style={styles.cartao}>
-          {resumo.ultimos_gastos.length === 0 ? (
-            <EstadoVazio icone="receipt" texto="Nenhum gasto neste mês ainda." />
-          ) : (
-            // Poucos itens (os últimos gastos), então um map simples basta;
-            // FlatList dentro de ScrollView não é recomendado
-            resumo.ultimos_gastos.map((gasto, indice) => {
-              // O ícone vem do nome em inglês (categoria_original), que não
-              // muda com a tradução; o texto mostrado é a categoria em português
-              const icone = iconeDaCategoria(gasto.categoria_original);
-              return (
-                <View
-                  key={gasto.id}
-                  accessible
-                  accessibilityLabel={`${gasto.descricao}, gasto de ${formatarNumero(gasto.valor)} reais, ${formatarData(gasto.data)}, ${gasto.nome_banco}, categoria ${gasto.categoria}`}
-                  // Divisória só entre itens (o primeiro não tem linha em cima)
-                  style={[styles.gasto, indice > 0 && styles.gastoComDivisoria]}
-                >
-                  {/* Círculo da categoria: só desenho, escondido do leitor de tela */}
-                  <View
-                    testID={`icone-categoria-${icone.icone}`}
-                    importantForAccessibility="no-hide-descendants"
-                    accessibilityElementsHidden
-                    style={[styles.icone, { backgroundColor: icone.fundo }]}
-                  >
-                    <Lucide name={icone.icone} size={16} color={icone.cor} />
-                  </View>
-                  <View style={styles.gastoMeio}>
-                    <Text style={textos.corpo}>{gasto.descricao}</Text>
-                    <Text style={textos.detalhe}>
-                      {`${formatarData(gasto.data)} · ${gasto.nome_banco} · ${gasto.categoria}`}
-                    </Text>
-                  </View>
-                  <Text style={[textos.valor, styles.negativo]}>{formatarReais(gasto.valor)}</Text>
-                </View>
-              );
-            })
-          )}
-        </View>
-      </ScrollView>
-
-      {campoAberto !== null && (
-        <FolhaDeEdicao
-          campo={campoAberto}
-          aoCancelar={() => setCampoAberto(null)}
-          aoSalvar={aoSalvarNaFolha}
-        />
-      )}
-
-      {planoAberto && (
-        <FolhaDoPlano aoCancelar={() => setPlanoAberto(false)} aoSalvar={aoSalvarPlano} />
-      )}
-    </SafeAreaView>
-  );
-}
-
-type DestaqueProps = {
-  valor: string; // posso_gastar_por_dia, ex.: "31.31" ou "-10.00"
-  separando: string | null; // falta_guardar_no_mes, ex.: "200.00"; null = sem desconto
-};
-
-// O número grande do dia. Os centavos ficam menores, mas tudo está num só
-// Text, então o texto completo continua igual a formatarReais(valor).
-function Destaque({ valor, separando }: DestaqueProps) {
-  const negativo = valor.startsWith('-');
-  const [parteInteira, centavos] = separarCentavos(formatarReais(valor));
-
-  return (
-    <View style={styles.destaque}>
-      <View
-        accessible
-        accessibilityLabel={rotuloEmReais('Posso gastar por dia', valor)}
-        style={styles.destaqueNumero}
-      >
-        <Text style={textos.rotulo}>Posso gastar por dia</Text>
-        <Text style={[textos.numeroDestaque, negativo && styles.negativo]}>
-          {parteInteira}
-          <Text style={styles.centavos}>{',' + centavos}</Text>
-        </Text>
-      </View>
-      {/* Fora do bloco "accessible" acima, para o leitor de tela ler esta
-          linha também (o rótulo do bloco substitui os textos de dentro dele) */}
-      {separando !== null && (
-        <Text style={textos.detalhe}>
-          {`já separando ${formatarReais(separando)} para guardar`}
-        </Text>
-      )}
-    </View>
+        {planoAberto && (
+          <FolhaDoPlano aoCancelar={() => setPlanoAberto(false)} aoSalvar={aoSalvarPlano} />
+        )}
+      </SafeAreaView>
+    </ProvedorDeValores>
   );
 }
 
@@ -493,24 +458,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   cabecalho: {
-    // Título e linhas de detalhe juntos, mais perto entre si do que dos blocos
+    // Textos à esquerda e o olho à direita, alinhados pelo topo
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: espaco.pequeno,
+  },
+  cabecalhoTextos: {
+    // Título e linhas de detalhe juntos, mais perto entre si do que dos blocos.
+    // flex: 1 deixa os textos com todo o espaço que o olho não usa
+    flex: 1,
     gap: espaco.minimo,
   },
   textoAvisoCurto: {
     color: cores.aviso,
-  },
-  destaque: {
-    gap: espaco.minimo,
-    paddingVertical: espaco.pequeno,
-  },
-  destaqueNumero: {
-    gap: espaco.minimo,
-  },
-  centavos: {
-    fontFamily: fontes.seminegrito,
-    fontSize: 18,
-    letterSpacing: 0,
-    color: cores.textoSecundario,
   },
   linha: {
     flexDirection: 'row',

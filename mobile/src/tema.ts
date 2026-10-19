@@ -27,6 +27,19 @@ export const cores = {
   diaPassado: '#5B4AA8',
   diaHoje: '#A78BFA',
   diaFuturo: '#2A3036',
+  // Brilho que "respira" atrás do "posso gastar" positivo (Módulo 19b). É o
+  // roxo do acento; a transparência vem do próprio desenho (stopOpacity do SVG)
+  brilhoDestaque: '#A78BFA',
+};
+
+// Gradientes (Módulo 19b; seção 4 do guia, exceção da seção 13). O
+// LinearGradient pede uma lista com pelo menos duas cores; o "as const" diz ao
+// TypeScript que a lista é fixa, com exatamente estas cores.
+export const gradientes = {
+  // Cartão do "posso gastar": do roxo escuro (acento misturado ao fundo) a um
+  // roxo quase preto, na diagonal. Escuro o bastante para o texto claro ter
+  // contraste (textoSecundario acima de 5:1 no ponto mais claro).
+  destaque: ['#2A2150', '#1A1730'] as const,
 };
 
 // Fundo escurecido atrás da folha de edição. Não está no guia (é preciso
