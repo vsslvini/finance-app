@@ -2,16 +2,17 @@
 // categoria, nova dívida e dívida). Cuida do fundo escurecido, dos cantos, da
 // área segura de baixo, do teclado e da animação de entrada; cada folha só
 // traz o conteúdo.
-import type { ReactNode } from 'react';
+import { useContext, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
   Platform,
   StyleSheet,
+  View,
   type DimensionValue,
 } from 'react-native';
 import Animated, { Easing, SlideInDown } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { cantos, cores, espaco, fundoEscurecido } from '@/tema';
 
@@ -29,6 +30,12 @@ type FolhaProps = {
 };
 
 export default function Folha({ aoFechar, alturaMaxima, children }: FolhaProps) {
+  // A área segura de baixo vem do provedor do app. Dentro do Modal, a
+  // SafeAreaView não recebia a medida no Android (o Modal é outra janela), e o
+  // fim da folha ficava atrás da barra de navegação do sistema
+  // (sem provedor, como em alguns testes, vale 0)
+  const fundoSeguro = useContext(SafeAreaInsetsContext)?.bottom ?? 0;
+
   return (
     // "fade" no Modal só escurece o fundo no lugar; quem sobe é a folha, logo abaixo.
     // Fechar continua instantâneo (sem animação de saída)
@@ -44,9 +51,9 @@ export default function Folha({ aoFechar, alturaMaxima, children }: FolhaProps) 
           entering={ENTRADA_DA_FOLHA}
           style={[styles.folha, alturaMaxima !== undefined && { maxHeight: alturaMaxima }]}
         >
-          <SafeAreaView edges={['bottom']} style={styles.conteudo}>
+          <View style={[styles.conteudo, { paddingBottom: espaco.grande + fundoSeguro }]}>
             {children}
-          </SafeAreaView>
+          </View>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
