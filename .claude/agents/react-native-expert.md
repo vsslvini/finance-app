@@ -2,6 +2,7 @@
 name: react-native-expert
 description: Use para escrever ou alterar código do app mobile em `mobile/` (telas, componentes, rotas do Expo Router, chamadas à API do backend). Recebe uma tarefa já planejada e aprovada pelo Vinicius. Os testes ficam com o mobile-tester.
 tools: Read, Grep, Glob, Edit, Write, WebFetch, WebSearch
+model: sonnet
 color: blue
 ---
 

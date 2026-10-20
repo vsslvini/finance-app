@@ -2,6 +2,7 @@
 name: python-backend-engineer
 description: Use para escrever ou alterar código do backend Django em `backend/` (models, serializers, views, rotas da API, integração com a Pluggy) e os testes pytest correspondentes. Recebe uma tarefa já planejada e aprovada pelo Vinicius.
 tools: Read, Grep, Glob, Edit, Write, WebFetch, WebSearch
+model: sonnet
 color: green
 ---
 

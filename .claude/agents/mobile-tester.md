@@ -2,6 +2,7 @@
 name: mobile-tester
 description: Use para transformar os casos de teste que o Vinicius escreve em português em testes do app mobile (Jest + jest-expo + React Native Testing Library), antes da implementação. Também revisa se testes existentes cobrem o que foi pedido.
 tools: Read, Grep, Glob, Edit, Write, WebFetch, WebSearch
+model: sonnet
 color: yellow
 ---
 

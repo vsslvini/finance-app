@@ -2,6 +2,7 @@
 name: mobile-ui-expert
 description: Use para planejar ou revisar a experiência das telas do app mobile (o que cada tela mostra, hierarquia da informação, navegação, acessibilidade, estados de carregamento e erro). Não escreve código; entrega propostas e revisões para o Vinicius aprovar.
 tools: Read, Grep, Glob, WebFetch, WebSearch
+model: opus
 color: purple
 ---
 
