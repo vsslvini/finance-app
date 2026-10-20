@@ -3,26 +3,29 @@
 Lista de tarefas abertas. Marque com `[x]` ao terminar e apague o que perder o sentido.
 Endereços reais e segredos não entram aqui (o repositório é público); eles ficam no servidor.
 
-## Deploy: servidor (atualizado em 2026-10-18)
+## Deploy: servidor (atualizado em 2026-10-20)
 
 Estado completo em [`deploy.md`](deploy.md), seção "Estado do servidor".
 
-- [ ] Publicar o HTTPS na rede Tailscale: `sudo tailscale serve --bg 8000` e conferir com
-      `tailscale serve status` (nunca `funnel`).
-- [ ] Timers rodarem sem login: `sudo loginctl enable-linger vinicius`.
-- [ ] Conferir as regras do firewall: `sudo ufw status verbose` (esperado: entrada negada por
-      padrão, SSH só da rede de casa).
-- [ ] Criar o usuário do admin (interativo, num terminal SSH):
-      `cd ~/app-financas && docker compose -f docker-compose.prod.yml exec web python manage.py createsuperuser`.
-- [ ] Gerar o token de produção (`drf_create_token <usuário>`) e gravar, sem mostrar na tela, em
-      `~/token-do-app.txt` e na linha `EXPO_PUBLIC_API_TOKEN` do `~/mobile.env.producao`.
-- [ ] Testar pelo HTTPS: `/api/health/` (200), `/api/resumo/` com o token (200), admin com estilo
-      e aceitando login, e `/api/health/` aberto no celular com o Tailscale ligado.
-- [ ] Dados: cadastrar as conexões no admin (ids dos itens do Meu Pluggy) **ou** trazer o dump do
-      computador de desenvolvimento e restaurar por cima do banco novo (que hoje só tem a estrutura).
-- [ ] Primeira sincronização de verdade:
-      `docker compose -f docker-compose.prod.yml exec web python manage.py sincronizar`
-      (esperado: "Sincronizado: N conexões, ...").
+- [x] Publicar o HTTPS na rede Tailscale (`sudo tailscale serve --bg 8000`).
+- [x] Timers rodarem sem login (`sudo loginctl enable-linger vinicius`).
+- [x] Conferir o firewall: ativo, entrada negada por padrão.
+- [ ] Firewall mais fechado que o de hoje: a porta 22 (SSH) e a 9090 (Cockpit) aceitam conexão de
+      qualquer origem, e o roteiro pedia SSH só da rede de casa. Não é urgente (o roteador não
+      repassa portas e o SSH só aceita chave), e vale para o servidor inteiro, não só para o app.
+- [x] Dados do desenvolvimento migrados (dump do computador restaurado no servidor).
+- [x] Token de produção gerado de novo e gravado em `~/token-do-app.txt` e no
+      `~/mobile.env.producao`.
+- [x] Testado pelo HTTPS: `/api/health/` 200, admin com estilo, `/api/resumo/` 200 com o token.
+- [x] Primeira sincronização: "Sincronizado: 3 conexões".
+- [ ] Abrir o admin no navegador do computador e entrar com o usuário de desenvolvimento (ele veio
+      no dump, com a mesma senha). Se a senha for fraca, trocar:
+      `docker compose -f docker-compose.prod.yml exec web python manage.py changepassword <usuário>`.
+- [ ] Abrir `/api/health/` no celular, com o Tailscale ligado.
+- [ ] No computador, desligar a sincronização automática de desenvolvimento, para não chamar a
+      Pluggy em dobro: `systemctl --user disable --now app-financas-sincronizar.timer`.
+- [ ] Apagar `~/financas-dev.dump` do servidor (já restaurado; tem todos os dados financeiros) e
+      também a cópia no computador, ou guardá-la criptografada.
 - [ ] Cópia do backup fora do servidor (`~/backups`), por exemplo `rsync` pelo Tailscale para o
       computador, guardada com criptografia.
 - [ ] `deploy/backup.sh`: os arquivos saem com permissão `664`; colocar `umask 077` no começo do

@@ -78,18 +78,20 @@ Tailscale; com ele ligado, o Início deve carregar os dados do servidor.
   [`planos/deploy-automatico.md`](planos/deploy-automatico.md), para depois.
 - `.env` de produção com `DJANGO_DEBUG=False`, chave e senha novas (`chmod 600`); banco sem porta
   publicada; Django só em `127.0.0.1:8000`.
-- Banco começou **vazio** (os dados do desenvolvimento não vieram); as conexões da Pluggy são
-  cadastradas no admin ou vêm de um dump do computador.
-- Timers do systemd do usuário ligados: sincronização a cada 3 horas e backup diário em
-  `~/backups` (testado; restauração testada num banco à parte).
+- Dados do desenvolvimento migrados em 2026-10-20 (`pg_dump` no computador, `pg_restore
+  --no-owner` num banco recriado no servidor): usuário, conexões, transações, gastos fixos,
+  dívidas e plano. O token de produção foi gerado de novo (`drf_create_token -r`), diferente do de
+  desenvolvimento. Primeira sincronização ok ("Sincronizado: 3 conexões"). Daqui em diante, o
+  banco do servidor é o de verdade.
+- Timers do systemd do usuário ligados, com lingering: sincronização a cada 3 horas e backup
+  diário em `~/backups` (rodaram sozinhos; restauração testada num banco à parte).
+- HTTPS pelo `tailscale serve` ligado e testado (`/api/health/` 200, admin com estilo, `/api/resumo/`
+  200 com o token). O próprio servidor não usa o DNS do Tailscale: para testar de dentro dele, use
+  `curl --resolve <nome>:443:<ip-do-tailscale>`.
 - `manage.py check --deploy`: avisos conhecidos e aceitos (`mail.E001`, o app não manda e-mail;
   `W008`, sem `SECURE_SSL_REDIRECT` de propósito; `W004`, HSTS fica para depois).
 
-**Pendências no servidor** (com o Vinicius, precisam de `sudo` ou são interativas):
-`sudo tailscale serve --bg 8000`, `sudo loginctl enable-linger vinicius`, conferir
-`sudo ufw status verbose`, `createsuperuser`, gerar o token (vai para `~/token-do-app.txt` e para
-a linha `EXPO_PUBLIC_API_TOKEN` do `~/mobile.env.producao`), cadastrar as conexões e cópia do
-backup fora do servidor.
+**Pendências:** em [`pendencias.md`](pendencias.md). O servidor está pronto para a Fase 5.
 
 ## 1. Como fica no final
 
