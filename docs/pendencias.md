@@ -18,8 +18,8 @@ Estado completo em [`deploy.md`](deploy.md), seção "Estado do servidor".
       `~/mobile.env.producao`.
 - [x] Testado pelo HTTPS: `/api/health/` 200, admin com estilo, `/api/resumo/` 200 com o token.
 - [x] Primeira sincronização: "Sincronizado: 3 conexões".
-- [ ] Abrir o admin no navegador do computador e entrar com o usuário de desenvolvimento (ele veio
-      no dump, com a mesma senha). Se a senha for fraca, trocar:
+- [x] Admin aberto no navegador do computador, com login pelo usuário de desenvolvimento (veio no
+      dump, com a mesma senha). Se um dia quiser uma senha mais forte:
       `docker compose -f docker-compose.prod.yml exec web python manage.py changepassword <usuário>`.
 - [ ] Abrir `/api/health/` no celular, com o Tailscale ligado.
 - [ ] No computador, desligar a sincronização automática de desenvolvimento, para não chamar a
